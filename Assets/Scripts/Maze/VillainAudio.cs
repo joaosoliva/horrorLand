@@ -33,6 +33,18 @@ public class VillainAudio : MonoBehaviour
 		StopAll();
 	}
 
+	void OnEnable()
+	{
+		HorrorEvents.OnChaseStarted += HandleChaseStarted;
+		HorrorEvents.OnChaseEnded += HandleChaseEnded;
+	}
+
+	void OnDisable()
+	{
+		HorrorEvents.OnChaseStarted -= HandleChaseStarted;
+		HorrorEvents.OnChaseEnded -= HandleChaseEnded;
+	}
+
 	void StopAll()
 	{
 		ambientHum?.Stop();
@@ -76,6 +88,20 @@ public class VillainAudio : MonoBehaviour
 		}
 	}
 
+
+	void HandleChaseStarted()
+	{
+		if (tensionBurst != null && tensionBurst.clip != null)
+		{
+			tensionBurst.PlayOneShot(tensionBurst.clip, 1f);
+		}
+		hasBurstPlayed = true;
+	}
+
+	void HandleChaseEnded()
+	{
+		hasBurstPlayed = false;
+	}
 	void HandleLayer(AudioSource src, float targetVolume, float minPitch, float maxPitch)
 	{
 		if (src == null) return;
