@@ -41,6 +41,13 @@ public class VillainAI : MonoBehaviour
 	public float searchTime = 5f;
 	public int searchPoints = 3;
 
+	[Header("Soundboard Reaction")]
+	public float hearingRange = 18f;
+	[Range(0f, 1f)] public float minimumSoundboardInvestigateChance = 0.2f;
+	[Range(0f, 1f)] public float maximumSoundboardInvestigateChance = 0.85f;
+	public float awarenessBoostFromNoise = 4f;
+	public float awarenessBoostDuration = 3f;
+
 	[Header("Spawn Settings")]
 	[Tooltip("Minimum distance from player when spawning")]
 	public float minSpawnDistance = 20f;
@@ -89,6 +96,8 @@ public class VillainAI : MonoBehaviour
 	private float currentDifficulty = 0f;
 	private float currentDetectionRadius;
 	private float currentFOV;
+	private float awarenessBoostUntilTime = -999f;
+	private float currentAwarenessBoost = 0f;
 	
 	
 
@@ -99,6 +108,16 @@ public class VillainAI : MonoBehaviour
 		currentDifficulty = 0f;
 		UpdateDifficultySettings();
 		StartCoroutine(InitializeAI());
+	}
+
+	void OnEnable()
+	{
+		HorrorEvents.OnSoundboardPlayed += HandleSoundboardPlayed;
+	}
+
+	void OnDisable()
+	{
+		HorrorEvents.OnSoundboardPlayed -= HandleSoundboardPlayed;
 	}
 
 	IEnumerator InitializeAI()
@@ -310,6 +329,11 @@ public class VillainAI : MonoBehaviour
 	void Update()
 	{
 		if (!isInitialized) return;
+		if (Time.time >= awarenessBoostUntilTime)
+		{
+			currentAwarenessBoost = 0f;
+		}
+
 		HandleMovement();
 	}
 
@@ -493,7 +517,7 @@ public class VillainAI : MonoBehaviour
 
 	void HandleSearchState(float distanceToPlayer)
 	{
-		if (CanSeePlayer() || distanceToPlayer <= detectionRadius)
+		if (CanSeePlayer() || distanceToPlayer <= GetEffectiveDetectionRadius())
 		{
 			StartChase();
 			return;
@@ -560,7 +584,7 @@ public class VillainAI : MonoBehaviour
 		float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 
 		// Use current detection radius instead of fixed one
-		if (distanceToPlayer > currentDetectionRadius)
+		if (distanceToPlayer > GetEffectiveDetectionRadius())
 		{
 			return false;
 		}
@@ -580,6 +604,36 @@ public class VillainAI : MonoBehaviour
 		}
 
 		return false;
+	}
+
+	void HandleSoundboardPlayed(string soundTag, float loudness)
+	{
+		if (!isInitialized || player == null || IsChasing)
+		{
+			return;
+		}
+
+		float distanceToNoise = Vector3.Distance(transform.position, player.position);
+		float effectiveHearingRange = Mathf.Max(0.01f, hearingRange * Mathf.Lerp(0.65f, 1.2f, Mathf.Clamp01(loudness)));
+		if (distanceToNoise > effectiveHearingRange)
+		{
+			return;
+		}
+
+		currentAwarenessBoost = Mathf.Max(currentAwarenessBoost, awarenessBoostFromNoise * Mathf.Clamp01(loudness));
+		awarenessBoostUntilTime = Time.time + awarenessBoostDuration;
+
+		float proximityFactor = 1f - Mathf.Clamp01(distanceToNoise / effectiveHearingRange);
+		float difficultyFactor = Mathf.Lerp(0.8f, 1.15f, currentDifficulty);
+		float investigateChance = Mathf.Clamp01(Mathf.Lerp(minimumSoundboardInvestigateChance, maximumSoundboardInvestigateChance, loudness) * (0.45f + proximityFactor) * difficultyFactor);
+		if (Random.value > investigateChance)
+		{
+			return;
+		}
+
+		lastKnownPlayerPosition = player.position;
+		lastDetectionTime = Time.time;
+		BeginSearch(lastKnownPlayerPosition, $"Investigating soundboard noise: {soundTag}");
 	}
 
 	bool HasLineOfSight(Vector3 from, Vector3 to)
@@ -849,11 +903,7 @@ public class VillainAI : MonoBehaviour
 
 	void StartSearch()
 	{
-		TransitionToState(AIState.Searching, "Lost visual on player");
-		Vector3 firstSearchPoint = GetNextSearchPoint();
-		FindPathTo(firstSearchPoint);
-		StartCoroutine(SearchRoutine());
-		Debug.Log("Started searching for player at last known position: " + lastKnownPlayerPosition);
+		BeginSearch(GetNextSearchPoint(), "Lost visual on player");
 	}
 
 	Vector3 GetNextSearchPoint()
@@ -884,6 +934,16 @@ public class VillainAI : MonoBehaviour
 		TransitionToState(AIState.Patrolling, "Search expired");
 		SetRandomPatrolTarget();
 		Debug.Log("Returned to patrol mode.");
+	}
+
+	void BeginSearch(Vector3 searchPoint, string reason)
+	{
+		TransitionToState(AIState.Searching, reason);
+		StopCoroutine("SearchRoutine");
+		isMovingToNextSearchPoint = false;
+		FindPathTo(searchPoint);
+		StartCoroutine(SearchRoutine());
+		Debug.Log("Started searching for player at point: " + searchPoint);
 	}
 
 	public void ForceChase()
@@ -923,6 +983,11 @@ public class VillainAI : MonoBehaviour
 		}
 
 		Debug.Log($"VillainAI transition: {previousState} -> {newState}. Reason: {reason}");
+	}
+
+	float GetEffectiveDetectionRadius()
+	{
+		return currentDetectionRadius + currentAwarenessBoost;
 	}
 
 	void OnDrawGizmosSelected()
