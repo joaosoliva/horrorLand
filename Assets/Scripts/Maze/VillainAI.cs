@@ -7,6 +7,7 @@ public class VillainAI : MonoBehaviour
 	[Header("AI References")]
 	public Transform player;
 	public MazeGenerator mazeGenerator;
+	public ChaseSystem chaseSystem;
 
 	public enum AIState
 	{
@@ -104,6 +105,11 @@ public class VillainAI : MonoBehaviour
 	void Start()
 	{
 		proceduralVillain = GetComponent<ProceduralVillain>();
+		if (chaseSystem == null)
+		{
+			chaseSystem = FindObjectOfType<ChaseSystem>();
+		}
+
 		gameStartTime = Time.time;
 		currentDifficulty = 0f;
 		UpdateDifficultySettings();
@@ -478,7 +484,7 @@ public class VillainAI : MonoBehaviour
 			// Only detect if very close during early game
 			if (distanceToPlayer <= currentDetectionRadius * 0.5f && CanSeePlayer())
 			{
-				StartChase();
+				RequestChaseStart("Player detected during patrol/search");
 			}
 		}
 		else
@@ -486,7 +492,7 @@ public class VillainAI : MonoBehaviour
 			// Normal detection after grace period
 			if (CanSeePlayer() || distanceToPlayer <= currentDetectionRadius * 1.5f)
 			{
-				StartChase();
+				RequestChaseStart("Player detected during patrol/search");
 			}
 		}
 	}
@@ -519,7 +525,7 @@ public class VillainAI : MonoBehaviour
 	{
 		if (CanSeePlayer() || distanceToPlayer <= GetEffectiveDetectionRadius())
 		{
-			StartChase();
+			RequestChaseStart("Player detected during patrol/search");
 			return;
 		}
 
@@ -894,11 +900,27 @@ public class VillainAI : MonoBehaviour
 
 	void StartChase()
 	{
-		TransitionToState(AIState.Chasing, "Player detected");
-		StopCoroutine("SearchRoutine");
-		lastDetectionTime = Time.time;
-		FindPathTo(player.position);
-		Debug.Log("Started chasing player!");
+		BeginDirectedChase("Fallback", "Player detected");
+	}
+
+	void RequestChaseStart(string reason)
+	{
+		if (chaseSystem != null)
+		{
+			if (chaseSystem.RequestChase(reason))
+			{
+				return;
+			}
+
+			if (chaseSystem.IsChaseActive || Time.time < chaseSystem.NextChaseAllowedTime)
+			{
+				lastKnownPlayerPosition = player != null ? player.position : lastKnownPlayerPosition;
+				lastDetectionTime = Time.time;
+				return;
+			}
+		}
+
+		StartChase();
 	}
 
 	void StartSearch()
@@ -948,7 +970,27 @@ public class VillainAI : MonoBehaviour
 
 	public void ForceChase()
 	{
-		StartChase();
+		RequestChaseStart("Player detected during patrol/search");
+	}
+
+	public float TimeSinceLastPlayerDetection => Time.time - lastDetectionTime;
+
+	public void BeginDirectedChase(string chasePatternName, string reason)
+	{
+		TransitionToState(AIState.Chasing, $"{reason} ({chasePatternName})");
+		StopCoroutine("SearchRoutine");
+		lastDetectionTime = Time.time;
+		if (player != null)
+		{
+			lastKnownPlayerPosition = player.position;
+			FindPathTo(player.position);
+		}
+		Debug.Log($"Started {chasePatternName} chase. Reason: {reason}");
+	}
+
+	public void ForceSearchAtLastKnownPosition(string reason)
+	{
+		BeginSearch(lastKnownPlayerPosition, reason);
 	}
 
 	public string GetAIState()

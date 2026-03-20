@@ -54,12 +54,13 @@ public class HorrorDebugOverlay : MonoBehaviour
 
 		string tension = horrorDirector != null ? horrorDirector.currentTension.ToString("0.00") : "N/A";
 		string band = horrorDirector != null ? horrorDirector.CurrentBand.ToString() : "N/A";
+		string phase = horrorDirector != null ? horrorDirector.CurrentPhase.ToString() : "N/A";
 		string aiState = villainAI != null ? villainAI.GetAIState() : "N/A";
 		string chaseActive = horrorDirector != null ? (horrorDirector.IsChaseActive ? "Yes" : "No") : (villainAI != null && villainAI.IsChasing ? "Yes" : "No");
 		string sanity = TryReadSanityValue(out float sanityValue) ? sanityValue.ToString("0.0") : "N/A";
 
 		Rect contentRect = new Rect(rect.x + 12f, rect.y + 24f, rect.width - 24f, rect.height - 28f);
-		GUI.Label(contentRect, $"Tension: {tension}\nBand: {band}\nAI State: {aiState}\nSanity: {sanity}\nChase Active: {chaseActive}", labelStyle);
+		GUI.Label(contentRect, $"Tension: {tension}\nBand: {band}\nPhase: {phase}\nAI State: {aiState}\nSanity: {sanity}\nChase Active: {chaseActive}", labelStyle);
 	}
 
 	void EnsureStyle()

@@ -10,6 +10,9 @@ public class PlaySound : MonoBehaviour
 		public KeyCode key = KeyCode.None;
 		public AudioClip clip;
 		[Range(0f, 1f)] public float loudness = 0.6f;
+		[Range(0f, 1f)] public float humorReliefValue = 0.3f;
+		[Range(0f, 1f)] public float threatAttraction = 0.6f;
+		[Range(0f, 1f)] public float misfireChance = 0f;
 		public float cooldownSeconds = 5f;
 	}
 
@@ -93,16 +96,34 @@ public class PlaySound : MonoBehaviour
 		}
 
 		int randomIndex = UnityEngine.Random.Range(0, soundClips.Length);
-		PlayClip(soundClips[randomIndex], "LegacyRandom", 0.5f);
+		PlayClip(soundClips[randomIndex], "LegacyRandom", 0.5f, 0.2f, 0.45f);
 	}
 
 	void PlaySlot(int slotIndex, SoundboardSlot slot)
 	{
 		slotCooldowns[slotIndex] = Time.time + Mathf.Max(0f, slot.cooldownSeconds);
-		PlayClip(slot.clip, string.IsNullOrWhiteSpace(slot.tag) ? $"Slot{slotIndex + 1}" : slot.tag, slot.loudness);
+
+		AudioClip clipToPlay = slot.clip;
+		string tagToPlay = string.IsNullOrWhiteSpace(slot.tag) ? "Slot" + (slotIndex + 1) : slot.tag;
+		float effectiveLoudness = Mathf.Clamp01(Mathf.Lerp(slot.loudness, slot.threatAttraction, 0.5f));
+		float reliefValue = Mathf.Clamp01(slot.humorReliefValue);
+		float attraction = Mathf.Clamp01(slot.threatAttraction);
+
+		if (slot.misfireChance > 0f && soundboardSlots.Length > 1 && UnityEngine.Random.value < slot.misfireChance)
+		{
+			int randomIndex = UnityEngine.Random.Range(0, soundboardSlots.Length);
+			if (soundboardSlots[randomIndex] != null && soundboardSlots[randomIndex].clip != null)
+			{
+				clipToPlay = soundboardSlots[randomIndex].clip;
+				tagToPlay += "_MISFIRE";
+				effectiveLoudness = Mathf.Clamp01(Mathf.Lerp(soundboardSlots[randomIndex].loudness, soundboardSlots[randomIndex].threatAttraction, 0.5f));
+			}
+		}
+
+		PlayClip(clipToPlay, tagToPlay, effectiveLoudness, reliefValue, attraction);
 	}
 
-	void PlayClip(AudioClip clip, string soundboardTag, float loudness)
+	void PlayClip(AudioClip clip, string soundboardTag, float loudness, float humorReliefValue, float threatAttraction)
 	{
 		if (clip == null)
 		{
@@ -115,7 +136,8 @@ public class PlaySound : MonoBehaviour
 
 		if (raiseHorrorSoundboardEvent)
 		{
-			HorrorEvents.RaiseSoundboardPlayed(soundboardTag, loudness);
+			float eventLoudness = Mathf.Clamp01((loudness * 0.6f) + (threatAttraction * 0.4f) - (humorReliefValue * 0.15f));
+			HorrorEvents.RaiseSoundboardPlayed(soundboardTag, eventLoudness);
 		}
 	}
 
@@ -138,10 +160,12 @@ public class PlaySound : MonoBehaviour
 		{
 			soundboardSlots[i] = new SoundboardSlot
 			{
-				tag = $"Meme{i + 1}",
+				tag = "Meme" + (i + 1),
 				key = DefaultKeys[i],
 				clip = soundClips[i],
 				loudness = Mathf.Clamp01(0.45f + (0.1f * i)),
+				humorReliefValue = Mathf.Clamp01(0.25f + (0.05f * i)),
+				threatAttraction = Mathf.Clamp01(0.5f + (0.08f * i)),
 				cooldownSeconds = 4f + i
 			};
 		}

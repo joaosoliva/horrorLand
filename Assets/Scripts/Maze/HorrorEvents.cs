@@ -1,16 +1,82 @@
 using System;
 using UnityEngine;
 
+public enum HorrorPhase
+{
+	Calm,
+	Build,
+	Threat,
+	Peak,
+	Relief,
+	Finale
+}
+
+public enum ScareType
+{
+	MinorPsychological,
+	PresenceCue,
+	Fakeout,
+	MajorJumpscare,
+	ChaseTrigger,
+	ReliefBeat,
+	RoutePressure
+}
+
+public enum EnemyDistanceBand
+{
+	Far,
+	Near,
+	Danger,
+	Immediate
+}
+
 public static class HorrorEvents
 {
 	public static event Action<float> OnTensionChanged;
+	public static event Action<HorrorPhase> OnPhaseChanged;
+	public static event Action<EnemyDistanceBand> OnThreatBandChanged;
+	public static event Action<ScareType> OnScareTriggered;
+	public static event Action OnMajorPeakStarted;
+	public static event Action OnMajorPeakEnded;
+	public static event Action OnFinaleStarted;
 	public static event Action OnChaseStarted;
 	public static event Action OnChaseEnded;
 	public static event Action<string, float> OnSoundboardPlayed;
+	public static event Action OnJumpscareTriggered;
 
 	public static void RaiseTensionChanged(float tension)
 	{
 		OnTensionChanged?.Invoke(Mathf.Clamp01(tension));
+	}
+
+	public static void RaisePhaseChanged(HorrorPhase phase)
+	{
+		OnPhaseChanged?.Invoke(phase);
+	}
+
+	public static void RaiseThreatBandChanged(EnemyDistanceBand band)
+	{
+		OnThreatBandChanged?.Invoke(band);
+	}
+
+	public static void RaiseScareTriggered(ScareType scareType)
+	{
+		OnScareTriggered?.Invoke(scareType);
+	}
+
+	public static void RaiseMajorPeakStarted()
+	{
+		OnMajorPeakStarted?.Invoke();
+	}
+
+	public static void RaiseMajorPeakEnded()
+	{
+		OnMajorPeakEnded?.Invoke();
+	}
+
+	public static void RaiseFinaleStarted()
+	{
+		OnFinaleStarted?.Invoke();
 	}
 
 	public static void RaiseChaseStarted()
@@ -26,5 +92,10 @@ public static class HorrorEvents
 	public static void RaiseSoundboardPlayed(string soundTag, float loudness)
 	{
 		OnSoundboardPlayed?.Invoke(soundTag, Mathf.Clamp01(loudness));
+	}
+
+	public static void RaiseJumpscareTriggered()
+	{
+		OnJumpscareTriggered?.Invoke();
 	}
 }

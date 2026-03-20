@@ -5,432 +5,420 @@ using System.Collections;
 
 public class JumpscareSystem : MonoBehaviour
 {
-	[Header("Jumpscare Settings")]
+	[Header("References")]
 	public VillainAI villainAI;
 	public Transform player;
+	public ChaseSystem chaseSystem;
+	public HorrorDirector horrorDirector;
+
+	[Header("Scheduling")]
+	public bool useDirectorDrivenScheduling = true;
 	public float minJumpscareInterval = 30f;
 	public float maxJumpscareInterval = 60f;
 	public float triggerDistance = 10f;
 	public float maxDistanceForJumpscare = 20f;
-    
+	public Vector2 directorVisibilityRetryWindow = new Vector2(4f, 8f);
+
 	[Header("Warning System")]
 	public bool enableWarning = true;
-	public float warningDuration = 3f;
+	public float warningDuration = 1.5f;
 	public Canvas warningCanvas;
 	public TextMeshProUGUI warningText;
 	public string warningMessage = "HE IS NEAR!";
 	public Color warningColor = Color.red;
-    
-	[Header("Jumpscare Visual")]
-	public Canvas jumpscareCanvas; // SEPARATE canvas for jumpscare
+
+	[Header("Major Jumpscare Visual")]
+	public Canvas jumpscareCanvas;
 	public Image jumpscareImage;
 	public Sprite jumpscareSprite;
 	public float jumpscareDuration = 0.5f;
 	public int flashCount = 3;
 	public AudioClip jumpscareSound;
-    
+	public float majorScareVolume = 1f;
+
+	[Header("Minor Scare Visual")]
+	public Color minorFlashColor = new Color(0.75f, 0f, 0f, 0.55f);
+	public float minorFlashDuration = 0.18f;
+	public float minorSoundVolume = 0.35f;
+	public string fakeoutMessage = "...RUN...";
+	public string presenceMessage = "YOU ARE NOT ALONE";
+	public string routePressureMessage = "DON'T GO THAT WAY";
+
 	[Header("Screen Effects")]
 	public Image screenFlash;
 	public Color flashColor = Color.red;
 	public float flashIntensity = 0.8f;
-    
+
+	[Header("Debug")]
+	public bool enableDebugLogs = true;
+
 	private float nextJumpscareTime;
 	private bool isJumpscareActive = false;
 	private bool isWarningActive = false;
 	private AudioSource audioSource;
 	private Coroutine currentJumpscareCoroutine;
 	private Coroutine currentWarningCoroutine;
-
-	[Header("Debug")]
-	public bool enableDebugLogs = true;
-	public float lastDistance = 0f;
+	private ScareType pendingScareType = ScareType.MajorJumpscare;
 
 	void Start()
 	{
-		// Set up references
+		if (chaseSystem == null)
+		{
+			chaseSystem = FindObjectOfType<ChaseSystem>();
+		}
+		if (horrorDirector == null)
+		{
+			horrorDirector = FindObjectOfType<HorrorDirector>();
+		}
 		if (villainAI == null)
 		{
 			villainAI = FindObjectOfType<VillainAI>();
-			if (enableDebugLogs) Debug.Log("VillainAI found: " + (villainAI != null));
 		}
-        
 		if (player == null)
 		{
 			GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
 			if (playerObj != null)
 			{
 				player = playerObj.transform;
-				if (enableDebugLogs) Debug.Log("Player found: " + player.name);
 			}
 		}
-        
-		// Set up audio
+
 		audioSource = GetComponent<AudioSource>();
 		if (audioSource == null)
-			audioSource = gameObject.AddComponent<AudioSource>();
-        
-		// Initialize UI elements
-		InitializeUI();
-        
-		// Set first jumpscare time
-		ResetJumpscareTimer();
-        
-		if (enableDebugLogs) 
 		{
-			Debug.Log("Jumpscare system initialized");
-			Debug.Log($"Next jumpscare in: {nextJumpscareTime - Time.time:F1} seconds");
+			audioSource = gameObject.AddComponent<AudioSource>();
 		}
+
+		InitializeUI();
+		ResetJumpscareTimer();
 	}
 
 	void InitializeUI()
 	{
-		// Initialize warning canvas
 		if (warningCanvas != null)
 		{
 			warningCanvas.gameObject.SetActive(false);
-            
-			if (warningText != null)
-			{
-				warningText.color = warningColor;
-				warningText.text = warningMessage;
-			}
-			if (enableDebugLogs) Debug.Log("Warning canvas initialized");
 		}
-		else
+		if (warningText != null)
 		{
-			if (enableDebugLogs) Debug.LogWarning("Warning canvas not assigned!");
+			warningText.color = warningColor;
+			warningText.text = warningMessage;
 		}
-        
-		// Initialize jumpscare canvas and image - SEPARATE from warning
 		if (jumpscareCanvas != null)
 		{
 			jumpscareCanvas.gameObject.SetActive(false);
-			if (enableDebugLogs) Debug.Log("Jumpscare canvas initialized");
 		}
-		else
+		if (jumpscareImage != null)
 		{
-			// Fallback: use the existing image directly
-			if (jumpscareImage != null)
+			jumpscareImage.gameObject.SetActive(false);
+			if (jumpscareSprite != null)
 			{
-				jumpscareImage.gameObject.SetActive(false);
-				if (jumpscareSprite != null)
-				{
-					jumpscareImage.sprite = jumpscareSprite;
-				}
-				if (enableDebugLogs) Debug.Log("Jumpscare image initialized (no canvas)");
-			}
-			else
-			{
-				if (enableDebugLogs) Debug.LogWarning("Jumpscare image not assigned!");
+				jumpscareImage.sprite = jumpscareSprite;
 			}
 		}
-        
-		// Initialize screen flash
 		if (screenFlash != null)
 		{
 			screenFlash.gameObject.SetActive(false);
 			screenFlash.color = Color.clear;
-			if (enableDebugLogs) Debug.Log("Screen flash initialized");
-		}
-		else
-		{
-			if (enableDebugLogs) Debug.LogWarning("Screen flash not assigned!");
 		}
 	}
 
 	void Update()
 	{
-		if (villainAI == null || player == null) 
+		if (villainAI == null || player == null || isJumpscareActive || isWarningActive)
 		{
-			if (enableDebugLogs && Time.frameCount % 60 == 0) 
-				Debug.LogWarning("Missing references: VillainAI=" + (villainAI != null) + " Player=" + (player != null));
 			return;
 		}
-        
-		if (isJumpscareActive) return;
 
-		// Calculate distance to villain
 		float distanceToVillain = Vector3.Distance(player.position, villainAI.transform.position);
-		lastDistance = distanceToVillain; // For debugging
-        
-		// Check if it's time for a jumpscare
+		if (useDirectorDrivenScheduling)
+		{
+			HandleDirectorDrivenMajorScare(distanceToVillain);
+			return;
+		}
+
 		if (Time.time >= nextJumpscareTime)
 		{
-			if (enableDebugLogs) 
-			{
-				Debug.Log($"Jumpscare timer reached! Distance: {distanceToVillain:F1}, " +
-					$"Trigger Range: {triggerDistance}-{maxDistanceForJumpscare}");
-			}
-            
-			// Only trigger jumpscare if villain is within range
 			if (distanceToVillain <= maxDistanceForJumpscare && distanceToVillain >= triggerDistance)
 			{
-				if (enableDebugLogs) Debug.Log("Distance condition met! Triggering jumpscare...");
-                
-				if (enableWarning)
-				{
-					StartWarning();
-				}
-				else
-				{
-					TriggerJumpscare();
-				}
+				ForceMajorScare(enableWarning);
 			}
 			else
 			{
-				// Villain is too far or too close, reset timer
-				if (enableDebugLogs) Debug.Log($"Distance condition NOT met. Resetting timer. Distance: {distanceToVillain:F1}");
 				ResetJumpscareTimer();
 			}
 		}
-		else if (enableDebugLogs && Time.frameCount % 120 == 0) // Log every 2 seconds
-		{
-			Debug.Log($"Jumpscare in: {nextJumpscareTime - Time.time:F1}s, Distance: {distanceToVillain:F1}");
-		}
 	}
 
-	void StartWarning()
+	void HandleDirectorDrivenMajorScare(float distanceToVillain)
 	{
-		if (isWarningActive || isJumpscareActive) 
+		if (Time.time < nextJumpscareTime)
 		{
-			if (enableDebugLogs) Debug.Log("Warning blocked - already active");
 			return;
 		}
-        
-		if (enableDebugLogs) Debug.Log("Starting warning sequence...");
-		currentWarningCoroutine = StartCoroutine(WarningRoutine());
+
+		bool villainVisible = villainAI.CanSeePlayer();
+		bool withinDistanceWindow = distanceToVillain <= maxDistanceForJumpscare && distanceToVillain >= triggerDistance;
+		bool contextualOpportunity = villainVisible || withinDistanceWindow;
+		if (!contextualOpportunity)
+		{
+			RetrySoon();
+			return;
+		}
+
+		if (horrorDirector != null && horrorDirector.CurrentPhase == HorrorPhase.Calm)
+		{
+			RetrySoon();
+			return;
+		}
+
+		if (chaseSystem != null && !chaseSystem.CanTriggerContextualJumpscare(distanceToVillain))
+		{
+			RetrySoon();
+			return;
+		}
+
+		if (enableDebugLogs)
+		{
+			Debug.Log("Director-driven major jumpscare triggered from visibility/proximity opportunity.");
+		}
+
+		ForceMajorScare(enableWarning);
 	}
 
-	IEnumerator WarningRoutine()
+	public void ForceMajorScare(bool withWarning)
+	{
+		pendingScareType = ScareType.MajorJumpscare;
+		if (withWarning && enableWarning)
+		{
+			StartWarning(GetMessageForScareType(ScareType.MajorJumpscare), warningColor, pendingScareType);
+		}
+		else
+		{
+			TriggerJumpscare(ScareType.MajorJumpscare);
+		}
+	}
+
+	public void ForceMinorScare(ScareType scareType)
+	{
+		if (isJumpscareActive)
+		{
+			return;
+		}
+
+		StartCoroutine(MinorScareRoutine(scareType));
+	}
+
+	IEnumerator MinorScareRoutine(ScareType scareType)
+	{
+		isJumpscareActive = true;
+		HorrorEvents.RaiseScareTriggered(scareType);
+
+		if (screenFlash != null)
+		{
+			screenFlash.gameObject.SetActive(true);
+			float elapsed = 0f;
+			while (elapsed < minorFlashDuration)
+			{
+				float t = elapsed / Mathf.Max(0.01f, minorFlashDuration);
+				Color color = minorFlashColor;
+				color.a = Mathf.Lerp(minorFlashColor.a, 0f, t);
+				screenFlash.color = color;
+				elapsed += Time.deltaTime;
+				yield return null;
+			}
+			screenFlash.color = Color.clear;
+			screenFlash.gameObject.SetActive(false);
+		}
+
+		if (warningCanvas != null && warningText != null)
+		{
+			warningCanvas.gameObject.SetActive(true);
+			warningText.text = GetMessageForScareType(scareType);
+			warningText.color = minorFlashColor;
+			yield return new WaitForSeconds(0.2f);
+			warningCanvas.gameObject.SetActive(false);
+			warningText.text = warningMessage;
+			warningText.color = warningColor;
+		}
+
+		if (jumpscareSound != null && audioSource != null)
+		{
+			audioSource.PlayOneShot(jumpscareSound, minorSoundVolume);
+		}
+
+		yield return new WaitForSeconds(0.05f);
+		isJumpscareActive = false;
+	}
+
+	void StartWarning(string message, Color color, ScareType scareType)
+	{
+		if (isWarningActive || isJumpscareActive)
+		{
+			return;
+		}
+
+		pendingScareType = scareType;
+		currentWarningCoroutine = StartCoroutine(WarningRoutine(message, color));
+	}
+
+	IEnumerator WarningRoutine(string message, Color color)
 	{
 		isWarningActive = true;
-        
-		if (enableDebugLogs) Debug.Log("Warning routine started");
-
-		// Show warning
 		if (warningCanvas != null)
 		{
 			warningCanvas.gameObject.SetActive(true);
-			if (enableDebugLogs) Debug.Log("Warning canvas activated");
-            
-			// Flash warning text
-			float elapsed = 0f;
-			while (elapsed < warningDuration)
-			{
-				float alpha = Mathf.PingPong(elapsed * 4f, 1f);
-				if (warningText != null)
-				{
-					Color color = warningColor;
-					color.a = alpha;
-					warningText.color = color;
-				}
-                
-				elapsed += Time.deltaTime;
-				yield return null;
-			}
-            
-			warningCanvas.gameObject.SetActive(false);
-			if (enableDebugLogs) Debug.Log("Warning canvas deactivated");
 		}
-		else
+		if (warningText != null)
 		{
-			if (enableDebugLogs) Debug.LogWarning("No warning canvas - waiting duration");
-			// Fallback: wait for warning duration
-			yield return new WaitForSeconds(warningDuration);
+			warningText.text = message;
 		}
-        
+
+		float elapsed = 0f;
+		while (elapsed < warningDuration)
+		{
+			if (warningText != null)
+			{
+				Color pulseColor = color;
+				pulseColor.a = Mathf.PingPong(elapsed * 5f, 1f);
+				warningText.color = pulseColor;
+			}
+			elapsed += Time.deltaTime;
+			yield return null;
+		}
+
+		if (warningCanvas != null)
+		{
+			warningCanvas.gameObject.SetActive(false);
+		}
+		if (warningText != null)
+		{
+			warningText.text = warningMessage;
+			warningText.color = warningColor;
+		}
+
 		isWarningActive = false;
-        
-		if (enableDebugLogs) Debug.Log("Warning complete - triggering jumpscare");
-        
-		// Trigger jumpscare after warning
-		TriggerJumpscare();
+		TriggerJumpscare(pendingScareType);
 	}
 
-	void TriggerJumpscare()
+	void TriggerJumpscare(ScareType scareType)
 	{
-		if (isJumpscareActive) 
+		if (isJumpscareActive)
 		{
-			if (enableDebugLogs) Debug.Log("Jumpscare blocked - already active");
 			return;
 		}
-        
-		if (enableDebugLogs) Debug.Log("=== TRIGGERING JUMPSCARE ===");
-		currentJumpscareCoroutine = StartCoroutine(JumpscareRoutine());
+
+		if (scareType == ScareType.MajorJumpscare && chaseSystem != null)
+		{
+			chaseSystem.ConsumeJumpscareBudget();
+		}
+
+		HorrorEvents.RaiseScareTriggered(scareType);
+		if (scareType == ScareType.MajorJumpscare)
+		{
+			HorrorEvents.RaiseJumpscareTriggered();
+		}
+		currentJumpscareCoroutine = StartCoroutine(JumpscareRoutine(scareType));
 		ResetJumpscareTimer();
 	}
 
-	IEnumerator JumpscareRoutine()
+	IEnumerator JumpscareRoutine(ScareType scareType)
 	{
 		isJumpscareActive = true;
-        
-		if (enableDebugLogs) Debug.Log("Jumpscare routine started");
 
-		// Play sound
 		if (jumpscareSound != null && audioSource != null)
 		{
-			audioSource.PlayOneShot(jumpscareSound);
-			if (enableDebugLogs) Debug.Log("Playing jumpscare sound");
+			audioSource.PlayOneShot(jumpscareSound, scareType == ScareType.MajorJumpscare ? majorScareVolume : minorSoundVolume);
 		}
-		else
+
+		if (scareType == ScareType.MajorJumpscare && jumpscareImage != null && jumpscareSprite != null)
 		{
-			if (enableDebugLogs) Debug.LogWarning("No jumpscare sound or audio source");
-		}
-        
-		// Flash jumpscare image - USE SEPARATE CANVAS
-		if (jumpscareImage != null && jumpscareSprite != null)
-		{
-			if (enableDebugLogs) Debug.Log("Starting image flash");
-            
-			// Enable the jumpscare canvas if it exists
 			if (jumpscareCanvas != null)
 			{
 				jumpscareCanvas.gameObject.SetActive(true);
-				if (enableDebugLogs) Debug.Log("Jumpscare canvas activated");
 			}
-            
+
 			for (int i = 0; i < flashCount; i++)
 			{
 				jumpscareImage.gameObject.SetActive(true);
-				if (enableDebugLogs) Debug.Log($"Flash {i+1}/{flashCount} - ON");
-				yield return new WaitForSeconds(jumpscareDuration / (flashCount * 2));
-                
+				yield return new WaitForSeconds(jumpscareDuration / (flashCount * 2f));
 				jumpscareImage.gameObject.SetActive(false);
-				if (enableDebugLogs) Debug.Log($"Flash {i+1}/{flashCount} - OFF");
-				yield return new WaitForSeconds(jumpscareDuration / (flashCount * 2));
+				yield return new WaitForSeconds(jumpscareDuration / (flashCount * 2f));
 			}
-            
-			// Disable the jumpscare canvas after flashing
+
 			if (jumpscareCanvas != null)
 			{
 				jumpscareCanvas.gameObject.SetActive(false);
-				if (enableDebugLogs) Debug.Log("Jumpscare canvas deactivated");
 			}
 		}
-		else
-		{
-			if (enableDebugLogs) Debug.LogWarning("No jumpscare image or sprite - skipping image flash");
-		}
-        
-		// Screen flash effect
+
 		if (screenFlash != null)
 		{
-			if (enableDebugLogs) Debug.Log("Starting screen flash");
 			screenFlash.gameObject.SetActive(true);
-            
-			// Flash screen
-			float flashTime = jumpscareDuration * 0.5f;
+			float flashTime = scareType == ScareType.MajorJumpscare ? jumpscareDuration * 0.5f : minorFlashDuration;
+			Color baseColor = scareType == ScareType.MajorJumpscare ? flashColor : minorFlashColor;
+			float startAlpha = scareType == ScareType.MajorJumpscare ? flashIntensity : minorFlashColor.a;
 			float elapsed = 0f;
-            
 			while (elapsed < flashTime)
 			{
-				float t = elapsed / flashTime;
-				Color color = flashColor;
-				color.a = Mathf.Lerp(flashIntensity, 0f, t);
+				float t = elapsed / Mathf.Max(0.01f, flashTime);
+				Color color = baseColor;
+				color.a = Mathf.Lerp(startAlpha, 0f, t);
 				screenFlash.color = color;
-                
 				elapsed += Time.deltaTime;
 				yield return null;
 			}
-            
+			screenFlash.color = Color.clear;
 			screenFlash.gameObject.SetActive(false);
-			if (enableDebugLogs) Debug.Log("Screen flash complete");
 		}
-		else
-		{
-			if (enableDebugLogs) Debug.LogWarning("No screen flash - skipping");
-		}
-        
+
 		isJumpscareActive = false;
-		if (enableDebugLogs) Debug.Log("=== JUMPSCARE COMPLETED ===");
 	}
 
 	void ResetJumpscareTimer()
 	{
-		float interval = Random.Range(minJumpscareInterval, maxJumpscareInterval);
-		nextJumpscareTime = Time.time + interval;
-		if (enableDebugLogs) Debug.Log($"Timer reset - next jumpscare in {interval:F1} seconds");
+		nextJumpscareTime = Time.time + Random.Range(minJumpscareInterval, Mathf.Max(minJumpscareInterval, maxJumpscareInterval));
 	}
 
-	// ========== TEST METHODS ==========
-    
-	[ContextMenu("Test Jumpscare")]
-	public void TestJumpscare()
+	void RetrySoon()
 	{
-		if (enableDebugLogs) Debug.Log("=== MANUAL TEST JUMPSCARE ===");
-		TriggerJumpscare();
+		nextJumpscareTime = Time.time + Random.Range(
+			Mathf.Min(directorVisibilityRetryWindow.x, directorVisibilityRetryWindow.y),
+			Mathf.Max(directorVisibilityRetryWindow.x, directorVisibilityRetryWindow.y));
 	}
-    
-	[ContextMenu("Test Warning")]
-	public void TestWarning()
+
+	string GetMessageForScareType(ScareType scareType)
 	{
-		if (enableDebugLogs) Debug.Log("=== MANUAL TEST WARNING ===");
-		StartWarning();
-	}
-    
-	public void ForceJumpscare()
-	{
-		if (!isJumpscareActive)
+		if (scareType == ScareType.Fakeout)
 		{
-			if (enableDebugLogs) Debug.Log("=== FORCE JUMPSCARE ===");
-			TriggerJumpscare();
+			return fakeoutMessage;
 		}
-	}
-    
-	public void ForceJumpscareWithWarning()
-	{
-		if (!isJumpscareActive && !isWarningActive)
+		if (scareType == ScareType.PresenceCue)
 		{
-			if (enableDebugLogs) Debug.Log("=== FORCE JUMPSCARE WITH WARNING ===");
-			StartWarning();
+			return presenceMessage;
 		}
-	}
-    
-	public void StopJumpscare()
-	{
-		if (currentJumpscareCoroutine != null)
+		if (scareType == ScareType.RoutePressure)
 		{
-			StopCoroutine(currentJumpscareCoroutine);
+			return routePressureMessage;
 		}
-        
-		if (currentWarningCoroutine != null)
-		{
-			StopCoroutine(currentWarningCoroutine);
-		}
-        
-		// Reset all visual elements
-		if (warningCanvas != null)
-			warningCanvas.gameObject.SetActive(false);
-        
-		if (jumpscareCanvas != null)
-			jumpscareCanvas.gameObject.SetActive(false);
-        
-		if (jumpscareImage != null)
-			jumpscareImage.gameObject.SetActive(false);
-        
-		if (screenFlash != null)
-			screenFlash.gameObject.SetActive(false);
-        
-		isJumpscareActive = false;
-		isWarningActive = false;
-        
-		if (enableDebugLogs) Debug.Log("Jumpscare stopped");
+
+		return warningMessage;
 	}
-    
-	public void SetJumpscareIntervals(float minInterval, float maxInterval)
-	{
-		minJumpscareInterval = minInterval;
-		maxJumpscareInterval = maxInterval;
-		ResetJumpscareTimer();
-	}
-    
-	public void SetWarningEnabled(bool enabled)
-	{
-		enableWarning = enabled;
-	}
-    
+
 	public bool IsJumpscareActive()
 	{
 		return isJumpscareActive || isWarningActive;
+	}
+
+	[ContextMenu("Test Major Jumpscare")]
+	public void TestJumpscare()
+	{
+		ForceMajorScare(enableWarning);
+	}
+
+	[ContextMenu("Test Minor Scare")]
+	public void TestMinorScare()
+	{
+		ForceMinorScare(ScareType.MinorPsychological);
 	}
 }
