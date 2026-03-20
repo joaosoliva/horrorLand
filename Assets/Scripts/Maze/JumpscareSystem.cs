@@ -17,6 +17,7 @@ public class JumpscareSystem : MonoBehaviour
 	public float maxJumpscareInterval = 60f;
 	public float triggerDistance = 10f;
 	public float maxDistanceForJumpscare = 20f;
+	public Vector2 directorVisibilityRetryWindow = new Vector2(4f, 8f);
 
 	[Header("Warning System")]
 	public bool enableWarning = true;
@@ -124,12 +125,18 @@ public class JumpscareSystem : MonoBehaviour
 
 	void Update()
 	{
-		if (villainAI == null || player == null || useDirectorDrivenScheduling || isJumpscareActive)
+		if (villainAI == null || player == null || isJumpscareActive || isWarningActive)
 		{
 			return;
 		}
 
 		float distanceToVillain = Vector3.Distance(player.position, villainAI.transform.position);
+		if (useDirectorDrivenScheduling)
+		{
+			HandleDirectorDrivenMajorScare(distanceToVillain);
+			return;
+		}
+
 		if (Time.time >= nextJumpscareTime)
 		{
 			if (distanceToVillain <= maxDistanceForJumpscare && distanceToVillain >= triggerDistance)
@@ -141,6 +148,42 @@ public class JumpscareSystem : MonoBehaviour
 				ResetJumpscareTimer();
 			}
 		}
+	}
+
+	void HandleDirectorDrivenMajorScare(float distanceToVillain)
+	{
+		if (Time.time < nextJumpscareTime)
+		{
+			return;
+		}
+
+		bool villainVisible = villainAI.CanSeePlayer();
+		bool withinDistanceWindow = distanceToVillain <= maxDistanceForJumpscare && distanceToVillain >= triggerDistance;
+		bool contextualOpportunity = villainVisible || withinDistanceWindow;
+		if (!contextualOpportunity)
+		{
+			RetrySoon();
+			return;
+		}
+
+		if (horrorDirector != null && horrorDirector.CurrentPhase == HorrorPhase.Calm)
+		{
+			RetrySoon();
+			return;
+		}
+
+		if (chaseSystem != null && !chaseSystem.CanTriggerContextualJumpscare(distanceToVillain))
+		{
+			RetrySoon();
+			return;
+		}
+
+		if (enableDebugLogs)
+		{
+			Debug.Log("Director-driven major jumpscare triggered from visibility/proximity opportunity.");
+		}
+
+		ForceMajorScare(enableWarning);
 	}
 
 	public void ForceMajorScare(bool withWarning)
@@ -335,6 +378,13 @@ public class JumpscareSystem : MonoBehaviour
 	void ResetJumpscareTimer()
 	{
 		nextJumpscareTime = Time.time + Random.Range(minJumpscareInterval, Mathf.Max(minJumpscareInterval, maxJumpscareInterval));
+	}
+
+	void RetrySoon()
+	{
+		nextJumpscareTime = Time.time + Random.Range(
+			Mathf.Min(directorVisibilityRetryWindow.x, directorVisibilityRetryWindow.y),
+			Mathf.Max(directorVisibilityRetryWindow.x, directorVisibilityRetryWindow.y));
 	}
 
 	string GetMessageForScareType(ScareType scareType)

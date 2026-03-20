@@ -136,6 +136,11 @@ A jumpscare can now be **deferred** when `ChaseSystem` says the pacing budget is
 
 That means if you test a timer and a scare does not fire immediately, this may be correct behavior rather than a bug.
 
+When **Use Director Driven Scheduling** is enabled, major jumpscares still need a real contextual opportunity:
+- villain visible,
+- villain in the configured distance window,
+- or both, depending on the moment.
+
 ---
 
 ## 4. Verify the HorrorDirector hookup
