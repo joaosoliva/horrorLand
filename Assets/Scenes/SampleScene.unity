@@ -1227,7 +1227,7 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 47159854}
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
@@ -1708,6 +1708,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   player: {fileID: 1956618892}
   mazeGenerator: {fileID: 2113078750}
+  chaseSystem: {fileID: 716215839}
   currentState: 0
   detectionRadius: 15
   chaseRadius: 20
@@ -1771,7 +1772,9 @@ MonoBehaviour:
   distortionStatic: {fileID: 141576252}
   heartbeat: {fileID: 990506141}
   tensionBurst: {fileID: 871983576}
+  reliefBed: {fileID: 0}
   player: {fileID: 1956618892}
+  horrorDirector: {fileID: 1757343061}
   maxDistance: 25
   intensityCurve:
     serializedVersion: 2
@@ -4855,6 +4858,63 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 278850020}
   m_CullTransparentMesh: 1
+--- !u!1 &279681304
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 279681306}
+  - component: {fileID: 279681305}
+  m_Layer: 0
+  m_Name: ScareScheduler
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &279681305
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 279681304}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5bfc36d7929a44179a533b16445a40db, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ScareScheduler
+  horrorDirector: {fileID: 1757343061}
+  jumpscareSystem: {fileID: 1559133037}
+  chaseSystem: {fileID: 716215839}
+  villainAI: {fileID: 92354975}
+  calmBeatInterval: {x: 12, y: 18}
+  buildBeatInterval: {x: 12, y: 16}
+  threatBeatInterval: {x: 10, y: 14}
+  reliefBeatInterval: {x: 8, y: 12}
+  finaleBeatInterval: {x: 6, y: 10}
+  majorScareCooldown: 10
+  presenceCueGuarantee: 25
+  repeatHistorySize: 2
+  enableDebugLogs: 1
+--- !u!4 &279681306
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 279681304}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &280623311
 GameObject:
   m_ObjectHideFlags: 0
@@ -11702,6 +11762,71 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1439769518}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &716215838
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 716215840}
+  - component: {fileID: 716215839}
+  m_Layer: 0
+  m_Name: ChaseSystem
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &716215839
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 716215838}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 484a701270a04c87a451ee8357459329, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ChaseSystem
+  villainAI: {fileID: 92354975}
+  horrorDirector: {fileID: 1757343061}
+  shortBurstDurationRange: {x: 4, y: 7}
+  prolongedPressureDurationRange: {x: 9, y: 15}
+  fakeChaseDurationRange: {x: 2.5, y: 4.5}
+  shortBurstCooldown: 8
+  prolongedPressureCooldown: 14
+  fakeChaseCooldown: 9
+  prolongedPressureTensionThreshold: 0.55
+  fakeChaseChance: 0.18
+  finaleChaseBias: 0.35
+  chaseDetectionGracePeriod: 0.75
+  graceReacquireTime: 2.75
+  searchFallbackDuration: 2.5
+  alternatePatterns: 1
+  driveJumpscareBudget: 1
+  jumpscareWarmup: 1.5
+  jumpscareCooldownDuringChase: 7
+  jumpscareCooldownOutsideChase: 14
+  postChaseJumpscareLockout: 4
+  enableDebugLogs: 1
+--- !u!4 &716215840
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 716215838}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &735972145
 GameObject:
   m_ObjectHideFlags: 0
@@ -15629,21 +15754,33 @@ MonoBehaviour:
     key: 0
     clip: {fileID: 0}
     loudness: 0.6
+    humorReliefValue: 0.3
+    threatAttraction: 0.6
+    misfireChance: 0
     cooldownSeconds: 5
   - tag: Generic
     key: 0
     clip: {fileID: 0}
     loudness: 0.6
+    humorReliefValue: 0.3
+    threatAttraction: 0.6
+    misfireChance: 0
     cooldownSeconds: 5
   - tag: Generic
     key: 0
     clip: {fileID: 0}
     loudness: 0.6
+    humorReliefValue: 0.3
+    threatAttraction: 0.6
+    misfireChance: 0
     cooldownSeconds: 5
   - tag: Generic
     key: 0
     clip: {fileID: 0}
     loudness: 0.6
+    humorReliefValue: 0.3
+    threatAttraction: 0.6
+    misfireChance: 0
     cooldownSeconds: 5
   raiseHorrorSoundboardEvent: 1
   allowLegacyRandomTrigger: 1
@@ -24751,13 +24888,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6719f3605a89046459fbfe278014b41c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  villainAI: {fileID: 0}
-  player: {fileID: 0}
+  villainAI: {fileID: 92354975}
+  player: {fileID: 1956618892}
+  chaseSystem: {fileID: 716215839}
+  horrorDirector: {fileID: 1757343061}
+  useDirectorDrivenScheduling: 1
   minJumpscareInterval: 2
   maxJumpscareInterval: 5
   triggerDistance: 10
   maxDistanceForJumpscare: 20
-  enableWarning: 0
+  directorVisibilityRetryWindow: {x: 4, y: 8}
+  enableWarning: 1
   warningDuration: 3
   warningCanvas: {fileID: 444640490}
   warningText: {fileID: 1763691058}
@@ -24769,11 +24910,17 @@ MonoBehaviour:
   jumpscareDuration: 0.5
   flashCount: 3
   jumpscareSound: {fileID: 8300000, guid: f21ff19d6dafd20468b5efd5807da60e, type: 3}
+  majorScareVolume: 1
+  minorFlashColor: {r: 0.75, g: 0, b: 0, a: 0.55}
+  minorFlashDuration: 0.18
+  minorSoundVolume: 0.35
+  fakeoutMessage: ...RUN...
+  presenceMessage: YOU ARE NOT ALONE
+  routePressureMessage: DON'T GO THAT WAY
   screenFlash: {fileID: 0}
   flashColor: {r: 1, g: 0, b: 0, a: 1}
   flashIntensity: 0.8
   enableDebugLogs: 1
-  lastDistance: 0
 --- !u!4 &1559133038
 Transform:
   m_ObjectHideFlags: 0
@@ -27221,12 +27368,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HorrorDirector
   villainAI: {fileID: 92354975}
   player: {fileID: 1956618892}
+  scareScheduler: {fileID: 279681305}
   currentTension: 0.1
   proximityRange: 20
   chaseIncreasePerSecond: 0.35
   passiveIncreasePerSecond: 0.05
   decayPerSecond: 0.08
-  recoveryDecayPerSecond: 0.18
+  reliefDecayPerSecond: 0.2
   scareMemorySeconds: 8
   soundboardContributionWindow: 4
   humorReliefDrop: 0.12
@@ -27234,10 +27382,18 @@ MonoBehaviour:
   humorReboundDelay: 0.75
   humorReboundDuration: 3
   humorReboundStrength: 0.18
-  uneasyThreshold: 0.3
-  panicThreshold: 0.7
-  recoveryThreshold: 0.2
-  logBandChanges: 0
+  maxQuietSeconds: 20
+  finaleStartTime: 240
+  reliefPhaseSeconds: 10
+  buildThreshold: 0.28
+  threatThreshold: 0.52
+  peakThreshold: 0.78
+  minute0Floor: {x: 0, y: 0.12}
+  minute1Floor: {x: 60, y: 0.22}
+  minute2Floor: {x: 120, y: 0.35}
+  minute3Floor: {x: 180, y: 0.48}
+  minute4Floor: {x: 240, y: 0.65}
+  logPhaseChanges: 0
 --- !u!4 &1757343062
 Transform:
   m_ObjectHideFlags: 0
@@ -34333,6 +34489,66 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2126473363}
   m_CullTransparentMesh: 1
+--- !u!1 &2130482453
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2130482455}
+  - component: {fileID: 2130482454}
+  m_Layer: 0
+  m_Name: ThreatFeedbackSystem
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2130482454
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2130482453}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2573402dbd574a8f8adf630f5de1986b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ThreatFeedbackSystem
+  villainAI: {fileID: 92354975}
+  horrorDirector: {fileID: 1757343061}
+  player: {fileID: 1956618892}
+  nearDistance: 18
+  dangerDistance: 10
+  immediateDistance: 5
+  dangerVignette: {fileID: 0}
+  dangerCanvasGroup: {fileID: 0}
+  vignetteColor: {r: 0.4, g: 0, b: 0, a: 0.8}
+  peakPulseBoost: 0.2
+  scarePulseDuration: 1
+  heartbeatLoop: {fileID: 0}
+  proximityDrone: {fileID: 0}
+  breathingLoop: {fileID: 0}
+  fadeSpeed: 1.5
+  logBandChanges: 0
+--- !u!4 &2130482455
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2130482453}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -34358,3 +34574,6 @@ SceneRoots:
   - {fileID: 777296414}
   - {fileID: 1403009941}
   - {fileID: 212639118}
+  - {fileID: 716215840}
+  - {fileID: 279681306}
+  - {fileID: 2130482455}
