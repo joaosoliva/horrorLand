@@ -23,6 +23,11 @@ public class HorrorDirector : MonoBehaviour
 	public float recoveryDecayPerSecond = 0.18f;
 	public float scareMemorySeconds = 8f;
 	public float soundboardContributionWindow = 4f;
+	public float humorReliefDrop = 0.12f;
+	public float humorReliefDuration = 1.5f;
+	public float humorReboundDelay = 0.75f;
+	public float humorReboundDuration = 3f;
+	public float humorReboundStrength = 0.18f;
 
 	[Header("Pacing Bands")]
 	[Range(0f, 1f)] public float uneasyThreshold = 0.3f;
@@ -39,6 +44,9 @@ public class HorrorDirector : MonoBehaviour
 	private float lastScareTime = -999f;
 	private float lastSoundboardTime = -999f;
 	private float lastSoundboardLoudness = 0f;
+	private float humorReliefUntilTime = -999f;
+	private float humorReboundStartTime = -999f;
+	private float humorReboundUntilTime = -999f;
 	private bool chaseActive = false;
 	private float lastBroadcastTension = -1f;
 
@@ -81,15 +89,23 @@ public class HorrorDirector : MonoBehaviour
 		float proximityTension = GetProximityTension();
 		float scareWeight = GetRecentScareWeight();
 		float soundboardWeight = GetRecentSoundboardWeight();
+		float humorReliefWeight = GetHumorReliefWeight();
+		float humorReboundWeight = GetHumorReboundWeight();
 
-		float increaseRate = passiveIncreasePerSecond * (0.35f + proximityTension + scareWeight + soundboardWeight);
+		float increaseRate = passiveIncreasePerSecond * (0.35f + proximityTension + scareWeight + soundboardWeight + humorReboundWeight);
 		if (chaseActive)
 		{
 			increaseRate += chaseIncreasePerSecond;
 		}
 
 		float decayRate = currentBand == PacingBand.Recovery ? recoveryDecayPerSecond : decayPerSecond;
-		float targetTension = Mathf.Clamp01(proximityTension * 0.55f + scareWeight * 0.25f + soundboardWeight * 0.2f + (chaseActive ? 0.35f : 0f));
+		float targetTension = Mathf.Clamp01(
+			proximityTension * 0.55f +
+			scareWeight * 0.25f +
+			soundboardWeight * 0.18f +
+			humorReboundWeight * humorReboundStrength +
+			(chaseActive ? 0.35f : 0f) -
+			humorReliefWeight * humorReliefDrop);
 		float tensionVelocity = currentTension < targetTension ? increaseRate : -decayRate;
 
 		currentTension = Mathf.Clamp01(currentTension + tensionVelocity * deltaTime);
@@ -117,7 +133,10 @@ public class HorrorDirector : MonoBehaviour
 	{
 		lastSoundboardTime = Time.time;
 		lastSoundboardLoudness = loudness;
-		lastScareTime = Time.time;
+		humorReliefUntilTime = Time.time + humorReliefDuration;
+		humorReboundStartTime = humorReliefUntilTime + humorReboundDelay;
+		humorReboundUntilTime = humorReboundStartTime + humorReboundDuration;
+		currentTension = Mathf.Clamp01(currentTension - (humorReliefDrop * Mathf.Clamp01(loudness)));
 	}
 
 	float GetProximityTension()
@@ -144,6 +163,11 @@ public class HorrorDirector : MonoBehaviour
 
 	float GetRecentSoundboardWeight()
 	{
+		if (Time.time < humorReliefUntilTime)
+		{
+			return 0f;
+		}
+
 		float elapsed = Time.time - lastSoundboardTime;
 		if (elapsed >= soundboardContributionWindow)
 		{
@@ -152,6 +176,29 @@ public class HorrorDirector : MonoBehaviour
 
 		float freshness = 1f - Mathf.Clamp01(elapsed / soundboardContributionWindow);
 		return freshness * lastSoundboardLoudness;
+	}
+
+	float GetHumorReliefWeight()
+	{
+		if (Time.time >= humorReliefUntilTime)
+		{
+			return 0f;
+		}
+
+		float totalDuration = Mathf.Max(0.01f, humorReliefDuration);
+		float remaining = humorReliefUntilTime - Time.time;
+		return Mathf.Clamp01(remaining / totalDuration) * lastSoundboardLoudness;
+	}
+
+	float GetHumorReboundWeight()
+	{
+		if (Time.time < humorReboundStartTime || Time.time >= humorReboundUntilTime)
+		{
+			return 0f;
+		}
+
+		float normalized = Mathf.InverseLerp(humorReboundStartTime, humorReboundUntilTime, Time.time);
+		return (1f - normalized) * lastSoundboardLoudness;
 	}
 
 	void RefreshBand(bool forceBroadcast)
