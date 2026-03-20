@@ -8,7 +8,6 @@ public class VillainAI : MonoBehaviour
 	public Transform player;
 	public MazeGenerator mazeGenerator;
 
-	[Header("AI States")]
 	public enum AIState
 	{
 		Patrolling,
@@ -16,6 +15,7 @@ public class VillainAI : MonoBehaviour
 		Searching
 	}
 
+	[Header("AI States")]
 	[SerializeField] private AIState currentState = AIState.Patrolling;
 	public AIState CurrentState => currentState;
 	public bool IsPatrolling => currentState == AIState.Patrolling;
