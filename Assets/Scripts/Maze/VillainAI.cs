@@ -8,10 +8,19 @@ public class VillainAI : MonoBehaviour
 	public Transform player;
 	public MazeGenerator mazeGenerator;
 
+	public enum AIState
+	{
+		Patrolling,
+		Chasing,
+		Searching
+	}
+
 	[Header("AI States")]
-	public bool isPatrolling = true;
-	public bool isChasing = false;
-	public bool isSearching = false;
+	[SerializeField] private AIState currentState = AIState.Patrolling;
+	public AIState CurrentState => currentState;
+	public bool IsPatrolling => currentState == AIState.Patrolling;
+	public bool IsChasing => currentState == AIState.Chasing;
+	public bool IsSearching => currentState == AIState.Searching;
 
 	[Header("Detection Settings")]
 	public float detectionRadius = 15f;
@@ -143,6 +152,7 @@ public class VillainAI : MonoBehaviour
 
 		StartCoroutine(AIUpdateRoutine());
 		StartCoroutine(DifficultyRampRoutine());
+		TransitionToState(AIState.Patrolling, "Initialization complete");
 		Debug.Log("VillainAI initialized successfully. Grace period active.");
 	}
 
@@ -325,7 +335,7 @@ public class VillainAI : MonoBehaviour
 			float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 
 			// Dread System: Teleport to valid position near player
-			if (isPatrolling && Random.value < dreadReappearChance)
+			if (IsPatrolling && Random.value < dreadReappearChance)
 			{
 				Vector3 dreadPosition = FindValidDreadTeleportPosition();
 				if (dreadPosition != transform.position)
@@ -337,11 +347,11 @@ public class VillainAI : MonoBehaviour
 			}
 
 			// State Logic
-			if (isChasing)
+			if (IsChasing)
 			{
 				HandleChaseState(distanceToPlayer);
 			}
-			else if (isSearching)
+			else if (IsSearching)
 			{
 				HandleSearchState(distanceToPlayer);
 			}
@@ -361,11 +371,11 @@ public class VillainAI : MonoBehaviour
 	{
 		if (currentPath == null || currentPath.Count == 0 || currentPathIndex >= currentPath.Count)
 		{
-			if (isPatrolling && currentPath.Count == 0)
+			if (IsPatrolling && currentPath.Count == 0)
 			{
 				SetRandomPatrolTarget();
 			}
-			else if (isSearching && currentPath.Count == 0)
+			else if (IsSearching && currentPath.Count == 0)
 			{
 				Vector3 searchPoint = GetNextSearchPoint();
 				FindPathTo(searchPoint);
@@ -379,8 +389,8 @@ public class VillainAI : MonoBehaviour
 		Vector3 direction = (targetPosition - transform.position).normalized;
 
 		// Calculate speed with dread boost
-		float currentSpeed = isChasing ? chaseSpeed : patrolSpeed;
-		if (isChasing)
+		float currentSpeed = IsChasing ? chaseSpeed : patrolSpeed;
+		if (IsChasing)
 		{
 			float chaseDuration = Time.time - lastDetectionTime;
 			float boost = Mathf.Min(maxSpeedBoost, (chaseDuration / boostTime) * maxSpeedBoost);
@@ -408,18 +418,18 @@ public class VillainAI : MonoBehaviour
 			currentPathIndex++;
 			if (currentPathIndex >= currentPath.Count)
 			{
-				if (isPatrolling)
+				if (IsPatrolling)
 				{
 					SetRandomPatrolTarget();
 				}
-				else if (isSearching)
+				else if (IsSearching)
 				{
 					StartCoroutine(GetNextSearchPointAfterDelay());
 				}
 			}
 		}
 
-		if (isChasing && Time.time - lastRepathTime > repathInterval)
+		if (IsChasing && Time.time - lastRepathTime > repathInterval)
 		{
 			FindPathTo(player.position);
 			lastRepathTime = Time.time;
@@ -429,7 +439,7 @@ public class VillainAI : MonoBehaviour
 	IEnumerator GetNextSearchPointAfterDelay()
 	{
 		yield return new WaitForSeconds(1f);
-		if (isSearching)
+		if (IsSearching)
 		{
 			Vector3 searchPoint = GetNextSearchPoint();
 			FindPathTo(searchPoint);
@@ -504,11 +514,11 @@ public class VillainAI : MonoBehaviour
 		{
 			Debug.LogWarning("AI appears stuck, resetting behavior...");
 
-			if (isChasing)
+			if (IsChasing)
 			{
 				StartSearch();
 			}
-			else if (isSearching)
+			else if (IsSearching)
 			{
 				ReturnToPatrol();
 			}
@@ -525,9 +535,9 @@ public class VillainAI : MonoBehaviour
 		{
 			isMovingToNextSearchPoint = true;
 
-			yield return new WaitUntil(() => currentPathIndex >= currentPath.Count || !isSearching);
+			yield return new WaitUntil(() => currentPathIndex >= currentPath.Count || !IsSearching);
 
-			if (!isSearching)
+			if (!IsSearching)
 			{
 				isMovingToNextSearchPoint = false;
 				yield break;
@@ -830,30 +840,18 @@ public class VillainAI : MonoBehaviour
 
 	void StartChase()
 	{
-		isChasing = true;
-		isPatrolling = false;
-		isSearching = false;
-
-		lastStateChangeTime = Time.time;
-
+		TransitionToState(AIState.Chasing, "Player detected");
 		StopCoroutine("SearchRoutine");
 		lastDetectionTime = Time.time;
-
 		FindPathTo(player.position);
 		Debug.Log("Started chasing player!");
 	}
 
 	void StartSearch()
 	{
-		isChasing = false;
-		isPatrolling = false;
-		isSearching = true;
-
-		lastStateChangeTime = Time.time;
-
+		TransitionToState(AIState.Searching, "Lost visual on player");
 		Vector3 firstSearchPoint = GetNextSearchPoint();
 		FindPathTo(firstSearchPoint);
-
 		StartCoroutine(SearchRoutine());
 		Debug.Log("Started searching for player at last known position: " + lastKnownPlayerPosition);
 	}
@@ -883,12 +881,7 @@ public class VillainAI : MonoBehaviour
 
 	void ReturnToPatrol()
 	{
-		isChasing = false;
-		isSearching = false;
-		isPatrolling = true;
-
-		lastStateChangeTime = Time.time;
-
+		TransitionToState(AIState.Patrolling, "Search expired");
 		SetRandomPatrolTarget();
 		Debug.Log("Returned to patrol mode.");
 	}
@@ -900,9 +893,36 @@ public class VillainAI : MonoBehaviour
 
 	public string GetAIState()
 	{
-		if (isChasing) return "Chasing";
-		if (isSearching) return "Searching";
-		return "Patrolling";
+		return currentState.ToString();
+	}
+
+	void TransitionToState(AIState newState, string reason)
+	{
+		if (currentState == newState)
+		{
+			return;
+		}
+
+		AIState previousState = currentState;
+		currentState = newState;
+		lastStateChangeTime = Time.time;
+
+		if (previousState == AIState.Searching && newState != AIState.Searching)
+		{
+			StopCoroutine("SearchRoutine");
+			isMovingToNextSearchPoint = false;
+		}
+
+		if (previousState != AIState.Chasing && newState == AIState.Chasing)
+		{
+			HorrorEvents.RaiseChaseStarted();
+		}
+		else if (previousState == AIState.Chasing && newState != AIState.Chasing)
+		{
+			HorrorEvents.RaiseChaseEnded();
+		}
+
+		Debug.Log($"VillainAI transition: {previousState} -> {newState}. Reason: {reason}");
 	}
 
 	void OnDrawGizmosSelected()
@@ -921,7 +941,7 @@ public class VillainAI : MonoBehaviour
 		Gizmos.DrawRay(transform.position, leftBound);
 		Gizmos.DrawRay(transform.position, rightBound);
 
-		Gizmos.color = isChasing ? Color.red : Color.green;
+		Gizmos.color = IsChasing ? Color.red : Color.green;
 		for (int i = 0; i < currentPath.Count - 1; i++)
 		{
 			Gizmos.DrawLine(currentPath[i], currentPath[i + 1]);
