@@ -6,12 +6,17 @@ This guide explains how to wire up the recent **Phase C chase orchestration** ad
 
 ### New scripts
 - `Assets/Scripts/Maze/ChaseSystem.cs`
+- `Assets/Scripts/Maze/ScareScheduler.cs`
+- `Assets/Scripts/Maze/ThreatFeedbackSystem.cs`
 - `Assets/Scripts/Maze/SanityVisualCueController.cs`
 
 ### Updated scripts
 - `Assets/Scripts/Maze/VillainAI.cs`
 - `Assets/Scripts/Maze/JumpscareSystem.cs`
+- `Assets/Scripts/Maze/HorrorDirector.cs`
+- `Assets/Scripts/Maze/VillainAudio.cs`
 - `Assets/Scripts/Maze/HorrorEvents.cs`
+- `Assets/Scripts/PlaySound.cs`
 
 ## Goal of the setup
 
@@ -56,6 +61,37 @@ Use these as a safe baseline before playtesting:
 ### Debug option
 - Turn **Enable Debug Logs** on only while tuning.
 - Turn it off for regular playtests if console noise gets in the way.
+
+---
+
+
+## 1A. Add the ScareScheduler to the scene
+
+1. Create an empty GameObject named **ScareScheduler**.
+2. Add the `ScareScheduler` component.
+3. Assign:
+   - **Horror Director** -> the scene `HorrorDirector`
+   - **Jumpscare System** -> the scene `JumpscareSystem`
+   - **Chase System** -> the scene `ChaseSystem`
+   - **Villain AI** -> the active `VillainAI`
+
+### What it does
+This component is now the heartbeat of the 5-minute loop. It schedules:
+- minor scares,
+- presence cues,
+- fakeouts,
+- chase triggers,
+- major jumpscares,
+- relief beats.
+
+### Recommended first-pass values
+- **Calm Beat Interval**: `12-18`
+- **Build Beat Interval**: `12-16`
+- **Threat Beat Interval**: `10-14`
+- **Relief Beat Interval**: `8-12`
+- **Finale Beat Interval**: `6-10`
+- **Major Scare Cooldown**: `35`
+- **Presence Cue Guarantee**: `25`
 
 ---
 
@@ -124,6 +160,34 @@ If you use the debug overlay, this is a good time to watch:
 - pacing band,
 - AI state,
 - chase active state.
+
+---
+
+
+## 4A. Add the ThreatFeedbackSystem
+
+This system gives the player constant feedback when the enemy is close or when the pacing spikes.
+
+1. Create an empty GameObject named **ThreatFeedbackSystem**.
+2. Add the `ThreatFeedbackSystem` component.
+3. Assign:
+   - **Villain AI** -> the active `VillainAI`
+   - **Horror Director** -> the scene `HorrorDirector`
+   - **Player** -> the player transform
+
+### Optional visual references
+- **Danger Vignette** -> a full-screen image for danger buildup
+- **Danger Canvas Group** -> the wrapper that fades the vignette
+
+### Optional audio references
+- **Heartbeat Loop**
+- **Proximity Drone**
+- **Breathing Loop**
+
+### Recommended first-pass distances
+- **Near Distance**: `18`
+- **Danger Distance**: `10`
+- **Immediate Distance**: `5`
 
 ---
 
