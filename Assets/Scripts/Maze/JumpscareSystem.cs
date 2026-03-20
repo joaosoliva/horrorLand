@@ -8,6 +8,8 @@ public class JumpscareSystem : MonoBehaviour
 	[Header("Jumpscare Settings")]
 	public VillainAI villainAI;
 	public Transform player;
+	public ChaseSystem chaseSystem;
+	public HorrorDirector horrorDirector;
 	public float minJumpscareInterval = 30f;
 	public float maxJumpscareInterval = 60f;
 	public float triggerDistance = 10f;
@@ -48,6 +50,16 @@ public class JumpscareSystem : MonoBehaviour
 	void Start()
 	{
 		// Set up references
+		if (chaseSystem == null)
+		{
+			chaseSystem = FindObjectOfType<ChaseSystem>();
+		}
+
+		if (horrorDirector == null)
+		{
+			horrorDirector = FindObjectOfType<HorrorDirector>();
+		}
+
 		if (villainAI == null)
 		{
 			villainAI = FindObjectOfType<VillainAI>();
@@ -165,6 +177,13 @@ public class JumpscareSystem : MonoBehaviour
 			// Only trigger jumpscare if villain is within range
 			if (distanceToVillain <= maxDistanceForJumpscare && distanceToVillain >= triggerDistance)
 			{
+				if (chaseSystem != null && !chaseSystem.CanTriggerContextualJumpscare(distanceToVillain))
+				{
+					if (enableDebugLogs) Debug.Log("Jumpscare deferred by chase budget.");
+					ResetJumpscareTimer();
+					return;
+				}
+
 				if (enableDebugLogs) Debug.Log("Distance condition met! Triggering jumpscare...");
                 
 				if (enableWarning)
@@ -255,6 +274,12 @@ public class JumpscareSystem : MonoBehaviour
 			return;
 		}
         
+		if (chaseSystem != null)
+		{
+			chaseSystem.ConsumeJumpscareBudget();
+		}
+
+		HorrorEvents.RaiseJumpscareTriggered();
 		if (enableDebugLogs) Debug.Log("=== TRIGGERING JUMPSCARE ===");
 		currentJumpscareCoroutine = StartCoroutine(JumpscareRoutine());
 		ResetJumpscareTimer();

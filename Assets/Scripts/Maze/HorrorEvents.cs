@@ -7,6 +7,7 @@ public static class HorrorEvents
 	public static event Action OnChaseStarted;
 	public static event Action OnChaseEnded;
 	public static event Action<string, float> OnSoundboardPlayed;
+	public static event Action OnJumpscareTriggered;
 
 	public static void RaiseTensionChanged(float tension)
 	{
@@ -26,5 +27,10 @@ public static class HorrorEvents
 	public static void RaiseSoundboardPlayed(string soundTag, float loudness)
 	{
 		OnSoundboardPlayed?.Invoke(soundTag, Mathf.Clamp01(loudness));
+	}
+
+	public static void RaiseJumpscareTriggered()
+	{
+		OnJumpscareTriggered?.Invoke();
 	}
 }
