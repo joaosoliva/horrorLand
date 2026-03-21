@@ -34,6 +34,13 @@ public class VillainAI : MonoBehaviour
 	public float chaseSpeed = 5f;
 	public float rotationSpeed = 5f;
 
+	[Header("Reveal Behavior")]
+	public float ambientRevealCommitDistance = 7f;
+	public float ambientRevealRetreatDistance = 12f;
+	public float hiddenRetreatMinDistance = 6f;
+	public float hiddenRetreatMaxDistance = 16f;
+	public float closeSightCommitGrace = 0.65f;
+
 	[Header("Pathfinding Settings")]
 	public float repathInterval = 0.5f;
 	public float nodeReachedDistance = 0.3f;
@@ -99,6 +106,9 @@ public class VillainAI : MonoBehaviour
 	private float currentFOV;
 	private float awarenessBoostUntilTime = -999f;
 	private float currentAwarenessBoost = 0f;
+	private HorrorDirector horrorDirector;
+	private bool ambientRevealActive = false;
+	private float closeSightSinceTime = -999f;
 	
 	
 
@@ -108,6 +118,10 @@ public class VillainAI : MonoBehaviour
 		if (chaseSystem == null)
 		{
 			chaseSystem = FindObjectOfType<ChaseSystem>();
+		}
+		if (horrorDirector == null)
+		{
+			horrorDirector = FindObjectOfType<HorrorDirector>();
 		}
 
 		gameStartTime = Time.time;
@@ -244,7 +258,9 @@ public class VillainAI : MonoBehaviour
 					float distanceToPlayer = Vector3.Distance(worldPos, player.position);
 
 					// Use increased distances during grace period
-					if (distanceToPlayer >= effectiveMinSpawnDistance && distanceToPlayer <= effectiveMaxSpawnDistance)
+					if (distanceToPlayer >= effectiveMinSpawnDistance &&
+						distanceToPlayer <= effectiveMaxSpawnDistance &&
+						!HasLineOfSight(player.position, worldPos))
 					{
 						validCells.Add(new Vector2Int(x, y));
 					}
@@ -270,7 +286,7 @@ public class VillainAI : MonoBehaviour
 					Vector3 worldPos = MazeCellToWorld(new Vector2Int(x, y));
 					float distanceToPlayer = Vector3.Distance(worldPos, player.position);
 
-					if (distanceToPlayer >= minSpawnDistance)
+					if (distanceToPlayer >= minSpawnDistance && !HasLineOfSight(player.position, worldPos))
 					{
 						validCells.Add(new Vector2Int(x, y));
 					}
@@ -314,7 +330,9 @@ public class VillainAI : MonoBehaviour
 					float distanceToPlayer = Vector3.Distance(worldPos, player.position);
 
 					// Check if within dread teleport range
-					if (distanceToPlayer >= dreadTeleportRange.x && distanceToPlayer <= dreadTeleportRange.y)
+					if (distanceToPlayer >= dreadTeleportRange.x &&
+						distanceToPlayer <= dreadTeleportRange.y &&
+						!HasLineOfSight(player.position, worldPos))
 					{
 						validCells.Add(new Vector2Int(x, y));
 					}
@@ -425,6 +443,10 @@ public class VillainAI : MonoBehaviour
 			float chaseDuration = Time.time - lastDetectionTime;
 			float boost = Mathf.Min(maxSpeedBoost, (chaseDuration / boostTime) * maxSpeedBoost);
 			currentSpeed += boost;
+			if (chaseSystem != null)
+			{
+				currentSpeed *= chaseSystem.GetChaseSpeedMultiplier();
+			}
 		}
 
 		Vector3 newPosition = transform.position + direction * currentSpeed * Time.deltaTime;
@@ -478,19 +500,42 @@ public class VillainAI : MonoBehaviour
 
 	void HandlePatrolState(float distanceToPlayer)
 	{
+		bool canSeePlayer = CanSeePlayer();
+		bool playerCanSeeVillain = CanPlayerSeeVillain();
+
+		HandleAmbientReveal(playerCanSeeVillain, canSeePlayer, distanceToPlayer);
+
+		if (playerCanSeeVillain && distanceToPlayer <= ambientRevealCommitDistance)
+		{
+			if (closeSightSinceTime < 0f)
+			{
+				closeSightSinceTime = Time.time;
+			}
+
+			if (Time.time - closeSightSinceTime >= closeSightCommitGrace)
+			{
+				RequestChaseStart("Player held direct line of sight on nearby villain");
+				return;
+			}
+		}
+		else
+		{
+			closeSightSinceTime = -999f;
+		}
+
 		// During grace period, reduce detection chances
 		if (currentDifficulty < 0.3f)
 		{
 			// Only detect if very close during early game
-			if (distanceToPlayer <= currentDetectionRadius * 0.5f && CanSeePlayer())
+			if (distanceToPlayer <= currentDetectionRadius * 0.5f && canSeePlayer)
 			{
 				RequestChaseStart("Player detected during patrol/search");
 			}
 		}
 		else
 		{
-			// Normal detection after grace period
-			if (CanSeePlayer() || distanceToPlayer <= currentDetectionRadius * 1.5f)
+			// Normal detection after grace period, but do not auto-commit simply from proximity.
+			if (canSeePlayer && distanceToPlayer <= Mathf.Max(currentDetectionRadius, ambientRevealCommitDistance))
 			{
 				RequestChaseStart("Player detected during patrol/search");
 			}
@@ -523,7 +568,11 @@ public class VillainAI : MonoBehaviour
 
 	void HandleSearchState(float distanceToPlayer)
 	{
-		if (CanSeePlayer() || distanceToPlayer <= GetEffectiveDetectionRadius())
+		bool canSeePlayer = CanSeePlayer();
+		bool playerCanSeeVillain = CanPlayerSeeVillain();
+		HandleAmbientReveal(playerCanSeeVillain, canSeePlayer, distanceToPlayer);
+
+		if (canSeePlayer && distanceToPlayer <= GetEffectiveDetectionRadius())
 		{
 			RequestChaseStart("Player detected during patrol/search");
 			return;
@@ -604,7 +653,7 @@ public class VillainAI : MonoBehaviour
 			return false;
 		}
 
-		if (HasLineOfSight(transform.position, player.position))
+		if (HasLineOfSight(transform.position, player.position, player))
 		{
 			return true;
 		}
@@ -644,6 +693,11 @@ public class VillainAI : MonoBehaviour
 
 	bool HasLineOfSight(Vector3 from, Vector3 to)
 	{
+		return HasLineOfSight(from, to, null);
+	}
+
+	bool HasLineOfSight(Vector3 from, Vector3 to, Transform targetTransform)
+	{
 		int layerMask = ~(1 << LayerMask.NameToLayer("IgnoreRaycast"));
 
 		Vector3 fromAdjusted = from + Vector3.up * 1f;
@@ -662,15 +716,20 @@ public class VillainAI : MonoBehaviour
 			if (hit.transform == transform || hit.transform.IsChildOf(transform))
 				continue;
 
-			if (hit.transform == player || hit.transform.IsChildOf(player))
+			if (targetTransform != null && (hit.transform == targetTransform || hit.transform.IsChildOf(targetTransform)))
 			{
 				return true;
+			}
+
+			if (targetTransform == null)
+			{
+				return false;
 			}
 
 			return false;
 		}
 
-		return true;
+		return targetTransform == null;
 	}
 
 	void SetRandomPatrolTarget()
@@ -953,6 +1012,7 @@ public class VillainAI : MonoBehaviour
 
 	void ReturnToPatrol()
 	{
+		EndAmbientReveal();
 		TransitionToState(AIState.Patrolling, "Search expired");
 		SetRandomPatrolTarget();
 		Debug.Log("Returned to patrol mode.");
@@ -960,6 +1020,7 @@ public class VillainAI : MonoBehaviour
 
 	void BeginSearch(Vector3 searchPoint, string reason)
 	{
+		EndAmbientReveal();
 		TransitionToState(AIState.Searching, reason);
 		StopCoroutine("SearchRoutine");
 		isMovingToNextSearchPoint = false;
@@ -977,6 +1038,7 @@ public class VillainAI : MonoBehaviour
 
 	public void BeginDirectedChase(string chasePatternName, string reason)
 	{
+		EndAmbientReveal();
 		TransitionToState(AIState.Chasing, $"{reason} ({chasePatternName})");
 		StopCoroutine("SearchRoutine");
 		lastDetectionTime = Time.time;
@@ -990,6 +1052,7 @@ public class VillainAI : MonoBehaviour
 
 	public void ForceSearchAtLastKnownPosition(string reason)
 	{
+		EndAmbientReveal();
 		BeginSearch(lastKnownPlayerPosition, reason);
 	}
 
@@ -1030,6 +1093,151 @@ public class VillainAI : MonoBehaviour
 	float GetEffectiveDetectionRadius()
 	{
 		return currentDetectionRadius + currentAwarenessBoost;
+	}
+
+	void HandleAmbientReveal(bool playerCanSeeVillain, bool canSeePlayer, float distanceToPlayer)
+	{
+		if (IsChasing)
+		{
+			EndAmbientReveal();
+			return;
+		}
+
+		if (!playerCanSeeVillain)
+		{
+			EndAmbientReveal();
+			return;
+		}
+
+		if (!ambientRevealActive)
+		{
+			if (horrorDirector != null && !horrorDirector.CanAllowAmbientReveal(distanceToPlayer))
+			{
+				TryRetreatToHiddenPosition("Reveal budget blocked ambient visibility");
+				return;
+			}
+
+			ambientRevealActive = true;
+			if (horrorDirector != null)
+			{
+				horrorDirector.RegisterAmbientReveal(distanceToPlayer);
+			}
+		}
+
+		if (horrorDirector != null && horrorDirector.ShouldEndAmbientReveal(distanceToPlayer))
+		{
+			if (canSeePlayer && distanceToPlayer <= ambientRevealCommitDistance)
+			{
+				RequestChaseStart("Ambient reveal escalated into direct threat");
+				return;
+			}
+
+			TryRetreatToHiddenPosition("Ambient reveal expired");
+		}
+	}
+
+	void EndAmbientReveal()
+	{
+		if (!ambientRevealActive)
+		{
+			return;
+		}
+
+		ambientRevealActive = false;
+		closeSightSinceTime = -999f;
+		if (horrorDirector != null)
+		{
+			horrorDirector.EndAmbientReveal();
+		}
+	}
+
+	bool CanPlayerSeeVillain()
+	{
+		if (player == null)
+		{
+			return false;
+		}
+
+		Vector3 directionToVillain = (transform.position - player.position).normalized;
+		float distanceToVillain = Vector3.Distance(player.position, transform.position);
+		float playerViewAngle = Vector3.Angle(player.forward, directionToVillain);
+		if (playerViewAngle > 65f && distanceToVillain > 3f)
+		{
+			return false;
+		}
+
+		return HasLineOfSight(player.position, transform.position, transform);
+	}
+
+	void TryRetreatToHiddenPosition(string reason)
+	{
+		Vector3 hiddenPosition = FindHiddenPositionFromPlayer();
+		if (hiddenPosition == Vector3.zero)
+		{
+			EndAmbientReveal();
+			return;
+		}
+
+		EndAmbientReveal();
+		FindPathTo(hiddenPosition);
+		Debug.Log("Villain retreated to hidden position. Reason: " + reason);
+	}
+
+	Vector3 FindHiddenPositionFromPlayer()
+	{
+		if (!isInitialized || mazeGenerator == null || player == null)
+		{
+			return Vector3.zero;
+		}
+
+		List<Vector2Int> validCells = new List<Vector2Int>();
+		Vector3 playerForward = new Vector3(player.forward.x, 0f, player.forward.z).normalized;
+
+		for (int x = 1; x < mazeGenerator.width - 1; x++)
+		{
+			for (int y = 1; y < mazeGenerator.height - 1; y++)
+			{
+				if (GetMazeCellSafe(x, y) != 0)
+				{
+					continue;
+				}
+
+				Vector3 worldPos = MazeCellToWorld(new Vector2Int(x, y));
+				float distanceToPlayer = Vector3.Distance(worldPos, player.position);
+				float distanceFromCurrent = Vector3.Distance(worldPos, transform.position);
+				if (distanceToPlayer < hiddenRetreatMinDistance || distanceToPlayer > hiddenRetreatMaxDistance)
+				{
+					continue;
+				}
+
+				if (distanceFromCurrent < 2f)
+				{
+					continue;
+				}
+
+				if (HasLineOfSight(player.position, worldPos))
+				{
+					continue;
+				}
+
+				Vector3 directionFromPlayer = (worldPos - player.position).normalized;
+				float forwardDot = Vector3.Dot(playerForward, directionFromPlayer);
+				if (forwardDot > 0.35f && distanceToPlayer < ambientRevealRetreatDistance)
+				{
+					continue;
+				}
+
+				validCells.Add(new Vector2Int(x, y));
+			}
+		}
+
+		if (validCells.Count == 0)
+		{
+			return Vector3.zero;
+		}
+
+		Vector2Int chosenCell = validCells[Random.Range(0, validCells.Count)];
+		return MazeCellToWorld(chosenCell);
 	}
 
 	void OnDrawGizmosSelected()

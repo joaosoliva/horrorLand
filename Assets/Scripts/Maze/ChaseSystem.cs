@@ -9,6 +9,14 @@ public class ChaseSystem : MonoBehaviour
 		FakeChase
 	}
 
+	public enum ChaseStage
+	{
+		Idle,
+		Reveal,
+		Pursuit,
+		SearchWindow
+	}
+
 	[Header("References")]
 	public VillainAI villainAI;
 	public HorrorDirector horrorDirector;
@@ -30,6 +38,14 @@ public class ChaseSystem : MonoBehaviour
 	public float searchFallbackDuration = 2.5f;
 	public bool alternatePatterns = true;
 
+	[Header("Escape Window")]
+	public float revealFreezeWindow = 0.45f;
+	public float lineOfSightBreakTime = 1.5f;
+	public float searchSpeedMultiplier = 0.72f;
+	public float reacquireSpeedBonus = 0.18f;
+	public float reacquireBurstDuration = 1.15f;
+	public float successfulEscapeSafetyWindow = 3.5f;
+
 	[Header("Jumpscare Budget")]
 	public bool driveJumpscareBudget = true;
 	public float jumpscareWarmup = 1.25f;
@@ -42,18 +58,25 @@ public class ChaseSystem : MonoBehaviour
 
 	public bool IsChaseActive { get { return chaseActive; } }
 	public ChasePattern ActivePattern { get { return activePattern; } }
+	public ChaseStage CurrentStage { get { return currentStage; } }
 	public float ActivePatternTargetDuration { get { return activePatternTargetDuration; } }
 	public float ChaseElapsedTime { get { return chaseActive ? Time.time - chaseStartTime : 0f; } }
 	public float NextChaseAllowedTime { get { return nextChaseAllowedTime; } }
+	public bool IsEscapeSafetyWindowActive { get { return Time.time < escapeSafetyWindowUntilTime; } }
 
 	private bool chaseActive;
 	private ChasePattern activePattern = ChasePattern.ShortBurst;
+	private ChaseStage currentStage = ChaseStage.Idle;
 	private float activePatternTargetDuration;
 	private float chaseStartTime = -999f;
 	private float nextChaseAllowedTime = -999f;
 	private float nextJumpscareAllowedTime = -999f;
 	private float lastChaseEndTime = -999f;
 	private bool useShortBurstNext = true;
+	private float lastLineOfSightTime = -999f;
+	private float searchWindowStartedTime = -999f;
+	private float reacquireBurstUntilTime = -999f;
+	private float escapeSafetyWindowUntilTime = -999f;
 
 	void Start()
 	{
@@ -92,6 +115,31 @@ public class ChaseSystem : MonoBehaviour
 		bool heldLongEnough = elapsed >= chaseDetectionGracePeriod;
 		bool exceededPatternDuration = elapsed >= activePatternTargetDuration;
 		bool playerRecentlyDetected = villainAI.TimeSinceLastPlayerDetection <= graceReacquireTime;
+		bool revealComplete = elapsed >= revealFreezeWindow;
+
+		if (hasLineOfSight)
+		{
+			if (currentStage == ChaseStage.SearchWindow)
+			{
+				reacquireBurstUntilTime = Time.time + reacquireBurstDuration;
+			}
+			currentStage = revealComplete ? ChaseStage.Pursuit : ChaseStage.Reveal;
+			lastLineOfSightTime = Time.time;
+			searchWindowStartedTime = -999f;
+		}
+		else if (revealComplete && Time.time - lastLineOfSightTime >= lineOfSightBreakTime)
+		{
+			if (currentStage != ChaseStage.SearchWindow)
+			{
+				currentStage = ChaseStage.SearchWindow;
+				searchWindowStartedTime = Time.time;
+			}
+		}
+
+		if (!revealComplete)
+		{
+			return;
+		}
 
 		if (activePattern == ChasePattern.FakeChase)
 		{
@@ -104,7 +152,7 @@ public class ChaseSystem : MonoBehaviour
 
 		if (activePattern == ChasePattern.ShortBurst)
 		{
-			if (heldLongEnough && !hasLineOfSight)
+			if (heldLongEnough && currentStage == ChaseStage.SearchWindow && Time.time - searchWindowStartedTime >= searchFallbackDuration)
 			{
 				EndChaseIntoSearch("Short burst chase lost sight of player");
 				return;
@@ -114,6 +162,12 @@ public class ChaseSystem : MonoBehaviour
 			{
 				EndChaseIntoSearch("Short burst chase duration budget exhausted");
 			}
+			return;
+		}
+
+		if (currentStage == ChaseStage.SearchWindow && Time.time - searchWindowStartedTime >= searchFallbackDuration && !hasLineOfSight)
+		{
+			EndChaseIntoSearch("Prolonged pressure chase lost player long enough to break pursuit");
 			return;
 		}
 
@@ -190,6 +244,11 @@ public class ChaseSystem : MonoBehaviour
 			return false;
 		}
 
+		if (Time.time < escapeSafetyWindowUntilTime)
+		{
+			return false;
+		}
+
 		if (Time.time < nextChaseAllowedTime && !directorRequested)
 		{
 			if (enableDebugLogs)
@@ -220,6 +279,10 @@ public class ChaseSystem : MonoBehaviour
 	{
 		chaseActive = true;
 		chaseStartTime = Time.time;
+		currentStage = ChaseStage.Reveal;
+		lastLineOfSightTime = Time.time;
+		searchWindowStartedTime = -999f;
+		reacquireBurstUntilTime = -999f;
 		if (activePatternTargetDuration <= 0f)
 		{
 			activePattern = ChoosePattern(false);
@@ -236,12 +299,14 @@ public class ChaseSystem : MonoBehaviour
 	{
 		chaseActive = false;
 		lastChaseEndTime = Time.time;
+		currentStage = ChaseStage.Idle;
 		float cooldown = GetCooldownForPattern(activePattern);
 		if (horrorDirector != null && horrorDirector.IsFinaleActive)
 		{
 			cooldown *= 0.65f;
 		}
 		nextChaseAllowedTime = Time.time + cooldown;
+		escapeSafetyWindowUntilTime = Time.time + successfulEscapeSafetyWindow;
 		activePatternTargetDuration = 0f;
 		if (alternatePatterns)
 		{
@@ -279,6 +344,31 @@ public class ChaseSystem : MonoBehaviour
 		}
 
 		return tension >= prolongedPressureTensionThreshold ? ChasePattern.ProlongedPressure : ChasePattern.ShortBurst;
+	}
+
+	public float GetChaseSpeedMultiplier()
+	{
+		if (!chaseActive)
+		{
+			return 1f;
+		}
+
+		if (currentStage == ChaseStage.Reveal)
+		{
+			return 0.15f;
+		}
+
+		if (currentStage == ChaseStage.SearchWindow)
+		{
+			return searchSpeedMultiplier;
+		}
+
+		if (Time.time < reacquireBurstUntilTime)
+		{
+			return 1f + reacquireSpeedBonus;
+		}
+
+		return 1f;
 	}
 
 	float GetDurationForPattern(ChasePattern pattern)

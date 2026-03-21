@@ -43,6 +43,14 @@ public class HorrorDirector : MonoBehaviour
 	public Vector2 minute3Floor = new Vector2(180f, 0.48f);
 	public Vector2 minute4Floor = new Vector2(240f, 0.65f);
 
+	[Header("Reveal Budget")]
+	public float ambientRevealMinInterval = 12f;
+	public float ambientRevealMaxDuration = 1.4f;
+	public float closeRevealDistance = 6f;
+	public float closeRevealCooldown = 10f;
+	public float threatRevealIntervalMultiplier = 0.75f;
+	public float finaleRevealIntervalMultiplier = 0.55f;
+
 	[Header("Debug")]
 	public bool logPhaseChanges = false;
 
@@ -69,6 +77,10 @@ public class HorrorDirector : MonoBehaviour
 	private bool peakBroadcastActive = false;
 	private float runtimeSeconds = 0f;
 	private float lastBroadcastTension = -1f;
+	private bool ambientRevealActive = false;
+	private float ambientRevealStartTime = -999f;
+	private float lastAmbientRevealTime = -999f;
+	private float lastCloseRevealTime = -999f;
 
 	void Start()
 	{
@@ -176,9 +188,83 @@ public class HorrorDirector : MonoBehaviour
 		HandleScareTriggered(scareType);
 	}
 
+	public bool CanAllowAmbientReveal(float distanceToPlayer)
+	{
+		if (chaseActive)
+		{
+			return false;
+		}
+
+		if (distanceToPlayer <= closeRevealDistance && Time.time - lastCloseRevealTime < closeRevealCooldown)
+		{
+			return false;
+		}
+
+		float intervalMultiplier = 1f;
+		if (currentPhase == HorrorPhase.Threat || currentPhase == HorrorPhase.Peak)
+		{
+			intervalMultiplier = threatRevealIntervalMultiplier;
+		}
+		if (finaleStarted)
+		{
+			intervalMultiplier *= finaleRevealIntervalMultiplier;
+		}
+
+		float requiredInterval = ambientRevealMinInterval * Mathf.Max(0.15f, intervalMultiplier);
+		return Time.time - lastAmbientRevealTime >= requiredInterval;
+	}
+
+	public void RegisterAmbientReveal(float distanceToPlayer)
+	{
+		if (!ambientRevealActive)
+		{
+			ambientRevealActive = true;
+			ambientRevealStartTime = Time.time;
+			lastAmbientRevealTime = Time.time;
+			lastMeaningfulBeatTime = Time.time;
+		}
+
+		if (distanceToPlayer <= closeRevealDistance)
+		{
+			lastCloseRevealTime = Time.time;
+		}
+	}
+
+	public void EndAmbientReveal()
+	{
+		ambientRevealActive = false;
+		ambientRevealStartTime = -999f;
+	}
+
+	public bool ShouldEndAmbientReveal(float distanceToPlayer)
+	{
+		if (!ambientRevealActive)
+		{
+			return false;
+		}
+
+		if (distanceToPlayer <= closeRevealDistance)
+		{
+			return true;
+		}
+
+		float maxDuration = ambientRevealMaxDuration;
+		if (currentPhase == HorrorPhase.Threat || currentPhase == HorrorPhase.Peak)
+		{
+			maxDuration *= 0.85f;
+		}
+		if (finaleStarted)
+		{
+			maxDuration *= 0.75f;
+		}
+
+		return Time.time - ambientRevealStartTime >= maxDuration;
+	}
+
 	void HandleChaseStarted()
 	{
 		chaseActive = true;
+		EndAmbientReveal();
 		lastPeakTime = Time.time;
 		lastScareTime = Time.time;
 		lastMeaningfulBeatTime = Time.time;
