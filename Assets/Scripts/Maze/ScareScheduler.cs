@@ -5,6 +5,7 @@ public class ScareScheduler : MonoBehaviour
 {
 	[Header("References")]
 	public HorrorDirector horrorDirector;
+	public EncounterDirector encounterDirector;
 	public JumpscareSystem jumpscareSystem;
 	public ChaseSystem chaseSystem;
 	public VillainAI villainAI;
@@ -18,19 +19,39 @@ public class ScareScheduler : MonoBehaviour
 	public float majorScareCooldown = 35f;
 	public float presenceCueGuarantee = 25f;
 	public int repeatHistorySize = 2;
+	[Range(0f, 1f)] public float nonPayoffBuildChance = 0.35f;
+	public float audioFakeoutCooldown = 12f;
+	public float silhouetteRevealCooldown = 18f;
+	public float routePressureCooldown = 14f;
+	public float environmentShiftCooldown = 10f;
+	public float hardScareCategoryCooldown = 45f;
 	public bool enableDebugLogs = false;
 
 	private float nextBeatTime = -999f;
 	private float lastMajorScareTime = -999f;
 	private float lastPresenceCueTime = -999f;
 	private readonly Queue<ScareType> recentScares = new Queue<ScareType>();
+	private readonly Queue<EncounterIntent> recentEncounterIntents = new Queue<EncounterIntent>();
 	private bool catchUpBeatQueued;
+	private float lastAudioFakeoutTime = -999f;
+	private float lastSilhouetteRevealTime = -999f;
+	private float lastRoutePressureTime = -999f;
+	private float lastEnvironmentShiftTime = -999f;
+	private float lastHardScareCategoryTime = -999f;
 
 	void Start()
 	{
 		if (horrorDirector == null)
 		{
 			horrorDirector = FindObjectOfType<HorrorDirector>();
+		}
+		if (encounterDirector == null)
+		{
+			encounterDirector = FindObjectOfType<EncounterDirector>();
+			if (encounterDirector == null)
+			{
+				encounterDirector = gameObject.AddComponent<EncounterDirector>();
+			}
 		}
 		if (jumpscareSystem == null)
 		{
@@ -43,6 +64,26 @@ public class ScareScheduler : MonoBehaviour
 		if (villainAI == null)
 		{
 			villainAI = FindObjectOfType<VillainAI>();
+		}
+		if (encounterDirector != null)
+		{
+			encounterDirector.scareScheduler = this;
+			if (encounterDirector.horrorDirector == null)
+			{
+				encounterDirector.horrorDirector = horrorDirector;
+			}
+			if (encounterDirector.chaseSystem == null)
+			{
+				encounterDirector.chaseSystem = chaseSystem;
+			}
+			if (encounterDirector.jumpscareSystem == null)
+			{
+				encounterDirector.jumpscareSystem = jumpscareSystem;
+			}
+			if (encounterDirector.villainAI == null)
+			{
+				encounterDirector.villainAI = villainAI;
+			}
 		}
 
 		ScheduleNextBeat();
@@ -83,66 +124,70 @@ public class ScareScheduler : MonoBehaviour
 
 	void TriggerScheduledBeat(bool forced)
 	{
-		ScareType nextScare = SelectNextScare(horrorDirector.CurrentPhase, forced);
-		ExecuteScare(nextScare);
+		EncounterIntent nextIntent = SelectNextEncounter(horrorDirector.CurrentPhase, forced);
+		ExecuteEncounter(nextIntent, forced);
 		ScheduleNextBeat();
 	}
 
-	ScareType SelectNextScare(HorrorPhase phase, bool forced)
+	EncounterIntent SelectNextEncounter(HorrorPhase phase, bool forced)
 	{
-		List<ScareType> candidates = new List<ScareType>();
+		List<EncounterIntent> candidates = new List<EncounterIntent>();
 		if (Time.time - lastPresenceCueTime >= presenceCueGuarantee)
 		{
-			candidates.Add(ScareType.PresenceCue);
+			candidates.Add(EncounterIntent.Presence);
 		}
 
 		if (phase == HorrorPhase.Calm)
 		{
-			candidates.Add(ScareType.PresenceCue);
-			candidates.Add(ScareType.MinorPsychological);
-			candidates.Add(ScareType.ReliefBeat);
+			candidates.Add(EncounterIntent.Presence);
+			candidates.Add(EncounterIntent.Release);
 		}
 		else if (phase == HorrorPhase.Build)
 		{
-			candidates.Add(ScareType.MinorPsychological);
-			candidates.Add(ScareType.PresenceCue);
-			candidates.Add(ScareType.Fakeout);
+			candidates.Add(EncounterIntent.Presence);
+			candidates.Add(EncounterIntent.Probe);
+			if (!forced && Random.value > nonPayoffBuildChance)
+			{
+				candidates.Add(EncounterIntent.Commitment);
+			}
 		}
 		else if (phase == HorrorPhase.Threat)
 		{
-			candidates.Add(ScareType.PresenceCue);
-			candidates.Add(ScareType.Fakeout);
-			candidates.Add(ScareType.ChaseTrigger);
-			candidates.Add(ScareType.RoutePressure);
+			candidates.Add(EncounterIntent.Probe);
+			candidates.Add(EncounterIntent.Commitment);
+			if (!forced && Random.value < nonPayoffBuildChance)
+			{
+				candidates.Add(EncounterIntent.Presence);
+			}
 		}
 		else if (phase == HorrorPhase.Peak)
 		{
-			candidates.Add(ScareType.Fakeout);
-			candidates.Add(ScareType.MinorPsychological);
+			candidates.Add(EncounterIntent.Commitment);
+			candidates.Add(EncounterIntent.Probe);
 		}
 		else if (phase == HorrorPhase.Relief)
 		{
-			candidates.Add(ScareType.ReliefBeat);
-			candidates.Add(ScareType.MinorPsychological);
-			candidates.Add(ScareType.PresenceCue);
+			candidates.Add(EncounterIntent.Release);
+			candidates.Add(EncounterIntent.Presence);
+			candidates.Add(EncounterIntent.Probe);
 		}
 		else
 		{
-			candidates.Add(ScareType.ChaseTrigger);
-			candidates.Add(ScareType.MajorJumpscare);
-			candidates.Add(ScareType.PresenceCue);
-			candidates.Add(ScareType.Fakeout);
-			candidates.Add(ScareType.RoutePressure);
+			candidates.Add(EncounterIntent.Commitment);
+			candidates.Add(EncounterIntent.Probe);
+			candidates.Add(EncounterIntent.Presence);
 		}
 
-		if ((phase == HorrorPhase.Threat || phase == HorrorPhase.Finale) && Time.time - lastMajorScareTime >= majorScareCooldown)
+		if ((phase == HorrorPhase.Threat || phase == HorrorPhase.Finale) &&
+			Time.time - lastMajorScareTime >= majorScareCooldown &&
+			IsCategoryAvailable(EncounterCategory.HardScare))
 		{
-			candidates.Add(ScareType.MajorJumpscare);
+			candidates.Add(EncounterIntent.Commitment);
 		}
 
 		for (int i = candidates.Count - 1; i >= 0; i--)
 		{
-			if (IsRecentRepeat(candidates[i]))
+			if (IsRecentEncounterRepeat(candidates[i]))
 			{
 				candidates.RemoveAt(i);
 			}
@@ -150,52 +195,44 @@ public class ScareScheduler : MonoBehaviour
 
 		if (candidates.Count == 0)
 		{
-			return forced ? ScareType.PresenceCue : ScareType.MinorPsychological;
+			return forced ? EncounterIntent.Presence : EncounterIntent.Probe;
 		}
 
 		return candidates[Random.Range(0, candidates.Count)];
 	}
 
-	void ExecuteScare(ScareType scareType)
+	void ExecuteEncounter(EncounterIntent encounterIntent, bool forced)
 	{
 		if (enableDebugLogs)
 		{
-			Debug.Log("ScareScheduler beat: " + scareType + " during phase " + (horrorDirector != null ? horrorDirector.CurrentPhase.ToString() : "N/A"));
+			Debug.Log("ScareScheduler beat: " + encounterIntent + " during phase " + (horrorDirector != null ? horrorDirector.CurrentPhase.ToString() : "N/A"));
 		}
 
-		if (scareType == ScareType.ChaseTrigger)
+		recentEncounterIntents.Enqueue(encounterIntent);
+		while (recentEncounterIntents.Count > Mathf.Max(1, repeatHistorySize))
 		{
-			if (chaseSystem != null && chaseSystem.RequestDirectorChase("Director scheduled chase beat"))
-			{
-				return;
-			}
-
-			scareType = ScareType.PresenceCue;
+			recentEncounterIntents.Dequeue();
 		}
 
-		if (scareType == ScareType.MajorJumpscare)
+		if (encounterDirector != null && encounterDirector.ExecuteEncounter(encounterIntent, forced))
 		{
-			if (jumpscareSystem != null && !jumpscareSystem.IsJumpscareActive())
-			{
-				jumpscareSystem.ForceMajorScare(true);
-				lastMajorScareTime = Time.time;
-				return;
-			}
-
-			scareType = ScareType.Fakeout;
-		}
-
-		if (jumpscareSystem != null)
-		{
-			jumpscareSystem.ForceMinorScare(scareType);
-			if (scareType == ScareType.PresenceCue)
-			{
-				lastPresenceCueTime = Time.time;
-			}
 			return;
 		}
 
-		HorrorEvents.RaiseScareTriggered(scareType);
+		ScareType fallbackScare = MapEncounterToFallbackScare(encounterIntent, forced);
+		if (jumpscareSystem != null)
+		{
+			if (fallbackScare == ScareType.MajorJumpscare && !jumpscareSystem.IsJumpscareActive())
+			{
+				jumpscareSystem.ForceMajorScare(true);
+				return;
+			}
+
+			jumpscareSystem.ForceMinorScare(fallbackScare);
+			return;
+		}
+
+		HorrorEvents.RaiseScareTriggered(fallbackScare);
 	}
 
 	void ScheduleNextBeat()
@@ -239,6 +276,91 @@ public class ScareScheduler : MonoBehaviour
 		}
 
 		return false;
+	}
+
+	bool IsRecentEncounterRepeat(EncounterIntent encounterIntent)
+	{
+		foreach (EncounterIntent recentEncounter in recentEncounterIntents)
+		{
+			if (recentEncounter == encounterIntent)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	ScareType MapEncounterToFallbackScare(EncounterIntent encounterIntent, bool forced)
+	{
+		if (encounterIntent == EncounterIntent.Presence)
+		{
+			return ScareType.PresenceCue;
+		}
+		if (encounterIntent == EncounterIntent.Release)
+		{
+			return ScareType.ReliefBeat;
+		}
+		if (encounterIntent == EncounterIntent.Commitment)
+		{
+			return forced || Time.time - lastMajorScareTime >= majorScareCooldown ? ScareType.MajorJumpscare : ScareType.ChaseTrigger;
+		}
+
+		return Random.value < 0.5f ? ScareType.Fakeout : ScareType.RoutePressure;
+	}
+
+	public bool IsCategoryAvailable(EncounterCategory category)
+	{
+		float lastUseTime = -999f;
+		float cooldown = audioFakeoutCooldown;
+
+		switch (category)
+		{
+			case EncounterCategory.AudioFakeout:
+				lastUseTime = lastAudioFakeoutTime;
+				cooldown = audioFakeoutCooldown;
+				break;
+			case EncounterCategory.SilhouetteReveal:
+				lastUseTime = lastSilhouetteRevealTime;
+				cooldown = silhouetteRevealCooldown;
+				break;
+			case EncounterCategory.RoutePressure:
+				lastUseTime = lastRoutePressureTime;
+				cooldown = routePressureCooldown;
+				break;
+			case EncounterCategory.EnvironmentShift:
+				lastUseTime = lastEnvironmentShiftTime;
+				cooldown = environmentShiftCooldown;
+				break;
+			case EncounterCategory.HardScare:
+				lastUseTime = lastHardScareCategoryTime;
+				cooldown = hardScareCategoryCooldown;
+				break;
+		}
+
+		return Time.time - lastUseTime >= cooldown;
+	}
+
+	public void RegisterCategoryUse(EncounterCategory category)
+	{
+		switch (category)
+		{
+			case EncounterCategory.AudioFakeout:
+				lastAudioFakeoutTime = Time.time;
+				break;
+			case EncounterCategory.SilhouetteReveal:
+				lastSilhouetteRevealTime = Time.time;
+				break;
+			case EncounterCategory.RoutePressure:
+				lastRoutePressureTime = Time.time;
+				break;
+			case EncounterCategory.EnvironmentShift:
+				lastEnvironmentShiftTime = Time.time;
+				break;
+			case EncounterCategory.HardScare:
+				lastHardScareCategoryTime = Time.time;
+				break;
+		}
 	}
 
 	void HandleScareTriggered(ScareType scareType)
