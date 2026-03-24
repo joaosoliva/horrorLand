@@ -31,6 +31,12 @@ public class MazeGenerator : MonoBehaviour
 	public Material startRoomWallMaterial;
 	public Vector2Int startRoomSize = new Vector2Int(4, 4);
 	public Light roomLightPrefab;
+
+	[Header("Procedural Scare Binding")]
+	public EnvironmentScareController environmentScareController;
+	public ProceduralLamp proceduralLampPrefab;
+	public float corridorLampChance = 0.14f;
+	public int corridorScareNodeStep = 6;
 	
 	private Vector2Int exitPosition;
 	
@@ -62,6 +68,7 @@ public class MazeGenerator : MonoBehaviour
 			Debug.Log("Wall_1_10 does NOT exist - good!");
 			
 		CreateStartRoom();
+		BindProceduralScareElements();
 	}
 	
 	bool IsCellAccessible(int x, int y)
@@ -228,6 +235,13 @@ public class MazeGenerator : MonoBehaviour
 			light.transform.position = roomOrigin + new Vector3(roomWidth / 2, wallHeight - 0.5f, roomDepth / 2);
 			light.intensity = 3f;
 			light.range = 10f;
+
+			ProceduralLamp proceduralLamp = light.gameObject.GetComponent<ProceduralLamp>();
+			if (proceduralLamp == null)
+			{
+				proceduralLamp = light.gameObject.AddComponent<ProceduralLamp>();
+			}
+			proceduralLamp.zoneId = "start_room";
 		}
 
 		// Door position calculation
@@ -242,6 +256,7 @@ public class MazeGenerator : MonoBehaviour
 			doorPos = roomOrigin + new Vector3(roomWidth / 2, 0, 0);
 
 		CreateDoubleDoor(startRoom.transform, doorPos, facingDir);
+		CreateRoomScareNode(startRoom.transform, "start_room", roomOrigin + new Vector3(roomWidth / 2f, 1f, roomDepth / 2f), new Vector3(roomWidth * 0.7f, 2f, roomDepth * 0.7f), false);
 		PositionExistingPlayerInStartRoom(roomOrigin, roomWidth, roomDepth);
 	}
 	void CreateStartRoomWallsWithDoor(Transform parent, Vector3 origin, float width, float depth, Vector3 doorDirection)
@@ -480,6 +495,10 @@ public class MazeGenerator : MonoBehaviour
 		trigger.doorWidth = doorWidth;
 		trigger.doorHeight = doorHeight;
 		trigger.facingDirection = facingDirection;
+
+		ProceduralScareDoor scareDoor = doorRoot.AddComponent<ProceduralScareDoor>();
+		scareDoor.zoneId = "start_room";
+		scareDoor.closeBehindDelay = 0.4f;
 	}
 
 
@@ -568,7 +587,111 @@ public class MazeGenerator : MonoBehaviour
 				if (maze[x, y] == 1)
 					CreateWall(x, y, wallsParent.transform);
 
+		BuildProceduralCorridorScareElements(floorParent.transform);
+
 		//CreateBoundaryWalls(wallsParent.transform);
+	}
+
+	void BuildProceduralCorridorScareElements(Transform parent)
+	{
+		int corridorIndex = 0;
+		for (int x = 1; x < width - 1; x++)
+		{
+			for (int y = 1; y < height - 1; y++)
+			{
+				if (maze[x, y] != 0)
+				{
+					continue;
+				}
+
+				Vector3 worldCenter = new Vector3(x * cellSize + cellSize / 2f, 0f, y * cellSize + cellSize / 2f);
+				string zoneId = "corridor_" + x + "_" + y;
+
+				if (corridorScareNodeStep > 0 && corridorIndex % corridorScareNodeStep == 0)
+				{
+					CreateRoomScareNode(parent, zoneId, worldCenter + Vector3.up, new Vector3(cellSize * 0.85f, 2f, cellSize * 0.85f), true);
+				}
+
+				if (Random.value <= corridorLampChance)
+				{
+					CreateProceduralLamp(parent, worldCenter + new Vector3(0f, wallHeight - 0.4f, 0f), zoneId);
+				}
+
+				corridorIndex++;
+			}
+		}
+	}
+
+	void CreateProceduralLamp(Transform parent, Vector3 worldPosition, string zoneId)
+	{
+		ProceduralLamp lampComponent = null;
+		if (proceduralLampPrefab != null)
+		{
+			lampComponent = Instantiate(proceduralLampPrefab, worldPosition, Quaternion.identity, parent);
+		}
+		else
+		{
+			GameObject lampObject = new GameObject("ProceduralLamp_" + zoneId);
+			lampObject.transform.SetParent(parent);
+			lampObject.transform.position = worldPosition;
+			Light light = lampObject.AddComponent<Light>();
+			light.type = LightType.Point;
+			light.range = cellSize * 3f;
+			light.intensity = 2.2f;
+			lampComponent = lampObject.AddComponent<ProceduralLamp>();
+		}
+
+		if (lampComponent != null)
+		{
+			lampComponent.zoneId = zoneId;
+			lampComponent.lightId = lampComponent.gameObject.name;
+		}
+	}
+
+	void CreateRoomScareNode(Transform parent, string zoneId, Vector3 worldPosition, Vector3 triggerSize, bool isCorridor)
+	{
+		GameObject nodeObject = new GameObject("ScareNode_" + zoneId);
+		nodeObject.transform.SetParent(parent);
+		nodeObject.transform.position = worldPosition;
+
+		BoxCollider trigger = nodeObject.AddComponent<BoxCollider>();
+		trigger.isTrigger = true;
+		trigger.size = triggerSize;
+
+		ProceduralRoomScareNode scareNode = nodeObject.AddComponent<ProceduralRoomScareNode>();
+		scareNode.zoneId = zoneId;
+		scareNode.isCorridorNode = isCorridor;
+		scareNode.lingerTriggerSeconds = isCorridor ? 4.5f : 3f;
+	}
+
+	void BindProceduralScareElements()
+	{
+		if (environmentScareController == null)
+		{
+			environmentScareController = FindObjectOfType<EnvironmentScareController>();
+		}
+		if (environmentScareController == null)
+		{
+			return;
+		}
+
+		ProceduralRoomScareNode[] nodes = FindObjectsOfType<ProceduralRoomScareNode>();
+		for (int i = 0; i < nodes.Length; i++)
+		{
+			environmentScareController.RegisterRoomNode(nodes[i]);
+		}
+
+		ProceduralScareDoor[] doors = FindObjectsOfType<ProceduralScareDoor>();
+		for (int i = 0; i < doors.Length; i++)
+		{
+			environmentScareController.RegisterDoor(doors[i]);
+		}
+
+		ProceduralLamp[] lamps = FindObjectsOfType<ProceduralLamp>();
+		for (int i = 0; i < lamps.Length; i++)
+		{
+			environmentScareController.RegisterLight(lamps[i]);
+		}
 	}
 
 	void CreateFloor(Transform parent)

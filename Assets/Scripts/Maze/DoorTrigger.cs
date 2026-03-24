@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using TMPro;
+using System;
 
 public class DoorTrigger : MonoBehaviour
 {
@@ -29,6 +30,11 @@ public class DoorTrigger : MonoBehaviour
 	private Quaternion rightDoorClosedRot;
 	private GameObject interactionTextObject;
 	private TextMeshPro interactionText;
+	public event Action OnDoorOpened;
+	public event Action OnDoorClosedLocked;
+
+	public bool IsOpen => isOpen;
+	public bool IsLocked => isLocked;
 
 	void Start()
 	{
@@ -151,6 +157,7 @@ public class DoorTrigger : MonoBehaviour
 		// Ensure final rotation
 		if (leftDoor != null) leftDoor.localRotation = Quaternion.Euler(0, -openAngle, 0);
 		if (rightDoor != null) rightDoor.localRotation = Quaternion.Euler(0, openAngle, 0);
+		OnDoorOpened?.Invoke();
 	}
 
 	IEnumerator CloseDoors()
@@ -177,6 +184,36 @@ public class DoorTrigger : MonoBehaviour
 		isOpen = false;
 		isLocked = true;
 		Debug.Log("Doors closed and locked.");
+		OnDoorClosedLocked?.Invoke();
+	}
+
+	public void ForceCloseAndLock(float delaySeconds = 0f)
+	{
+		if (isLocked)
+		{
+			return;
+		}
+
+		StopAllCoroutines();
+		HideInteractionText();
+		StartCoroutine(ForceCloseRoutine(Mathf.Max(0f, delaySeconds)));
+	}
+
+	IEnumerator ForceCloseRoutine(float delaySeconds)
+	{
+		if (delaySeconds > 0f)
+		{
+			yield return new WaitForSeconds(delaySeconds);
+		}
+
+		if (!isOpen)
+		{
+			isLocked = true;
+			OnDoorClosedLocked?.Invoke();
+			yield break;
+		}
+
+		yield return StartCoroutine(CloseDoors());
 	}
 
 	void OnTriggerEnter(Collider other)

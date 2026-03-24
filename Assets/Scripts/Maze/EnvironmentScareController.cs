@@ -1,129 +1,334 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum DoorEventType
+{
+	Opened,
+	ClosedLocked
+}
+
 public class EnvironmentScareController : MonoBehaviour
 {
-	[Header("Optional Scene References")]
-	public Light[] flickerLights;
-	public GameObject[] shadowRevealObjects;
+	[Header("References")]
+	public Transform player;
+
+	[Header("Global Cooldowns")]
+	public float globalScareCooldown = 1.25f;
+	public float perZoneCooldown = 5f;
+	public bool debugLogs = false;
+
+	[Header("Room Entry Scares")]
+	[Range(0f, 1f)] public float roomEntryFlickerChance = 0.65f;
+	[Range(0f, 1f)] public float roomRevisitFakeoutChance = 0.45f;
+	public float entryFlickerDuration = 0.75f;
+
+	[Header("Room Linger Scares")]
+	[Range(0f, 1f)] public float lingerLightCutChance = 0.55f;
+	public float lingerLightsOffDuration = 2f;
+	public float lingerDelayedLightRestore = 1.25f;
+
+	[Header("Door Scares")]
+	[Range(0f, 1f)] public float closeBehindDoorChance = 0.65f;
+	[Range(0f, 1f)] public float lightsOffBehindDoorChance = 0.55f;
+	public float closeBehindDelay = 0.35f;
+	public float behindDoorLightOffDuration = 1.8f;
+
+	[Header("Audio Fallback")]
 	public AudioSource[] fakeoutAudioSources;
 	public AudioSource[] routePressureAudioSources;
 	public AudioSource reliefAudioSource;
-	public Animator[] slamDoorAnimators;
-	public string slamDoorTriggerName = "Slam";
 
-	[Header("Timing")]
-	public float lightFlickerDuration = 0.65f;
-	public float shadowRevealDuration = 0.4f;
-	public float reuseCooldown = 2.5f;
-
-	private readonly Dictionary<string, float> effectCooldowns = new Dictionary<string, float>();
+	private readonly List<ProceduralRoomScareNode> roomNodes = new List<ProceduralRoomScareNode>();
+	private readonly List<ProceduralScareDoor> scareDoors = new List<ProceduralScareDoor>();
+	private readonly List<ILightInteractable> lights = new List<ILightInteractable>();
+	private readonly Dictionary<string, float> zoneLastTriggerTime = new Dictionary<string, float>();
+	private float lastGlobalTriggerTime = -999f;
 
 	void Start()
 	{
-		SetShadowObjects(false);
+		if (player == null)
+		{
+			GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
+			if (playerObject != null)
+			{
+				player = playerObject.transform;
+			}
+		}
+
+		AutoRegisterExistingProceduralElements();
+	}
+
+	public void RegisterRoomNode(ProceduralRoomScareNode node)
+	{
+		if (node == null || roomNodes.Contains(node))
+		{
+			return;
+		}
+
+		roomNodes.Add(node);
+		node.BindController(this);
+		if (debugLogs)
+		{
+			Debug.Log("EnvironmentScareController registered room node: " + node.zoneId);
+		}
+	}
+
+	public void RegisterDoor(ProceduralScareDoor door)
+	{
+		if (door == null || scareDoors.Contains(door))
+		{
+			return;
+		}
+
+		scareDoors.Add(door);
+		door.BindController(this);
+		if (debugLogs)
+		{
+			Debug.Log("EnvironmentScareController registered door: " + door.doorId);
+		}
+	}
+
+	public void RegisterLight(ILightInteractable lightInteractable)
+	{
+		if (lightInteractable == null || lights.Contains(lightInteractable))
+		{
+			return;
+		}
+
+		lights.Add(lightInteractable);
+	}
+
+	public void HandleRoomEntered(ProceduralRoomScareNode roomNode)
+	{
+		if (roomNode == null || !CanTrigger(roomNode.zoneId))
+		{
+			return;
+		}
+
+		if (roomNode.VisitState == ProceduralRoomScareNode.RoomVisitState.Entered && Random.value <= roomEntryFlickerChance)
+		{
+			TriggerLightsInZone(roomNode.zoneId, entryFlickerDuration, turnOff: false);
+			HorrorEvents.RaiseScareTriggered(ScareType.PresenceCue);
+			RegisterTrigger(roomNode.zoneId);
+			return;
+		}
+
+		if (roomNode.VisitState == ProceduralRoomScareNode.RoomVisitState.Revisited && Random.value <= roomRevisitFakeoutChance)
+		{
+			PlayRandomAudio(fakeoutAudioSources, 0.55f);
+			HorrorEvents.RaiseScareTriggered(ScareType.Fakeout);
+			RegisterTrigger(roomNode.zoneId);
+		}
+	}
+
+	public void HandleRoomExited(ProceduralRoomScareNode roomNode)
+	{
+		if (roomNode != null && roomNode.VisitState == ProceduralRoomScareNode.RoomVisitState.Entered)
+		{
+			roomNode.MarkCleared();
+		}
+	}
+
+	public void HandleRoomLinger(ProceduralRoomScareNode roomNode)
+	{
+		if (roomNode == null || !CanTrigger(roomNode.zoneId))
+		{
+			return;
+		}
+
+		if (Random.value <= lingerLightCutChance)
+		{
+			TriggerLightsInZone(roomNode.zoneId, lingerLightsOffDuration, turnOff: true);
+			HorrorEvents.RaiseScareTriggered(ScareType.MinorPsychological);
+			RegisterTrigger(roomNode.zoneId);
+		}
+	}
+
+	public void HandleDoorEvent(ProceduralScareDoor door, DoorEventType doorEventType)
+	{
+		if (door == null || !CanTrigger(door.zoneId))
+		{
+			return;
+		}
+
+		if (doorEventType == DoorEventType.Opened)
+		{
+			if (Random.value <= closeBehindDoorChance)
+			{
+				door.ActivateScare(this, ScareType.RoutePressure);
+			}
+			if (Random.value <= lightsOffBehindDoorChance)
+			{
+				TriggerLightsInZone(door.zoneId, behindDoorLightOffDuration, turnOff: true);
+			}
+			HorrorEvents.RaiseScareTriggered(ScareType.RoutePressure);
+			RegisterTrigger(door.zoneId);
+		}
+	}
+
+	public bool TryTriggerRoomContextScare(ProceduralRoomScareNode roomNode, ScareType scareType)
+	{
+		if (roomNode == null || !CanTrigger(roomNode.zoneId))
+		{
+			return false;
+		}
+
+		if (scareType == ScareType.PresenceCue)
+		{
+			TriggerLightsInZone(roomNode.zoneId, entryFlickerDuration, turnOff: false);
+		}
+		else if (scareType == ScareType.RoutePressure)
+		{
+			PlayRandomAudio(routePressureAudioSources, 0.7f);
+		}
+		else if (scareType == ScareType.ReliefBeat)
+		{
+			if (reliefAudioSource != null && reliefAudioSource.clip != null)
+			{
+				reliefAudioSource.PlayOneShot(reliefAudioSource.clip, 0.45f);
+			}
+		}
+		else
+		{
+			PlayRandomAudio(fakeoutAudioSources, 0.45f);
+		}
+
+		HorrorEvents.RaiseScareTriggered(scareType);
+		RegisterTrigger(roomNode.zoneId);
+		return true;
 	}
 
 	public bool TryPlayPresenceScare(EncounterCategory category)
 	{
-		if (category == EncounterCategory.SilhouetteReveal)
+		ProceduralRoomScareNode roomNode = GetNearestRoomNode();
+		if (roomNode != null)
 		{
-			return TryShadowReveal(ScareType.PresenceCue);
-		}
-		if (category == EncounterCategory.EnvironmentShift)
-		{
-			return TryLightFlicker(ScareType.PresenceCue);
+			return TryTriggerRoomContextScare(roomNode, ScareType.PresenceCue);
 		}
 
-		return TryFakeoutAudio(ScareType.PresenceCue, fakeoutAudioSources);
+		return PlayRandomAudio(fakeoutAudioSources, 0.45f);
 	}
 
 	public bool TryPlayProbeScare(EncounterCategory category)
 	{
-		if (category == EncounterCategory.RoutePressure)
+		ProceduralRoomScareNode roomNode = GetNearestRoomNode();
+		if (roomNode != null)
 		{
-			return TryRoutePressure();
-		}
-		if (category == EncounterCategory.EnvironmentShift)
-		{
-			if (TryDoorSlam(ScareType.MinorPsychological))
-			{
-				return true;
-			}
-			return TryLightFlicker(ScareType.MinorPsychological);
-		}
-		if (category == EncounterCategory.SilhouetteReveal)
-		{
-			return TryShadowReveal(ScareType.Fakeout);
+			ScareType scareType = category == EncounterCategory.RoutePressure ? ScareType.RoutePressure : ScareType.Fakeout;
+			return TryTriggerRoomContextScare(roomNode, scareType);
 		}
 
-		return TryFakeoutAudio(ScareType.Fakeout, fakeoutAudioSources);
+		return PlayRandomAudio(routePressureAudioSources, 0.55f);
 	}
 
 	public bool TryPlayReleaseBeat()
 	{
-		if (!CanReuse("release"))
+		ProceduralRoomScareNode roomNode = GetNearestRoomNode();
+		if (roomNode != null)
 		{
-			return false;
+			return TryTriggerRoomContextScare(roomNode, ScareType.ReliefBeat);
 		}
 
 		if (reliefAudioSource != null && reliefAudioSource.clip != null)
 		{
 			reliefAudioSource.PlayOneShot(reliefAudioSource.clip, 0.45f);
-			MarkUsed("release");
 			HorrorEvents.RaiseScareTriggered(ScareType.ReliefBeat);
 			return true;
 		}
 
-		return TryLightFlicker(ScareType.ReliefBeat);
+		return false;
 	}
 
-	bool TryLightFlicker(ScareType scareType)
+	void AutoRegisterExistingProceduralElements()
 	{
-		if (flickerLights == null || flickerLights.Length == 0 || !CanReuse("flicker"))
+		ProceduralRoomScareNode[] existingRoomNodes = FindObjectsOfType<ProceduralRoomScareNode>();
+		for (int i = 0; i < existingRoomNodes.Length; i++)
 		{
-			return false;
+			RegisterRoomNode(existingRoomNodes[i]);
 		}
 
-		StartCoroutine(FlickerRoutine());
-		MarkUsed("flicker");
-		HorrorEvents.RaiseScareTriggered(scareType);
-		return true;
+		ProceduralScareDoor[] existingDoors = FindObjectsOfType<ProceduralScareDoor>();
+		for (int i = 0; i < existingDoors.Length; i++)
+		{
+			RegisterDoor(existingDoors[i]);
+		}
+
+		ProceduralLamp[] existingLamps = FindObjectsOfType<ProceduralLamp>();
+		for (int i = 0; i < existingLamps.Length; i++)
+		{
+			RegisterLight(existingLamps[i]);
+		}
 	}
 
-	bool TryShadowReveal(ScareType scareType)
+	void TriggerLightsInZone(string zoneId, float duration, bool turnOff)
 	{
-		if (shadowRevealObjects == null || shadowRevealObjects.Length == 0 || !CanReuse("shadow"))
+		for (int i = 0; i < lights.Count; i++)
 		{
-			return false;
-		}
+			ILightInteractable lightInteractable = lights[i];
+			if (lightInteractable == null)
+			{
+				continue;
+			}
 
-		GameObject shadowObject = shadowRevealObjects[Random.Range(0, shadowRevealObjects.Length)];
-		if (shadowObject == null)
-		{
-			return false;
-		}
+			ProceduralLamp lamp = lightInteractable as ProceduralLamp;
+			if (lamp != null && !string.IsNullOrEmpty(zoneId) && lamp.zoneId != zoneId)
+			{
+				continue;
+			}
 
-		StartCoroutine(ShadowRevealRoutine(shadowObject));
-		MarkUsed("shadow");
-		HorrorEvents.RaiseScareTriggered(scareType);
-		return true;
+			if (turnOff)
+			{
+				lightInteractable.TurnOff(duration);
+				lightInteractable.DelayedActivate(duration + lingerDelayedLightRestore);
+			}
+			else
+			{
+				lightInteractable.TriggerFlicker(duration);
+			}
+		}
 	}
 
-	bool TryFakeoutAudio(ScareType scareType, AudioSource[] sources)
+	ProceduralRoomScareNode GetNearestRoomNode()
 	{
-		if (sources == null || sources.Length == 0 || !CanReuse("audio"))
+		if (player == null || roomNodes.Count == 0)
+		{
+			return null;
+		}
+
+		ProceduralRoomScareNode nearest = null;
+		float nearestDistance = float.MaxValue;
+		for (int i = 0; i < roomNodes.Count; i++)
+		{
+			ProceduralRoomScareNode node = roomNodes[i];
+			if (node == null)
+			{
+				continue;
+			}
+
+			float distance = Vector3.Distance(player.position, node.transform.position);
+			if (distance < nearestDistance)
+			{
+				nearest = node;
+				nearestDistance = distance;
+			}
+		}
+
+		return nearest;
+	}
+
+	bool PlayRandomAudio(AudioSource[] sources, float volume)
+	{
+		if (sources == null || sources.Length == 0)
 		{
 			return false;
 		}
 
 		List<AudioSource> validSources = new List<AudioSource>();
-		foreach (AudioSource source in sources)
+		for (int i = 0; i < sources.Length; i++)
 		{
-			if (source != null && source.clip != null)
+			if (sources[i] != null && sources[i].clip != null)
 			{
-				validSources.Add(source);
+				validSources.Add(sources[i]);
 			}
 		}
 
@@ -132,126 +337,37 @@ public class EnvironmentScareController : MonoBehaviour
 			return false;
 		}
 
-		AudioSource chosenSource = validSources[Random.Range(0, validSources.Count)];
-		chosenSource.PlayOneShot(chosenSource.clip, Mathf.Clamp(Random.Range(0.35f, 0.7f), 0f, 1f));
-		MarkUsed("audio");
-		HorrorEvents.RaiseScareTriggered(scareType);
+		AudioSource source = validSources[Random.Range(0, validSources.Count)];
+		source.PlayOneShot(source.clip, Mathf.Clamp01(volume));
 		return true;
 	}
 
-	bool TryDoorSlam(ScareType scareType)
+	bool CanTrigger(string zoneId)
 	{
-		if (slamDoorAnimators == null || slamDoorAnimators.Length == 0 || !CanReuse("door"))
+		if (Time.time - lastGlobalTriggerTime < globalScareCooldown)
 		{
 			return false;
 		}
 
-		List<Animator> validAnimators = new List<Animator>();
-		foreach (Animator animator in slamDoorAnimators)
-		{
-			if (animator != null)
-			{
-				validAnimators.Add(animator);
-			}
-		}
-
-		if (validAnimators.Count == 0)
-		{
-			return false;
-		}
-
-		validAnimators[Random.Range(0, validAnimators.Count)].SetTrigger(slamDoorTriggerName);
-		MarkUsed("door");
-		HorrorEvents.RaiseScareTriggered(scareType);
-		return true;
-	}
-
-	bool TryRoutePressure()
-	{
-		if (TryFakeoutAudio(ScareType.RoutePressure, routePressureAudioSources))
+		if (string.IsNullOrEmpty(zoneId))
 		{
 			return true;
 		}
 
-		if (TryDoorSlam(ScareType.RoutePressure))
+		if (!zoneLastTriggerTime.ContainsKey(zoneId))
 		{
 			return true;
 		}
 
-		return false;
+		return Time.time - zoneLastTriggerTime[zoneId] >= perZoneCooldown;
 	}
 
-	IEnumerator FlickerRoutine()
+	void RegisterTrigger(string zoneId)
 	{
-		float elapsed = 0f;
-		Dictionary<Light, bool> initialStates = new Dictionary<Light, bool>();
-		foreach (Light flickerLight in flickerLights)
+		lastGlobalTriggerTime = Time.time;
+		if (!string.IsNullOrEmpty(zoneId))
 		{
-			if (flickerLight != null)
-			{
-				initialStates[flickerLight] = flickerLight.enabled;
-			}
+			zoneLastTriggerTime[zoneId] = Time.time;
 		}
-
-		while (elapsed < lightFlickerDuration)
-		{
-			foreach (Light flickerLight in flickerLights)
-			{
-				if (flickerLight != null)
-				{
-					flickerLight.enabled = Random.value > 0.35f;
-				}
-			}
-
-			elapsed += 0.06f;
-			yield return new WaitForSeconds(0.06f);
-		}
-
-		foreach (KeyValuePair<Light, bool> pair in initialStates)
-		{
-			if (pair.Key != null)
-			{
-				pair.Key.enabled = pair.Value;
-			}
-		}
-	}
-
-	IEnumerator ShadowRevealRoutine(GameObject shadowObject)
-	{
-		SetShadowObjects(false);
-		shadowObject.SetActive(true);
-		yield return new WaitForSeconds(shadowRevealDuration);
-		shadowObject.SetActive(false);
-	}
-
-	void SetShadowObjects(bool active)
-	{
-		if (shadowRevealObjects == null)
-		{
-			return;
-		}
-
-		foreach (GameObject shadowObject in shadowRevealObjects)
-		{
-			if (shadowObject != null)
-			{
-				shadowObject.SetActive(active);
-			}
-		}
-	}
-
-	bool CanReuse(string key)
-	{
-		if (!effectCooldowns.ContainsKey(key))
-		{
-			return true;
-		}
-
-		return Time.time - effectCooldowns[key] >= reuseCooldown;
-	}
-
-	void MarkUsed(string key)
-	{
-		effectCooldowns[key] = Time.time;
 	}
 }
