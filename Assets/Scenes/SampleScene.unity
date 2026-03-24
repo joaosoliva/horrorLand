@@ -1717,6 +1717,11 @@ MonoBehaviour:
   patrolSpeed: 2
   chaseSpeed: 10
   rotationSpeed: 5
+  ambientRevealCommitDistance: 7
+  ambientRevealRetreatDistance: 12
+  hiddenRetreatMinDistance: 6
+  hiddenRetreatMaxDistance: 16
+  closeSightCommitGrace: 0.65
   repathInterval: 0.5
   nodeReachedDistance: 0.3
   searchTime: 2
@@ -1773,6 +1778,14 @@ MonoBehaviour:
   heartbeat: {fileID: 990506141}
   tensionBurst: {fileID: 871983576}
   reliefBed: {fileID: 0}
+  cueOneShotSource: {fileID: 0}
+  stalkingCues: []
+  approachCues: []
+  searchCues: []
+  fakeoutCues: []
+  releaseCues: []
+  cueCooldown: 3.5
+  cueBaseVolume: 0.5
   player: {fileID: 1956618892}
   horrorDirector: {fileID: 1757343061}
   maxDistance: 25
@@ -4888,6 +4901,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ScareScheduler
   horrorDirector: {fileID: 1757343061}
+  encounterDirector: {fileID: 684804314}
   jumpscareSystem: {fileID: 1559133037}
   chaseSystem: {fileID: 716215839}
   villainAI: {fileID: 92354975}
@@ -4899,6 +4913,12 @@ MonoBehaviour:
   majorScareCooldown: 10
   presenceCueGuarantee: 25
   repeatHistorySize: 2
+  nonPayoffBuildChance: 0.35
+  audioFakeoutCooldown: 12
+  silhouetteRevealCooldown: 18
+  routePressureCooldown: 14
+  environmentShiftCooldown: 10
+  hardScareCategoryCooldown: 45
   enableDebugLogs: 1
 --- !u!4 &279681306
 Transform:
@@ -11507,6 +11527,60 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!1 &684804313
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 684804315}
+  - component: {fileID: 684804314}
+  m_Layer: 0
+  m_Name: EncounterDirector
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &684804314
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 684804313}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2afa3281f8de45f599ce188186ad3ce1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EncounterDirector
+  horrorDirector: {fileID: 1757343061}
+  scareScheduler: {fileID: 279681305}
+  chaseSystem: {fileID: 716215839}
+  jumpscareSystem: {fileID: 1559133037}
+  villainAI: {fileID: 92354975}
+  environmentScareController: {fileID: 743005041}
+  commitmentChaseBias: 0.7
+  probeRoutePressureBias: 0.45
+  releaseEnvironmentalBias: 0.65
+  enableDebugLogs: 0
+--- !u!4 &684804315
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 684804313}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &689602782
 GameObject:
   m_ObjectHideFlags: 0
@@ -11806,6 +11880,12 @@ MonoBehaviour:
   graceReacquireTime: 2.75
   searchFallbackDuration: 2.5
   alternatePatterns: 1
+  revealFreezeWindow: 0.1
+  lineOfSightBreakTime: 1.5
+  searchSpeedMultiplier: 0.72
+  reacquireSpeedBonus: 0.18
+  reacquireBurstDuration: 1.15
+  successfulEscapeSafetyWindow: 3.5
   driveJumpscareBudget: 1
   jumpscareWarmup: 1.5
   jumpscareCooldownDuringChase: 7
@@ -11942,6 +12022,61 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2089221898}
   m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+--- !u!1 &743005040
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 743005042}
+  - component: {fileID: 743005041}
+  m_Layer: 0
+  m_Name: EnvironmentScareController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &743005041
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 743005040}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c645680093df4e0887b86198d92d6cf2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnvironmentScareController
+  flickerLights:
+  - {fileID: 1877671496}
+  shadowRevealObjects: []
+  fakeoutAudioSources: []
+  routePressureAudioSources: []
+  reliefAudioSource: {fileID: 0}
+  slamDoorAnimators: []
+  slamDoorTriggerName: Slam
+  lightFlickerDuration: 0.65
+  shadowRevealDuration: 0.4
+  reuseCooldown: 2.5
+--- !u!4 &743005042
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 743005040}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 141.90623, y: -62.78502, z: 115.28841}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &746633695
 GameObject:
   m_ObjectHideFlags: 0
@@ -24899,11 +25034,15 @@ MonoBehaviour:
   maxDistanceForJumpscare: 20
   directorVisibilityRetryWindow: {x: 4, y: 8}
   enableWarning: 1
-  warningDuration: 3
+  preferDiegeticWarnings: 1
+  showWarningTextForMinorScares: 0
+  warningDuration: 10
   warningCanvas: {fileID: 444640490}
   warningText: {fileID: 1763691058}
   warningMessage: HE IS NEAR!
   warningColor: {r: 1, g: 0, b: 0, a: 1}
+  diegeticWarningClip: {fileID: 0}
+  diegeticWarningVolume: 0.6
   jumpscareCanvas: {fileID: 47159857}
   jumpscareImage: {fileID: 1336069392}
   jumpscareSprite: {fileID: 21300000, guid: 883127dcade32b946a772dde255f7a7e, type: 3}
@@ -27393,6 +27532,12 @@ MonoBehaviour:
   minute2Floor: {x: 120, y: 0.35}
   minute3Floor: {x: 180, y: 0.48}
   minute4Floor: {x: 240, y: 0.65}
+  ambientRevealMinInterval: 12
+  ambientRevealMaxDuration: 1.4
+  closeRevealDistance: 6
+  closeRevealCooldown: 10
+  threatRevealIntervalMultiplier: 0.75
+  finaleRevealIntervalMultiplier: 0.55
   logPhaseChanges: 0
 --- !u!4 &1757343062
 Transform:
@@ -34577,3 +34722,5 @@ SceneRoots:
   - {fileID: 716215840}
   - {fileID: 279681306}
   - {fileID: 2130482455}
+  - {fileID: 684804315}
+  - {fileID: 743005042}
