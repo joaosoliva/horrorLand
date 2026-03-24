@@ -9,6 +9,16 @@ public class VillainAudio : MonoBehaviour
 	public AudioSource heartbeat;
 	public AudioSource tensionBurst;
 	public AudioSource reliefBed;
+	public AudioSource cueOneShotSource;
+
+	[Header("Intent Cues")]
+	public AudioClip[] stalkingCues;
+	public AudioClip[] approachCues;
+	public AudioClip[] searchCues;
+	public AudioClip[] fakeoutCues;
+	public AudioClip[] releaseCues;
+	public float cueCooldown = 3.5f;
+	public float cueBaseVolume = 0.5f;
 
 	[Header("References")]
 	public Transform player;
@@ -29,6 +39,7 @@ public class VillainAudio : MonoBehaviour
 	private VillainAI villain;
 	private HorrorPhase currentPhase = HorrorPhase.Calm;
 	private float currentTension;
+	private float lastCueTime = -999f;
 
 	void Start()
 	{
@@ -40,6 +51,10 @@ public class VillainAudio : MonoBehaviour
 		if (horrorDirector == null)
 		{
 			horrorDirector = FindObjectOfType<HorrorDirector>();
+		}
+		if (cueOneShotSource == null)
+		{
+			cueOneShotSource = tensionBurst;
 		}
 
 		StopAll();
@@ -125,17 +140,32 @@ public class VillainAudio : MonoBehaviour
 	void HandleChaseStarted()
 	{
 		PlayBurst(1f);
+		PlayCue(approachCues, 0.7f);
 		hasBurstPlayed = true;
 	}
 
 	void HandleChaseEnded()
 	{
+		PlayCue(searchCues, 0.6f);
+		PlayCue(releaseCues, 0.55f);
 		hasBurstPlayed = false;
 	}
 
 	void HandlePhaseChanged(HorrorPhase phase)
 	{
 		currentPhase = phase;
+		if (phase == HorrorPhase.Build)
+		{
+			PlayCue(stalkingCues, 0.45f);
+		}
+		else if (phase == HorrorPhase.Threat || phase == HorrorPhase.Peak)
+		{
+			PlayCue(approachCues, 0.6f);
+		}
+		else if (phase == HorrorPhase.Relief)
+		{
+			PlayCue(releaseCues, 0.45f);
+		}
 	}
 
 	void HandleTensionChanged(float tension)
@@ -148,6 +178,14 @@ public class VillainAudio : MonoBehaviour
 		if (scareType == ScareType.MajorJumpscare || scareType == ScareType.Fakeout || scareType == ScareType.ChaseTrigger)
 		{
 			PlayBurst(0.85f);
+		}
+		if (scareType == ScareType.Fakeout || scareType == ScareType.PresenceCue)
+		{
+			PlayCue(fakeoutCues, 0.5f);
+		}
+		if (scareType == ScareType.RoutePressure)
+		{
+			PlayCue(approachCues, 0.65f);
 		}
 	}
 
@@ -195,5 +233,27 @@ public class VillainAudio : MonoBehaviour
 		{
 			src.Stop();
 		}
+	}
+
+	void PlayCue(AudioClip[] clips, float volumeScale)
+	{
+		if (clips == null || clips.Length == 0 || cueOneShotSource == null)
+		{
+			return;
+		}
+
+		if (Time.time - lastCueTime < cueCooldown)
+		{
+			return;
+		}
+
+		AudioClip clip = clips[Random.Range(0, clips.Length)];
+		if (clip == null)
+		{
+			return;
+		}
+
+		cueOneShotSource.PlayOneShot(clip, Mathf.Clamp01(cueBaseVolume * volumeScale));
+		lastCueTime = Time.time;
 	}
 }

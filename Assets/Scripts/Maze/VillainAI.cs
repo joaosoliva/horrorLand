@@ -637,6 +637,14 @@ public class VillainAI : MonoBehaviour
 		if (player == null) return false;
 
 		float distanceToPlayer = Vector3.Distance(transform.position, player.position);
+		bool playerConcealed = HidingSpot.IsPlayerConcealed(player);
+		if (playerConcealed)
+		{
+			if (!IsChasing || distanceToPlayer > 3.5f)
+			{
+				return false;
+			}
+		}
 
 		// Use current detection radius instead of fixed one
 		if (distanceToPlayer > GetEffectiveDetectionRadius())

@@ -21,11 +21,15 @@ public class JumpscareSystem : MonoBehaviour
 
 	[Header("Warning System")]
 	public bool enableWarning = true;
+	public bool preferDiegeticWarnings = true;
+	public bool showWarningTextForMinorScares = false;
 	public float warningDuration = 1.5f;
 	public Canvas warningCanvas;
 	public TextMeshProUGUI warningText;
 	public string warningMessage = "HE IS NEAR!";
 	public Color warningColor = Color.red;
+	public AudioClip diegeticWarningClip;
+	public float diegeticWarningVolume = 0.6f;
 
 	[Header("Major Jumpscare Visual")]
 	public Canvas jumpscareCanvas;
@@ -231,7 +235,7 @@ public class JumpscareSystem : MonoBehaviour
 			screenFlash.gameObject.SetActive(false);
 		}
 
-		if (warningCanvas != null && warningText != null)
+		if (showWarningTextForMinorScares && warningCanvas != null && warningText != null)
 		{
 			warningCanvas.gameObject.SetActive(true);
 			warningText.text = GetMessageForScareType(scareType);
@@ -259,7 +263,21 @@ public class JumpscareSystem : MonoBehaviour
 		}
 
 		pendingScareType = scareType;
+		if (preferDiegeticWarnings)
+		{
+			currentWarningCoroutine = StartCoroutine(DiegeticWarningRoutine());
+			return;
+		}
 		currentWarningCoroutine = StartCoroutine(WarningRoutine(message, color));
+	}
+
+	IEnumerator DiegeticWarningRoutine()
+	{
+		isWarningActive = true;
+		PlayDiegeticWarning();
+		yield return new WaitForSeconds(Mathf.Clamp(warningDuration * 0.55f, 0.2f, warningDuration));
+		isWarningActive = false;
+		TriggerJumpscare(pendingScareType);
 	}
 
 	IEnumerator WarningRoutine(string message, Color color)
@@ -385,6 +403,18 @@ public class JumpscareSystem : MonoBehaviour
 		nextJumpscareTime = Time.time + Random.Range(
 			Mathf.Min(directorVisibilityRetryWindow.x, directorVisibilityRetryWindow.y),
 			Mathf.Max(directorVisibilityRetryWindow.x, directorVisibilityRetryWindow.y));
+	}
+
+	void PlayDiegeticWarning()
+	{
+		if (audioSource != null && diegeticWarningClip != null)
+		{
+			audioSource.PlayOneShot(diegeticWarningClip, Mathf.Clamp01(diegeticWarningVolume));
+		}
+		else if (audioSource != null && jumpscareSound != null)
+		{
+			audioSource.PlayOneShot(jumpscareSound, 0.3f);
+		}
 	}
 
 	string GetMessageForScareType(ScareType scareType)
