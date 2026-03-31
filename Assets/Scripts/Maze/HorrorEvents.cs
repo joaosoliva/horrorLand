@@ -43,6 +43,7 @@ public static class HorrorEvents
 	public static event Action OnChaseEnded;
 	public static event Action<string, float> OnSoundboardPlayed;
 	public static event Action OnJumpscareTriggered;
+	public static event Action<float, float, float> OnSanityChanged;
 
 	public static void RaiseTensionChanged(float tension)
 	{
@@ -97,5 +98,10 @@ public static class HorrorEvents
 	public static void RaiseJumpscareTriggered()
 	{
 		OnJumpscareTriggered?.Invoke();
+	}
+
+	public static void RaiseSanityChanged(float currentSanity, float normalizedSanity, float stress01)
+	{
+		OnSanityChanged?.Invoke(currentSanity, Mathf.Clamp01(normalizedSanity), Mathf.Clamp01(stress01));
 	}
 }
