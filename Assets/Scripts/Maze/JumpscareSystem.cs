@@ -39,6 +39,9 @@ public class JumpscareSystem : MonoBehaviour
 	public int flashCount = 3;
 	public AudioClip jumpscareSound;
 	public float majorScareVolume = 1f;
+	public float anticipationDelay = 0.09f;
+	public float anticipationFlashAlpha = 0.25f;
+	public float majorStingPitch = 1.08f;
 
 	[Header("Minor Scare Visual")]
 	public Color minorFlashColor = new Color(0.75f, 0f, 0f, 0.55f);
@@ -52,6 +55,9 @@ public class JumpscareSystem : MonoBehaviour
 	public Image screenFlash;
 	public Color flashColor = Color.red;
 	public float flashIntensity = 0.8f;
+	public Camera effectsCamera;
+	public float majorCameraShakeDuration = 0.2f;
+	public float majorCameraShakeAmount = 0.18f;
 
 	[Header("Debug")]
 	public bool enableDebugLogs = true;
@@ -346,11 +352,22 @@ public class JumpscareSystem : MonoBehaviour
 
 		if (jumpscareSound != null && audioSource != null)
 		{
+			audioSource.pitch = scareType == ScareType.MajorJumpscare ? majorStingPitch : 1f;
 			audioSource.PlayOneShot(jumpscareSound, scareType == ScareType.MajorJumpscare ? majorScareVolume : minorSoundVolume);
+			audioSource.pitch = 1f;
 		}
 
 		if (scareType == ScareType.MajorJumpscare && jumpscareImage != null && jumpscareSprite != null)
 		{
+			if (screenFlash != null && anticipationDelay > 0.005f)
+			{
+				screenFlash.gameObject.SetActive(true);
+				Color anticipationColor = flashColor;
+				anticipationColor.a = Mathf.Clamp01(anticipationFlashAlpha);
+				screenFlash.color = anticipationColor;
+				yield return new WaitForSeconds(anticipationDelay);
+			}
+
 			if (jumpscareCanvas != null)
 			{
 				jumpscareCanvas.gameObject.SetActive(true);
@@ -368,6 +385,8 @@ public class JumpscareSystem : MonoBehaviour
 			{
 				jumpscareCanvas.gameObject.SetActive(false);
 			}
+
+			yield return StartCoroutine(ApplyCameraShake(majorCameraShakeDuration, majorCameraShakeAmount));
 		}
 
 		if (screenFlash != null)
@@ -391,6 +410,30 @@ public class JumpscareSystem : MonoBehaviour
 		}
 
 		isJumpscareActive = false;
+	}
+
+	IEnumerator ApplyCameraShake(float duration, float amount)
+	{
+		Camera targetCamera = effectsCamera != null ? effectsCamera : Camera.main;
+		if (targetCamera == null || duration <= 0f || amount <= 0f)
+		{
+			yield break;
+		}
+
+		Transform camTransform = targetCamera.transform;
+		Vector3 originalLocalPosition = camTransform.localPosition;
+		float elapsed = 0f;
+		while (elapsed < duration)
+		{
+			float t = elapsed / duration;
+			float damper = 1f - t;
+			Vector2 random = Random.insideUnitCircle * amount * damper;
+			camTransform.localPosition = originalLocalPosition + new Vector3(random.x, random.y, 0f);
+			elapsed += Time.deltaTime;
+			yield return null;
+		}
+
+		camTransform.localPosition = originalLocalPosition;
 	}
 
 	void ResetJumpscareTimer()

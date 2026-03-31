@@ -19,6 +19,10 @@ public class VillainAudio : MonoBehaviour
 	public AudioClip[] releaseCues;
 	public float cueCooldown = 3.5f;
 	public float cueBaseVolume = 0.5f;
+	public Vector2 cueCooldownRange = new Vector2(2f, 5f);
+	public Vector2 cuePitchRange = new Vector2(0.9f, 1.15f);
+	public float spatialCueRadius = 2.5f;
+	public float tensionCueBias = 0.3f;
 
 	[Header("References")]
 	public Transform player;
@@ -40,6 +44,7 @@ public class VillainAudio : MonoBehaviour
 	private HorrorPhase currentPhase = HorrorPhase.Calm;
 	private float currentTension;
 	private float lastCueTime = -999f;
+	private float currentCueCooldown = 3.5f;
 
 	void Start()
 	{
@@ -56,6 +61,7 @@ public class VillainAudio : MonoBehaviour
 		{
 			cueOneShotSource = tensionBurst;
 		}
+		currentCueCooldown = cueCooldown;
 
 		StopAll();
 	}
@@ -96,6 +102,7 @@ public class VillainAudio : MonoBehaviour
 		float distance = Vector3.Distance(transform.position, player.position);
 		float proximity = Mathf.Clamp01(1f - (distance / Mathf.Max(0.01f, maxDistance)));
 		float intensity = intensityCurve.Evaluate(Mathf.Clamp01((proximity * 0.7f) + (currentTension * 0.6f)));
+		currentCueCooldown = Mathf.Lerp(cueCooldownRange.y, cueCooldownRange.x, Mathf.Clamp01(currentTension + (currentPhase == HorrorPhase.Peak ? tensionCueBias : 0f)));
 
 		HandleLayer(ambientHum, Mathf.Lerp(0.12f, 0.45f, currentTension), 0.9f, 1.05f);
 
@@ -242,7 +249,7 @@ public class VillainAudio : MonoBehaviour
 			return;
 		}
 
-		if (Time.time - lastCueTime < cueCooldown)
+		if (Time.time - lastCueTime < currentCueCooldown)
 		{
 			return;
 		}
@@ -253,7 +260,15 @@ public class VillainAudio : MonoBehaviour
 			return;
 		}
 
+		if (player != null)
+		{
+			Vector2 randomOffset2D = Random.insideUnitCircle * spatialCueRadius;
+			cueOneShotSource.transform.position = player.position + new Vector3(randomOffset2D.x, 0f, randomOffset2D.y);
+		}
+
+		cueOneShotSource.pitch = Random.Range(cuePitchRange.x, cuePitchRange.y);
 		cueOneShotSource.PlayOneShot(clip, Mathf.Clamp01(cueBaseVolume * volumeScale));
+		cueOneShotSource.pitch = 1f;
 		lastCueTime = Time.time;
 	}
 }
