@@ -18,6 +18,10 @@ public class JumpscareSystem : MonoBehaviour
 	public float triggerDistance = 10f;
 	public float maxDistanceForJumpscare = 20f;
 	public Vector2 directorVisibilityRetryWindow = new Vector2(4f, 8f);
+	public bool enableLineOfSightSnapTrigger = true;
+	public float lineOfSightSnapCooldown = 7f;
+	public bool enableCloseProximitySnapTrigger = true;
+	public float closeProximitySnapDistance = 5.5f;
 
 	[Header("Warning System")]
 	public bool enableWarning = true;
@@ -69,6 +73,9 @@ public class JumpscareSystem : MonoBehaviour
 	private Coroutine currentJumpscareCoroutine;
 	private Coroutine currentWarningCoroutine;
 	private ScareType pendingScareType = ScareType.MajorJumpscare;
+	private bool hadLineOfSightLastFrame = false;
+	private float lastLineOfSightSnapTime = -999f;
+	private float lastProximitySnapTime = -999f;
 
 	void Start()
 	{
@@ -141,9 +148,15 @@ public class JumpscareSystem : MonoBehaviour
 		}
 
 		float distanceToVillain = Vector3.Distance(player.position, villainAI.transform.position);
+		bool villainVisible = villainAI.CanSeePlayer();
 		if (useDirectorDrivenScheduling)
 		{
-			HandleDirectorDrivenMajorScare(distanceToVillain);
+			if (TryImmediateThreatSnap(distanceToVillain, villainVisible))
+			{
+				return;
+			}
+
+			HandleDirectorDrivenMajorScare(distanceToVillain, villainVisible);
 			return;
 		}
 
@@ -160,14 +173,43 @@ public class JumpscareSystem : MonoBehaviour
 		}
 	}
 
-	void HandleDirectorDrivenMajorScare(float distanceToVillain)
+	bool TryImmediateThreatSnap(float distanceToVillain, bool villainVisible)
+	{
+		bool justGainedLineOfSight = villainVisible && !hadLineOfSightLastFrame;
+		hadLineOfSightLastFrame = villainVisible;
+
+		if (enableLineOfSightSnapTrigger && justGainedLineOfSight && Time.time - lastLineOfSightSnapTime >= lineOfSightSnapCooldown)
+		{
+			lastLineOfSightSnapTime = Time.time;
+			if (enableDebugLogs)
+			{
+				Debug.Log("Immediate jumpscare snap trigger fired from fresh villain line-of-sight.");
+			}
+			ForceMajorScare(enableWarning);
+			return true;
+		}
+
+		if (enableCloseProximitySnapTrigger && distanceToVillain <= closeProximitySnapDistance && Time.time - lastProximitySnapTime >= Mathf.Max(2f, lineOfSightSnapCooldown * 0.6f))
+		{
+			lastProximitySnapTime = Time.time;
+			if (enableDebugLogs)
+			{
+				Debug.Log("Immediate jumpscare snap trigger fired from close villain proximity.");
+			}
+			ForceMajorScare(enableWarning);
+			return true;
+		}
+
+		return false;
+	}
+
+	void HandleDirectorDrivenMajorScare(float distanceToVillain, bool villainVisible)
 	{
 		if (Time.time < nextJumpscareTime)
 		{
 			return;
 		}
 
-		bool villainVisible = villainAI.CanSeePlayer();
 		bool withinDistanceWindow = distanceToVillain <= maxDistanceForJumpscare && distanceToVillain >= triggerDistance;
 		bool contextualOpportunity = villainVisible || withinDistanceWindow;
 		if (!contextualOpportunity)
