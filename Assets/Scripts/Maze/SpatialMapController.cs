@@ -1,17 +1,28 @@
 ﻿using UnityEngine;
+using TMPro;
 
 public class SpatialMapController : MonoBehaviour
 {
 	[Header("Map Settings")]
 	public Transform playerTransform;
 	public MazeGenerator mazeGenerator;
-    
+	
 	[Header("Map Display")]
 	public GameObject mapObject; // 3D plane held by player
 	public Material mapMaterial;
 	public float mapScale = 0.3f;
 	public Vector3 mapOffset = new Vector3(0.3f, -0.2f, 0.5f); // Relative to camera
-    
+	public KeyCode mapHoldKey = KeyCode.Tab;
+	
+	[Header("Map Prompt UI")]
+	public TextMeshProUGUI mapPromptText;
+	public string defaultMapPrompt = "Hold TAB for Map";
+	public string emphasizedMapPrompt = "HOLD TAB FOR MAP";
+	public Color defaultPromptColor = new Color(0.8f, 0.8f, 0.8f, 0.9f);
+	public Color emphasizedPromptColor = Color.white;
+	public float defaultPromptScale = 1f;
+	public float emphasizedPromptScale = 1.25f;
+	
 	[Header("Map Rendering")]
 	public Color exploredColor = new Color(0.7f, 0.7f, 0.7f);
 	public Color unexploredColor = new Color(0.2f, 0.2f, 0.2f);
@@ -19,7 +30,7 @@ public class SpatialMapController : MonoBehaviour
 	public Color minotaurColor = Color.red;
 	public Color exitColor = Color.yellow;
 	public int mapResolution = 512;
-    
+	
 	private Texture2D mapTexture;
 	private bool[,] exploredCells;
 	private bool mapVisible = false;
@@ -27,6 +38,7 @@ public class SpatialMapController : MonoBehaviour
 	private Camera playerCamera;
 	private Transform mapParent; // Parent transform for the map
 	private bool needsRedraw = false; // Optimization: only redraw when needed
+	private bool isPromptEmphasized;
 
 	void Start()
 	{
@@ -34,6 +46,7 @@ public class SpatialMapController : MonoBehaviour
 		CreateMapObject();
 		InitializeExploration();
 		mapObject.SetActive(false);
+		RefreshMapPrompt();
 	}
 
 	void CreateMapObject()
@@ -42,21 +55,21 @@ public class SpatialMapController : MonoBehaviour
 		mapPlane = GameObject.CreatePrimitive(PrimitiveType.Plane);
 		mapPlane.name = "SpatialMap";
 		mapPlane.transform.localScale = new Vector3(mapScale, 1f, mapScale);
-        
+		
 		// Remove collider
 		Destroy(mapPlane.GetComponent<Collider>());
-        
+		
 		// Create texture
 		mapTexture = new Texture2D(mapResolution, mapResolution, TextureFormat.RGBA32, false);
 		mapTexture.filterMode = FilterMode.Point;
 		mapTexture.Apply(false, false);
-        
+		
 		// Create material
 		mapMaterial = new Material(Shader.Find("Unlit/Texture"));
 		mapMaterial.mainTexture = mapTexture;
 
 		mapPlane.GetComponent<Renderer>().material = mapMaterial;
-        
+		
 		mapObject = mapPlane;
 
 		// Create or find parent for the map (attach to player's hand/camera)
@@ -67,7 +80,7 @@ public class SpatialMapController : MonoBehaviour
 	{
 		// Look for a hand empty in the player hierarchy
 		Transform handEmpty = FindHandEmpty(playerTransform);
-    
+	
 		if (handEmpty != null)
 		{
 			mapParent = handEmpty;
@@ -86,10 +99,10 @@ public class SpatialMapController : MonoBehaviour
 				mapParent.SetParent(playerTransform);
 			}
 		}
-    
+	
 		// Parent the map to our parent transform and set the desired transform
 		mapPlane.transform.SetParent(mapParent, false);
-    
+	
 		// Set the exact transform values you specified
 		mapPlane.transform.localPosition = new Vector3(0f, 0f, 2f);
 		mapPlane.transform.localEulerAngles = new Vector3(90f, 0f, 180f);
@@ -143,9 +156,10 @@ public class SpatialMapController : MonoBehaviour
 
 	void Update()
 	{
-		if (Input.GetKeyDown(KeyCode.M))
+		bool shouldShowMap = Input.GetKey(mapHoldKey);
+		if (shouldShowMap != mapVisible)
 		{
-			ToggleMap();
+			SetMapVisible(shouldShowMap);
 		}
 
 		if (mapVisible)
@@ -161,11 +175,35 @@ public class SpatialMapController : MonoBehaviour
 		}
 	}
 
-	void ToggleMap()
+	void SetMapVisible(bool visible)
 	{
-		mapVisible = !mapVisible;
+		mapVisible = visible;
 		mapObject.SetActive(mapVisible);
-		needsRedraw = true; // Force redraw when showing map
+		needsRedraw = true;
+	}
+
+	public void SetMapPromptEmphasis(bool emphasized)
+	{
+		if (isPromptEmphasized == emphasized)
+		{
+			return;
+		}
+
+		isPromptEmphasized = emphasized;
+		RefreshMapPrompt();
+	}
+
+	void RefreshMapPrompt()
+	{
+		if (mapPromptText == null)
+		{
+			return;
+		}
+
+		mapPromptText.text = isPromptEmphasized ? emphasizedMapPrompt : defaultMapPrompt;
+		mapPromptText.color = isPromptEmphasized ? emphasizedPromptColor : defaultPromptColor;
+		float scale = isPromptEmphasized ? emphasizedPromptScale : defaultPromptScale;
+		mapPromptText.rectTransform.localScale = Vector3.one * Mathf.Max(0.01f, scale);
 	}
 
 	bool UpdateExploration()
@@ -241,7 +279,7 @@ public class SpatialMapController : MonoBehaviour
 	{
 		int pixelX = Mathf.FloorToInt((worldPos.x / mazeGenerator.cellSize) * cellPixelSize);
 		int pixelY = Mathf.FloorToInt((worldPos.z / mazeGenerator.cellSize) * cellPixelSize);
-        
+		
 		int iconSize = Mathf.Max(1, cellPixelSize); // Smaller, more performant icon
 		
 		for (int i = -iconSize; i <= iconSize; i++)
