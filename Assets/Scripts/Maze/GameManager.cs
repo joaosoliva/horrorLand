@@ -11,6 +11,7 @@ public class GameManager : MonoBehaviour
 	public VillainAI villainAI;
 	public MazeGenerator mazeGenerator;
 	public Transform player;
+	public JumpscareSystem jumpscareSystem;
     
 	[Header("Win Settings")]
 	public int notesRequiredToWin = 6;
@@ -19,6 +20,9 @@ public class GameManager : MonoBehaviour
 	[Header("Lose Settings")]
 	public float loseDistance = 2f;
 	public float loseDelay = 1f;
+	public float caughtAnticipationDelay = 0.2f;
+	public float caughtCameraShakeDuration = 0.28f;
+	public float caughtCameraShakeAmount = 0.14f;
     
 	[Header("UI References")]
 	public Canvas gameOverCanvas;
@@ -53,6 +57,8 @@ public class GameManager : MonoBehaviour
 			
 		if (mazeGenerator == null)
 			mazeGenerator = FindObjectOfType<MazeGenerator>();
+		if (jumpscareSystem == null)
+			jumpscareSystem = FindObjectOfType<JumpscareSystem>();
             
 		if (player == null)
 		{
@@ -204,6 +210,8 @@ public class GameManager : MonoBehaviour
 
 	IEnumerator LoseGameRoutine()
 	{
+		yield return StartCoroutine(PlayCaughtSequence());
+
 		// Wait a moment before showing lose screen (use unscaled time)
 		yield return new WaitForSecondsRealtime(loseDelay);
         
@@ -213,6 +221,40 @@ public class GameManager : MonoBehaviour
         
 		// Show lose screen
 		ShowGameOverScreen("GAME OVER", "Você foi pego pelo vilão", false);
+	}
+
+	IEnumerator PlayCaughtSequence()
+	{
+		if (jumpscareSystem != null && !jumpscareSystem.IsJumpscareActive())
+		{
+			jumpscareSystem.ForceMajorScare(false);
+		}
+
+		if (caughtAnticipationDelay > 0f)
+		{
+			yield return new WaitForSecondsRealtime(caughtAnticipationDelay);
+		}
+
+		Camera activeCamera = Camera.main;
+		if (activeCamera == null || caughtCameraShakeDuration <= 0f || caughtCameraShakeAmount <= 0f)
+		{
+			yield break;
+		}
+
+		Transform camTransform = activeCamera.transform;
+		Vector3 originalLocalPosition = camTransform.localPosition;
+		float elapsed = 0f;
+		while (elapsed < caughtCameraShakeDuration)
+		{
+			float t = elapsed / Mathf.Max(0.01f, caughtCameraShakeDuration);
+			float damper = 1f - t;
+			Vector2 random = Random.insideUnitCircle * caughtCameraShakeAmount * damper;
+			camTransform.localPosition = originalLocalPosition + new Vector3(random.x, random.y, 0f);
+			elapsed += Time.unscaledDeltaTime;
+			yield return null;
+		}
+
+		camTransform.localPosition = originalLocalPosition;
 	}
 
 	void ShowGameOverScreen(string title, string message, bool isWin)

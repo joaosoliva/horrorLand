@@ -18,6 +18,10 @@ public class JumpscareSystem : MonoBehaviour
 	public float triggerDistance = 10f;
 	public float maxDistanceForJumpscare = 20f;
 	public Vector2 directorVisibilityRetryWindow = new Vector2(4f, 8f);
+	public bool enableLineOfSightSnapTrigger = true;
+	public float lineOfSightSnapCooldown = 7f;
+	public bool enableCloseProximitySnapTrigger = true;
+	public float closeProximitySnapDistance = 5.5f;
 
 	[Header("Warning System")]
 	public bool enableWarning = true;
@@ -39,6 +43,9 @@ public class JumpscareSystem : MonoBehaviour
 	public int flashCount = 3;
 	public AudioClip jumpscareSound;
 	public float majorScareVolume = 1f;
+	public float anticipationDelay = 0.09f;
+	public float anticipationFlashAlpha = 0.25f;
+	public float majorStingPitch = 1.08f;
 
 	[Header("Minor Scare Visual")]
 	public Color minorFlashColor = new Color(0.75f, 0f, 0f, 0.55f);
@@ -52,6 +59,9 @@ public class JumpscareSystem : MonoBehaviour
 	public Image screenFlash;
 	public Color flashColor = Color.red;
 	public float flashIntensity = 0.8f;
+	public Camera effectsCamera;
+	public float majorCameraShakeDuration = 0.2f;
+	public float majorCameraShakeAmount = 0.18f;
 
 	[Header("Debug")]
 	public bool enableDebugLogs = true;
@@ -63,6 +73,9 @@ public class JumpscareSystem : MonoBehaviour
 	private Coroutine currentJumpscareCoroutine;
 	private Coroutine currentWarningCoroutine;
 	private ScareType pendingScareType = ScareType.MajorJumpscare;
+	private bool hadLineOfSightLastFrame = false;
+	private float lastLineOfSightSnapTime = -999f;
+	private float lastProximitySnapTime = -999f;
 
 	void Start()
 	{
@@ -135,9 +148,15 @@ public class JumpscareSystem : MonoBehaviour
 		}
 
 		float distanceToVillain = Vector3.Distance(player.position, villainAI.transform.position);
+		bool villainVisible = villainAI.CanSeePlayer();
 		if (useDirectorDrivenScheduling)
 		{
-			HandleDirectorDrivenMajorScare(distanceToVillain);
+			if (TryImmediateThreatSnap(distanceToVillain, villainVisible))
+			{
+				return;
+			}
+
+			HandleDirectorDrivenMajorScare(distanceToVillain, villainVisible);
 			return;
 		}
 
@@ -154,14 +173,43 @@ public class JumpscareSystem : MonoBehaviour
 		}
 	}
 
-	void HandleDirectorDrivenMajorScare(float distanceToVillain)
+	bool TryImmediateThreatSnap(float distanceToVillain, bool villainVisible)
+	{
+		bool justGainedLineOfSight = villainVisible && !hadLineOfSightLastFrame;
+		hadLineOfSightLastFrame = villainVisible;
+
+		if (enableLineOfSightSnapTrigger && justGainedLineOfSight && Time.time - lastLineOfSightSnapTime >= lineOfSightSnapCooldown)
+		{
+			lastLineOfSightSnapTime = Time.time;
+			if (enableDebugLogs)
+			{
+				Debug.Log("Immediate jumpscare snap trigger fired from fresh villain line-of-sight.");
+			}
+			ForceMajorScare(enableWarning);
+			return true;
+		}
+
+		if (enableCloseProximitySnapTrigger && distanceToVillain <= closeProximitySnapDistance && Time.time - lastProximitySnapTime >= Mathf.Max(2f, lineOfSightSnapCooldown * 0.6f))
+		{
+			lastProximitySnapTime = Time.time;
+			if (enableDebugLogs)
+			{
+				Debug.Log("Immediate jumpscare snap trigger fired from close villain proximity.");
+			}
+			ForceMajorScare(enableWarning);
+			return true;
+		}
+
+		return false;
+	}
+
+	void HandleDirectorDrivenMajorScare(float distanceToVillain, bool villainVisible)
 	{
 		if (Time.time < nextJumpscareTime)
 		{
 			return;
 		}
 
-		bool villainVisible = villainAI.CanSeePlayer();
 		bool withinDistanceWindow = distanceToVillain <= maxDistanceForJumpscare && distanceToVillain >= triggerDistance;
 		bool contextualOpportunity = villainVisible || withinDistanceWindow;
 		if (!contextualOpportunity)
@@ -346,11 +394,22 @@ public class JumpscareSystem : MonoBehaviour
 
 		if (jumpscareSound != null && audioSource != null)
 		{
+			audioSource.pitch = scareType == ScareType.MajorJumpscare ? majorStingPitch : 1f;
 			audioSource.PlayOneShot(jumpscareSound, scareType == ScareType.MajorJumpscare ? majorScareVolume : minorSoundVolume);
+			audioSource.pitch = 1f;
 		}
 
 		if (scareType == ScareType.MajorJumpscare && jumpscareImage != null && jumpscareSprite != null)
 		{
+			if (screenFlash != null && anticipationDelay > 0.005f)
+			{
+				screenFlash.gameObject.SetActive(true);
+				Color anticipationColor = flashColor;
+				anticipationColor.a = Mathf.Clamp01(anticipationFlashAlpha);
+				screenFlash.color = anticipationColor;
+				yield return new WaitForSeconds(anticipationDelay);
+			}
+
 			if (jumpscareCanvas != null)
 			{
 				jumpscareCanvas.gameObject.SetActive(true);
@@ -368,6 +427,8 @@ public class JumpscareSystem : MonoBehaviour
 			{
 				jumpscareCanvas.gameObject.SetActive(false);
 			}
+
+			yield return StartCoroutine(ApplyCameraShake(majorCameraShakeDuration, majorCameraShakeAmount));
 		}
 
 		if (screenFlash != null)
@@ -391,6 +452,30 @@ public class JumpscareSystem : MonoBehaviour
 		}
 
 		isJumpscareActive = false;
+	}
+
+	IEnumerator ApplyCameraShake(float duration, float amount)
+	{
+		Camera targetCamera = effectsCamera != null ? effectsCamera : Camera.main;
+		if (targetCamera == null || duration <= 0f || amount <= 0f)
+		{
+			yield break;
+		}
+
+		Transform camTransform = targetCamera.transform;
+		Vector3 originalLocalPosition = camTransform.localPosition;
+		float elapsed = 0f;
+		while (elapsed < duration)
+		{
+			float t = elapsed / duration;
+			float damper = 1f - t;
+			Vector2 random = Random.insideUnitCircle * amount * damper;
+			camTransform.localPosition = originalLocalPosition + new Vector3(random.x, random.y, 0f);
+			elapsed += Time.deltaTime;
+			yield return null;
+		}
+
+		camTransform.localPosition = originalLocalPosition;
 	}
 
 	void ResetJumpscareTimer()

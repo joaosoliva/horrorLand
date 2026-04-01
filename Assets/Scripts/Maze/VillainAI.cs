@@ -100,6 +100,15 @@ public class VillainAI : MonoBehaviour
 	[Tooltip("Maximum FOV at full difficulty")]
 	public float maxFinalFOV = 100f;
 
+	[Header("First Encounter Pacing")]
+	[Tooltip("Minimum elapsed time before the first full chase can commit.")]
+	public float firstEncounterMinimumRuntime = 45f;
+	[Tooltip("How long the player must keep perceiving the villain before the first chase is allowed.")]
+	public float firstEncounterSightingRequirement = 1.4f;
+	[Tooltip("Cooldown between blocked first-encounter commit attempts.")]
+	public float firstEncounterRetryCooldown = 6f;
+	public bool gateFirstChaseWithBuildup = true;
+
 	private float gameStartTime;
 	private float currentDifficulty = 0f;
 	private float currentDetectionRadius;
@@ -109,6 +118,9 @@ public class VillainAI : MonoBehaviour
 	private HorrorDirector horrorDirector;
 	private bool ambientRevealActive = false;
 	private float closeSightSinceTime = -999f;
+	private bool firstEncounterCommitted = false;
+	private float firstEncounterSightingTime = 0f;
+	private float firstEncounterRetryUntilTime = -999f;
 	
 	
 
@@ -502,6 +514,7 @@ public class VillainAI : MonoBehaviour
 	{
 		bool canSeePlayer = CanSeePlayer();
 		bool playerCanSeeVillain = CanPlayerSeeVillain();
+		UpdateFirstEncounterSighting(playerCanSeeVillain, distanceToPlayer);
 
 		HandleAmbientReveal(playerCanSeeVillain, canSeePlayer, distanceToPlayer);
 
@@ -570,6 +583,7 @@ public class VillainAI : MonoBehaviour
 	{
 		bool canSeePlayer = CanSeePlayer();
 		bool playerCanSeeVillain = CanPlayerSeeVillain();
+		UpdateFirstEncounterSighting(playerCanSeeVillain, distanceToPlayer);
 		HandleAmbientReveal(playerCanSeeVillain, canSeePlayer, distanceToPlayer);
 
 		if (canSeePlayer && distanceToPlayer <= GetEffectiveDetectionRadius())
@@ -972,6 +986,16 @@ public class VillainAI : MonoBehaviour
 
 	void RequestChaseStart(string reason)
 	{
+		if (ShouldDelayFirstEncounter(reason))
+		{
+			if (player != null)
+			{
+				lastKnownPlayerPosition = player.position;
+				lastDetectionTime = Time.time;
+			}
+			return;
+		}
+
 		if (chaseSystem != null)
 		{
 			if (chaseSystem.RequestChase(reason))
@@ -988,6 +1012,52 @@ public class VillainAI : MonoBehaviour
 		}
 
 		StartChase();
+	}
+
+	bool ShouldDelayFirstEncounter(string reason)
+	{
+		if (!gateFirstChaseWithBuildup || firstEncounterCommitted)
+		{
+			return false;
+		}
+
+		float runtime = Time.time - gameStartTime;
+		bool runtimeReady = runtime >= firstEncounterMinimumRuntime;
+		bool sightReady = firstEncounterSightingTime >= firstEncounterSightingRequirement;
+		if (runtimeReady && sightReady)
+		{
+			firstEncounterCommitted = true;
+			return false;
+		}
+
+		if (Time.time >= firstEncounterRetryUntilTime)
+		{
+			firstEncounterRetryUntilTime = Time.time + firstEncounterRetryCooldown;
+			HorrorEvents.RaiseScareTriggered(ScareType.PresenceCue);
+			TryRetreatToHiddenPosition("Delaying first encounter commit for tension buildup");
+			Debug.Log("First encounter gated before chase. Reason: " + reason + $", runtime={runtime:F1}, sight={firstEncounterSightingTime:F2}");
+		}
+
+		return true;
+	}
+
+	void UpdateFirstEncounterSighting(bool playerCanSeeVillain, float distanceToPlayer)
+	{
+		if (!gateFirstChaseWithBuildup || firstEncounterCommitted)
+		{
+			return;
+		}
+
+		bool validSighting = playerCanSeeVillain && distanceToPlayer <= ambientRevealRetreatDistance;
+		float delta = 0.2f;
+		if (validSighting)
+		{
+			firstEncounterSightingTime = Mathf.Min(firstEncounterSightingRequirement, firstEncounterSightingTime + delta);
+		}
+		else
+		{
+			firstEncounterSightingTime = Mathf.Max(0f, firstEncounterSightingTime - (delta * 0.65f));
+		}
 	}
 
 	void StartSearch()
