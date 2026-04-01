@@ -37,6 +37,12 @@ public class MazeGenerator : MonoBehaviour
 	public ProceduralLamp proceduralLampPrefab;
 	public float corridorLampChance = 0.14f;
 	public int corridorScareNodeStep = 6;
+
+	[Header("Procedural Safe Space")]
+	public bool attachSafeSpaceToProceduralLamps = true;
+	public float safeSpaceRadius = 3.5f;
+	public float safeSpaceDuration = 12f;
+	public float safeSpaceSanityRestorePerSecond = 5f;
 	
 	private Vector2Int exitPosition;
 	
@@ -645,6 +651,20 @@ public class MazeGenerator : MonoBehaviour
 		{
 			lampComponent.zoneId = zoneId;
 			lampComponent.lightId = lampComponent.gameObject.name;
+
+			if (attachSafeSpaceToProceduralLamps)
+			{
+				SafeSpaceZone safeZone = lampComponent.GetComponent<SafeSpaceZone>();
+				if (safeZone == null)
+				{
+					safeZone = lampComponent.gameObject.AddComponent<SafeSpaceZone>();
+				}
+
+				safeZone.activeRadius = safeSpaceRadius;
+				safeZone.activeDuration = safeSpaceDuration;
+				safeZone.sanityRestorePerSecond = safeSpaceSanityRestorePerSecond;
+				safeZone.safeAreaLight = lampComponent.GetComponent<Light>();
+			}
 		}
 	}
 

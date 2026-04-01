@@ -151,6 +151,11 @@ public class SanitySystem : MonoBehaviour
 		}
 	}
 
+	public void AddExternalSanity(float amount, string reason = "External")
+	{
+		ApplySanityDelta(amount, reason);
+	}
+
 	void ApplySanityDelta(float amount, string reason)
 	{
 		if (Mathf.Abs(amount) <= 0f)

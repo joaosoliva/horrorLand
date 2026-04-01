@@ -26,7 +26,6 @@ public class SafeSpaceZone : MonoBehaviour
 	public float flickerDuration = 1.3f;
 	public float flickerInterval = 0.08f;
 
-	private bool isActivated;
 	private bool isConsumed;
 	private bool isPlayerInside;
 	private bool isActive;
@@ -81,6 +80,11 @@ public class SafeSpaceZone : MonoBehaviour
 		sphere.isTrigger = true;
 		sphere.radius = activeRadius;
 
+		if (safeAreaLight == null)
+		{
+			safeAreaLight = GetComponent<Light>();
+		}
+
 
 		RefreshPrompt();
 		RefreshTimer();
@@ -103,7 +107,7 @@ public class SafeSpaceZone : MonoBehaviour
 		{
 			if (sanitySystem != null && isPlayerInside)
 			{
-				sanitySystem.currentSanity = Mathf.Min(sanitySystem.maxSanity, sanitySystem.currentSanity + sanityRestorePerSecond * Time.deltaTime);
+				sanitySystem.AddExternalSanity(sanityRestorePerSecond * Time.deltaTime, "SafeSpace");
 			}
 
 			if (Time.time >= activeUntilTime)
@@ -140,7 +144,6 @@ public class SafeSpaceZone : MonoBehaviour
 
 	void ActivateSafeSpace()
 	{
-		isActivated = true;
 		isActive = true;
 		activeUntilTime = Time.time + activeDuration;
 		holdProgress = 0f;
