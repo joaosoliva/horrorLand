@@ -157,6 +157,7 @@ public class GameManager : MonoBehaviour
 	void CheckLoseCondition()
 	{
 		if (villainAI == null || player == null) return;
+		if (SafeSpaceZone.IsPlayerProtectedGlobal(player)) return;
         
 		float distanceToVillain = Vector3.Distance(player.position, villainAI.transform.position);
         

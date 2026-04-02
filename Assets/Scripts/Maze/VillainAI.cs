@@ -394,6 +394,27 @@ public class VillainAI : MonoBehaviour
 
 			float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 
+			if (SafeSpaceZone.IsPlayerProtectedGlobal(player))
+			{
+				if (IsChasing)
+				{
+					StartSearch();
+				}
+
+				if (distanceToPlayer < Mathf.Max(loseRadius, ambientRevealRetreatDistance))
+				{
+					Vector3 fallbackPosition = FindValidSpawnPosition();
+					if (fallbackPosition != Vector3.zero)
+					{
+						transform.position = fallbackPosition;
+						SetRandomPatrolTarget();
+					}
+				}
+
+				yield return new WaitForSeconds(0.2f);
+				continue;
+			}
+
 			// Dread System: Teleport to valid position near player
 			if (IsPatrolling && Random.value < dreadReappearChance)
 			{
@@ -649,6 +670,7 @@ public class VillainAI : MonoBehaviour
 	public bool CanSeePlayer()
 	{
 		if (player == null) return false;
+		if (SafeSpaceZone.IsPlayerProtectedGlobal(player)) return false;
 
 		float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 		bool playerConcealed = HidingSpot.IsPlayerConcealed(player);
