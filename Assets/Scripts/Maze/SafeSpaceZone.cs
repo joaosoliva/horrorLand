@@ -1,5 +1,4 @@
 using System.Collections;
-using TMPro;
 using UnityEngine;
 
 [RequireComponent(typeof(SphereCollider))]
@@ -10,8 +9,6 @@ public class SafeSpaceZone : MonoBehaviour
 	public SanitySystem sanitySystem;
 	public SpatialMapController mapController;
 	public Light safeAreaLight;
-	public TextMeshProUGUI interactionPromptText;
-	public TextMeshProUGUI safeTimerText;
 
 	[Header("Safe Area")]
 	public float activeRadius = 3.5f;
@@ -20,7 +17,12 @@ public class SafeSpaceZone : MonoBehaviour
 	public float activeDuration = 12f;
 	public float sanityRestorePerSecond = 5f;
 	public bool canOnlyActivateOnce = true;
+
+	[Header("Prompts (Code-driven)")]
+	public bool drawPromptsOnScreen = true;
 	public string promptTemplate = "(Hold E to wait in safe space).";
+	public Vector2 promptScreenOffset = new Vector2(0f, 140f);
+	public int promptFontSize = 24;
 
 	[Header("Light Flicker")]
 	public float flickerDuration = 1.3f;
@@ -31,6 +33,9 @@ public class SafeSpaceZone : MonoBehaviour
 	private bool isActive;
 	private float holdProgress;
 	private float activeUntilTime = -999f;
+	private SphereCollider triggerSphere;
+	private GUIStyle promptStyle;
+	private float nextPlayerSearchTime = -999f;
 
 	public bool IsActive => isActive;
 	public bool IsPlayerProtected => isActive && isPlayerInside;
@@ -55,43 +60,21 @@ public class SafeSpaceZone : MonoBehaviour
 		return false;
 	}
 
+	void Awake()
+	{
+		triggerSphere = GetComponent<SphereCollider>();
+		triggerSphere.isTrigger = true;
+		SyncRadius();
+	}
+
 	void Start()
 	{
-		if (player == null)
-		{
-			GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-			if (playerObj != null)
-			{
-				player = playerObj.transform;
-			}
-		}
-
-		if (sanitySystem == null)
-		{
-			sanitySystem = FindObjectOfType<SanitySystem>();
-		}
-
-		if (mapController == null)
-		{
-			mapController = FindObjectOfType<SpatialMapController>();
-		}
-
-		SphereCollider sphere = GetComponent<SphereCollider>();
-		sphere.isTrigger = true;
-		sphere.radius = activeRadius;
-
-		if (safeAreaLight == null)
-		{
-			safeAreaLight = GetComponent<Light>();
-		}
-
-
-		RefreshPrompt();
-		RefreshTimer();
+		TryResolveReferences(true);
 	}
 
 	void Update()
 	{
+		TryResolveReferences(false);
 		UpdatePlayerInsideState();
 
 		if (isConsumed)
@@ -115,9 +98,62 @@ public class SafeSpaceZone : MonoBehaviour
 				DeactivateSafeSpace();
 			}
 		}
+	}
 
-		RefreshPrompt();
-		RefreshTimer();
+	void OnValidate()
+	{
+		if (activeRadius < 0.1f)
+		{
+			activeRadius = 0.1f;
+		}
+		if (triggerSphere == null)
+		{
+			triggerSphere = GetComponent<SphereCollider>();
+		}
+		if (triggerSphere != null)
+		{
+			triggerSphere.isTrigger = true;
+			triggerSphere.radius = activeRadius;
+		}
+	}
+
+	void SyncRadius()
+	{
+		if (triggerSphere != null)
+		{
+			triggerSphere.radius = Mathf.Max(0.1f, activeRadius);
+		}
+	}
+
+	void TryResolveReferences(bool force)
+	{
+		if (force || player == null)
+		{
+			if (Time.time >= nextPlayerSearchTime)
+			{
+				GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+				if (playerObj != null)
+				{
+					player = playerObj.transform;
+				}
+				nextPlayerSearchTime = Time.time + 1.5f;
+			}
+		}
+
+		if (force || sanitySystem == null)
+		{
+			sanitySystem = FindObjectOfType<SanitySystem>();
+		}
+
+		if (force || mapController == null)
+		{
+			mapController = FindObjectOfType<SpatialMapController>();
+		}
+
+		if ((force || safeAreaLight == null) && safeAreaLight == null)
+		{
+			safeAreaLight = GetComponent<Light>();
+		}
 	}
 
 	void HandleActivationInput()
@@ -200,9 +236,11 @@ public class SafeSpaceZone : MonoBehaviour
 			return;
 		}
 
-		Vector3 offset = player.position - transform.position;
-		offset.y = 0f;
-		isPlayerInside = offset.sqrMagnitude <= activeRadius * activeRadius;
+		Vector3 zoneCenter = transform.position;
+		Vector3 playerPosition = player.position;
+		float sqrDistance = (new Vector2(playerPosition.x, playerPosition.z) - new Vector2(zoneCenter.x, zoneCenter.z)).sqrMagnitude;
+		float radius = Mathf.Max(0.1f, activeRadius);
+		isPlayerInside = sqrDistance <= radius * radius;
 
 		if (!isPlayerInside && !isActive)
 		{
@@ -210,59 +248,52 @@ public class SafeSpaceZone : MonoBehaviour
 		}
 	}
 
-	void RefreshPrompt()
+	void OnGUI()
 	{
-		if (interactionPromptText == null)
+		if (!drawPromptsOnScreen || isConsumed)
 		{
 			return;
 		}
 
-		if (isConsumed)
+		if (!isPlayerInside && !isActive)
 		{
-			interactionPromptText.gameObject.SetActive(false);
 			return;
 		}
 
+		EnsurePromptStyle();
+		string text;
 		if (isActive)
 		{
-			interactionPromptText.gameObject.SetActive(true);
-			interactionPromptText.text = "Safe space active";
-			return;
+			float remaining = Mathf.Max(0f, activeUntilTime - Time.time);
+			text = "Safe space active - " + remaining.ToString("F1") + "s";
 		}
-
-		if (!isPlayerInside)
+		else if (holdProgress > 0f)
 		{
-			interactionPromptText.gameObject.SetActive(false);
-			return;
-		}
-
-		interactionPromptText.gameObject.SetActive(true);
-		if (holdProgress <= 0f)
-		{
-			interactionPromptText.text = promptTemplate;
+			float pct = Mathf.Clamp01(holdProgress / Mathf.Max(0.01f, holdDuration));
+			text = promptTemplate + " (" + Mathf.RoundToInt(pct * 100f) + "%)";
 		}
 		else
 		{
-			float pct = Mathf.Clamp01(holdProgress / Mathf.Max(0.01f, holdDuration));
-			interactionPromptText.text = $"{promptTemplate} ({Mathf.RoundToInt(pct * 100f)}%)";
+			text = promptTemplate;
 		}
+
+		Vector2 size = promptStyle.CalcSize(new GUIContent(text));
+		float x = (Screen.width - size.x) * 0.5f + promptScreenOffset.x;
+		float y = Screen.height - promptScreenOffset.y;
+		GUI.Label(new Rect(x, y, size.x + 12f, size.y + 8f), text, promptStyle);
 	}
 
-	void RefreshTimer()
+	void EnsurePromptStyle()
 	{
-		if (safeTimerText == null)
+		if (promptStyle != null)
 		{
 			return;
 		}
 
-		if (!isActive)
-		{
-			safeTimerText.gameObject.SetActive(false);
-			return;
-		}
-
-		safeTimerText.gameObject.SetActive(true);
-		float remaining = Mathf.Max(0f, activeUntilTime - Time.time);
-		safeTimerText.text = $"Safe space: {remaining:F1}s";
+		promptStyle = new GUIStyle(GUI.skin.label);
+		promptStyle.alignment = TextAnchor.MiddleCenter;
+		promptStyle.fontSize = Mathf.Max(14, promptFontSize);
+		promptStyle.fontStyle = FontStyle.Bold;
+		promptStyle.normal.textColor = Color.white;
 	}
 }
