@@ -12,6 +12,8 @@ public class GameManager : MonoBehaviour
 	public MazeGenerator mazeGenerator;
 	public Transform player;
 	public JumpscareSystem jumpscareSystem;
+	public RunGameState runGameState;
+	public EndingSystem endingSystem;
     
 	[Header("Win Settings")]
 	public int notesRequiredToWin = 6;
@@ -59,6 +61,12 @@ public class GameManager : MonoBehaviour
 			mazeGenerator = FindObjectOfType<MazeGenerator>();
 		if (jumpscareSystem == null)
 			jumpscareSystem = FindObjectOfType<JumpscareSystem>();
+
+		if (runGameState == null)
+			runGameState = FindObjectOfType<RunGameState>();
+
+		if (endingSystem == null)
+			endingSystem = FindObjectOfType<EndingSystem>();
             
 		if (player == null)
 		{
@@ -72,6 +80,10 @@ public class GameManager : MonoBehaviour
 		if (audioSource == null)
 			audioSource = gameObject.AddComponent<AudioSource>();
         
+		// Keep global requirement aligned with NoteSystem hybrid progression.
+		if (noteSystem != null)
+			notesRequiredToWin = noteSystem.GetRequiredNotesToFinish();
+
 		// Initialize UI
 		InitializeUI();
         
@@ -129,14 +141,14 @@ public class GameManager : MonoBehaviour
 		int collectedNotes = noteSystem.GetCollectedNotesCount();
 		if (collectedNotes >= notesRequiredToWin)
 		{
-			WinGame("[FINAL #02] Agora tudo faz sentido.");
+			WinGame(ResolveEndingMessage("[FINAL #02] Agora tudo faz sentido."));
 			return;
 		}
         
 		// Win Condition 2: Reach the maze exit
 		if (HasPlayerReachedExit())
 		{
-			WinGame("[FINAL #01] Você encontrou a saída, mas o mistério continua...");
+			WinGame(ResolveEndingMessage("[FINAL #01] Você encontrou a saída, mas o mistério continua..."));
 			return;
 		}
 	}
@@ -174,6 +186,21 @@ public class GameManager : MonoBehaviour
 		
 		// Use the villain's existing line of sight check
 		return villainAI.CanSeePlayer();
+	}
+
+	string ResolveEndingMessage(string fallbackMessage)
+	{
+		if (endingSystem == null || runGameState == null)
+			return fallbackMessage;
+
+		EndingData resolved = endingSystem.ResolveEnding(runGameState);
+		if (resolved == null)
+			return fallbackMessage;
+
+		if (!string.IsNullOrEmpty(resolved.resultMessage))
+			return resolved.resultMessage;
+
+		return "Ending: " + resolved.id;
 	}
 
 	void WinGame(string message)
