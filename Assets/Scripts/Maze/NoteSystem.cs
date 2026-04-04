@@ -264,10 +264,14 @@ public class NoteSystem : MonoBehaviour
 			{
 				spawnPos = FindValidNotePositionForTier(picked.Tier);
 			}
+			if (spawnPos == Vector3.zero)
+			{
+				spawnPos = FindValidNotePositionAnyTier();
+			}
 
 			if (spawnPos == Vector3.zero)
 			{
-				Debug.LogWarning("NoteSystem could not find valid spawn position for note: " + picked.Id);
+				Debug.LogWarning("NoteSystem could not find valid spawn position for note: " + picked.Id + ". Check maze density or spacing settings.");
 				break;
 			}
 
@@ -312,7 +316,8 @@ public class NoteSystem : MonoBehaviour
 				y * mazeGenerator.cellSize + mazeGenerator.cellSize / 2
 			);
 
-			if (Vector3.Distance(worldPos, startPos) < minDistanceFromStart) continue;
+			float startDistanceThreshold = tier <= 1 ? 0f : minDistanceFromStart;
+			if (Vector3.Distance(worldPos, startPos) < startDistanceThreshold) continue;
 			if (GetZoneTierForPosition(worldPos, startPos, exitPos, maxTier) != tier) continue;
 			if (IsTooCloseToExistingNotes(worldPos)) continue;
 			return worldPos;
@@ -328,6 +333,27 @@ public class NoteSystem : MonoBehaviour
 		float total = Mathf.Max(0.001f, distanceFromStart + distanceFromExit);
 		float progressToExit = distanceFromStart / total; // near start = 0, near exit = 1.
 		return Mathf.Clamp(Mathf.FloorToInt(progressToExit * maxTier) + 1, 1, maxTier);
+	}
+
+	Vector3 FindValidNotePositionAnyTier()
+	{
+		for (int attempt = 0; attempt < maxSpawnAttempts; attempt++)
+		{
+			int x = Random.Range(1, mazeGenerator.width - 1);
+			int y = Random.Range(1, mazeGenerator.height - 1);
+			if (mazeGenerator.GetMazeCell(x, y) != 0) continue;
+
+			Vector3 worldPos = new Vector3(
+				x * mazeGenerator.cellSize + mazeGenerator.cellSize / 2,
+				0.1f,
+				y * mazeGenerator.cellSize + mazeGenerator.cellSize / 2
+			);
+
+			if (IsTooCloseToExistingNotes(worldPos)) continue;
+			return worldPos;
+		}
+
+		return Vector3.zero;
 	}
 
 	bool IsTooCloseToExistingNotes(Vector3 worldPos)
