@@ -535,8 +535,15 @@ public class NoteSystem : MonoBehaviour
 
 		if (noteText != null)
 		{
-			int noteNumber = collectedNotes.Count;
-			noteText.text = "Note #" + noteNumber + "\n\n" + note.Text;
+			bool showBaseId = note.SourceData == null || note.SourceData.isBaseNote;
+			if (showBaseId)
+			{
+				noteText.text = "Note #" + note.Id + "\n\n" + note.Text;
+			}
+			else
+			{
+				noteText.text = note.Text;
+			}
 		}
 
 		Cursor.lockState = CursorLockMode.None;
