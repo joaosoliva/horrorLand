@@ -1,5 +1,5 @@
 using UnityEngine;
-using UnityEngine.UI;
+using Kino;
 
 public class SanityPsychologicalEffects : MonoBehaviour
 {
@@ -8,8 +8,8 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	public AudioLowPassFilter listenerLowPass;
 	public AudioSource falseCueAudioSource;
 	public AudioClip[] falseCueClips;
-	public CanvasGroup glitchCanvasGroup;
-	public Image glitchImage;
+	public AnalogGlitch analogGlitch;
+	public DigitalGlitch digitalGlitch;
 	public Camera playerCamera;
 	public AudioSource tinnitusLoop;
 
@@ -48,9 +48,10 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	[Header("Visual Glitch")]
 	public Vector2 glitchIntervalRange = new Vector2(5f, 11f);
 	public Vector2 glitchDurationRange = new Vector2(0.05f, 0.18f);
-	public Vector2 glitchAlphaRange = new Vector2(0.1f, 0.3f);
-	public Color glitchColor = new Color(1f, 1f, 1f, 0.2f);
-	public float maxBaselineGlitchAlpha = 0.3f;
+	public Vector2 analogJitterRange = new Vector2(0.05f, 0.35f);
+	public Vector2 analogColorDriftRange = new Vector2(0.02f, 0.2f);
+	public Vector2 digitalIntensityRange = new Vector2(0.06f, 0.35f);
+	public float maxBaselineDigitalIntensity = 0.2f;
 
 	[Header("Camera Instability")]
 	public float maxFovReduction = 10f;
@@ -62,7 +63,7 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	private float nextFalseCueTime = -999f;
 	private float nextGlitchTime = -999f;
 	private float glitchUntilTime = -999f;
-	private float glitchTargetAlpha;
+	private float glitchTargetIntensity;
 	private float stress01;
 	private float baseFieldOfView = 60f;
 	private Vector3 baseLocalPosition;
@@ -93,6 +94,17 @@ public class SanityPsychologicalEffects : MonoBehaviour
 		{
 			playerCamera = Camera.main;
 		}
+		if (playerCamera != null)
+		{
+			if (analogGlitch == null)
+			{
+				analogGlitch = playerCamera.GetComponent<AnalogGlitch>();
+			}
+			if (digitalGlitch == null)
+			{
+				digitalGlitch = playerCamera.GetComponent<DigitalGlitch>();
+			}
+		}
 
 		if (playerCamera != null)
 		{
@@ -101,15 +113,7 @@ public class SanityPsychologicalEffects : MonoBehaviour
 			baseLocalRotation = playerCamera.transform.localRotation;
 		}
 
-		if (glitchImage != null)
-		{
-			glitchImage.color = glitchColor;
-		}
-
-		if (glitchCanvasGroup != null)
-		{
-			glitchCanvasGroup.alpha = 0f;
-		}
+		ResetGlitchValues();
 
 		ScheduleNextFalseCue();
 		ScheduleNextGlitch();
@@ -227,29 +231,80 @@ public class SanityPsychologicalEffects : MonoBehaviour
 
 	void UpdateVisualGlitches()
 	{
-		if (glitchCanvasGroup == null)
+		if (analogGlitch == null && digitalGlitch == null)
 		{
 			return;
 		}
 
 		if (!enableVisualGlitches || stress01 < visualGlitchStressThreshold)
 		{
-			glitchCanvasGroup.alpha = Mathf.MoveTowards(glitchCanvasGroup.alpha, 0f, Time.deltaTime * 6f);
+			FadeOutGlitches();
 			return;
 		}
 
 		if (Time.time >= nextGlitchTime && Time.time >= glitchUntilTime)
 		{
-			float escalatedAlpha = stress01 >= criticalStressThreshold ? glitchAlphaRange.y : Random.Range(glitchAlphaRange.x, glitchAlphaRange.y);
-			glitchTargetAlpha = escalatedAlpha;
+			float escalatedIntensity = stress01 >= criticalStressThreshold ? digitalIntensityRange.y : Random.Range(digitalIntensityRange.x, digitalIntensityRange.y);
+			glitchTargetIntensity = escalatedIntensity;
 			glitchUntilTime = Time.time + Random.Range(glitchDurationRange.x, glitchDurationRange.y);
 			ScheduleNextGlitch();
 		}
 
-		float baseline = maxBaselineGlitchAlpha * Mathf.InverseLerp(visualGlitchStressThreshold, 1f, stress01);
-		float burst = Time.time < glitchUntilTime ? glitchTargetAlpha : 0f;
-		float target = Mathf.Max(baseline, burst);
-		glitchCanvasGroup.alpha = Mathf.MoveTowards(glitchCanvasGroup.alpha, target, Time.deltaTime * 14f);
+		float stressT = Mathf.InverseLerp(visualGlitchStressThreshold, 1f, stress01);
+		float baselineDigital = maxBaselineDigitalIntensity * stressT;
+		float burstDigital = Time.time < glitchUntilTime ? glitchTargetIntensity : 0f;
+		float digitalTarget = Mathf.Max(baselineDigital, burstDigital);
+
+		float analogTarget = Mathf.Lerp(analogJitterRange.x, analogJitterRange.y, stressT);
+		float colorDriftTarget = Mathf.Lerp(analogColorDriftRange.x, analogColorDriftRange.y, stressT);
+		float severeBoost = stress01 >= severeStressThreshold ? Mathf.InverseLerp(severeStressThreshold, 1f, stress01) : 0f;
+		analogTarget = Mathf.Clamp01(analogTarget + (severeBoost * 0.25f));
+		colorDriftTarget = Mathf.Clamp01(colorDriftTarget + (severeBoost * 0.2f));
+
+		if (analogGlitch != null)
+		{
+			analogGlitch.scanLineJitter = Mathf.MoveTowards(analogGlitch.scanLineJitter, analogTarget, Time.deltaTime * 1.8f);
+			analogGlitch.horizontalShake = Mathf.MoveTowards(analogGlitch.horizontalShake, analogTarget * 0.7f, Time.deltaTime * 2.2f);
+			analogGlitch.verticalJump = Mathf.MoveTowards(analogGlitch.verticalJump, analogTarget * 0.5f, Time.deltaTime * 2f);
+			analogGlitch.colorDrift = Mathf.MoveTowards(analogGlitch.colorDrift, colorDriftTarget, Time.deltaTime * 2.4f);
+		}
+
+		if (digitalGlitch != null)
+		{
+			digitalGlitch.intensity = Mathf.MoveTowards(digitalGlitch.intensity, digitalTarget, Time.deltaTime * 2.8f);
+		}
+	}
+
+	void FadeOutGlitches()
+	{
+		if (analogGlitch != null)
+		{
+			analogGlitch.scanLineJitter = Mathf.MoveTowards(analogGlitch.scanLineJitter, 0f, Time.deltaTime * 2f);
+			analogGlitch.horizontalShake = Mathf.MoveTowards(analogGlitch.horizontalShake, 0f, Time.deltaTime * 2.4f);
+			analogGlitch.verticalJump = Mathf.MoveTowards(analogGlitch.verticalJump, 0f, Time.deltaTime * 2.2f);
+			analogGlitch.colorDrift = Mathf.MoveTowards(analogGlitch.colorDrift, 0f, Time.deltaTime * 2.5f);
+		}
+
+		if (digitalGlitch != null)
+		{
+			digitalGlitch.intensity = Mathf.MoveTowards(digitalGlitch.intensity, 0f, Time.deltaTime * 3f);
+		}
+	}
+
+	void ResetGlitchValues()
+	{
+		if (analogGlitch != null)
+		{
+			analogGlitch.scanLineJitter = 0f;
+			analogGlitch.horizontalShake = 0f;
+			analogGlitch.verticalJump = 0f;
+			analogGlitch.colorDrift = 0f;
+		}
+
+		if (digitalGlitch != null)
+		{
+			digitalGlitch.intensity = 0f;
+		}
 	}
 
 	void UpdateCameraInstability()
