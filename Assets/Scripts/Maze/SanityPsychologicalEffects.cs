@@ -9,7 +9,6 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	public AudioSource falseCueAudioSource;
 	public AudioClip[] falseCueClips;
 	public AnalogGlitch analogGlitch;
-	public DigitalGlitch digitalGlitch;
 	public Camera playerCamera;
 	public AudioSource tinnitusLoop;
 
@@ -46,12 +45,10 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	public Transform player;
 
 	[Header("Visual Glitch")]
-	public Vector2 glitchIntervalRange = new Vector2(5f, 11f);
-	public Vector2 glitchDurationRange = new Vector2(0.05f, 0.18f);
-	public Vector2 analogJitterRange = new Vector2(0.05f, 0.35f);
-	public Vector2 analogColorDriftRange = new Vector2(0.02f, 0.2f);
-	public Vector2 digitalIntensityRange = new Vector2(0.06f, 0.35f);
-	public float maxBaselineDigitalIntensity = 0.2f;
+	public Vector2 shakeIntervalRange = new Vector2(5f, 11f);
+	public Vector2 shakeDurationRange = new Vector2(0.05f, 0.18f);
+	public Vector2 horizontalShakeRange = new Vector2(0.05f, 0.35f);
+	public float maxBaselineHorizontalShake = 0.2f;
 
 	[Header("Camera Instability")]
 	public float maxFovReduction = 10f;
@@ -63,7 +60,7 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	private float nextFalseCueTime = -999f;
 	private float nextGlitchTime = -999f;
 	private float glitchUntilTime = -999f;
-	private float glitchTargetIntensity;
+	private float shakeTargetValue;
 	private float stress01;
 	private float baseFieldOfView = 60f;
 	private Vector3 baseLocalPosition;
@@ -99,10 +96,6 @@ public class SanityPsychologicalEffects : MonoBehaviour
 			if (analogGlitch == null)
 			{
 				analogGlitch = playerCamera.GetComponent<AnalogGlitch>();
-			}
-			if (digitalGlitch == null)
-			{
-				digitalGlitch = playerCamera.GetComponent<DigitalGlitch>();
 			}
 		}
 
@@ -231,7 +224,7 @@ public class SanityPsychologicalEffects : MonoBehaviour
 
 	void UpdateVisualGlitches()
 	{
-		if (analogGlitch == null && digitalGlitch == null)
+		if (analogGlitch == null)
 		{
 			return;
 		}
@@ -244,34 +237,22 @@ public class SanityPsychologicalEffects : MonoBehaviour
 
 		if (Time.time >= nextGlitchTime && Time.time >= glitchUntilTime)
 		{
-			float escalatedIntensity = stress01 >= criticalStressThreshold ? digitalIntensityRange.y : Random.Range(digitalIntensityRange.x, digitalIntensityRange.y);
-			glitchTargetIntensity = escalatedIntensity;
-			glitchUntilTime = Time.time + Random.Range(glitchDurationRange.x, glitchDurationRange.y);
+			float escalatedShake = stress01 >= criticalStressThreshold ? horizontalShakeRange.y : Random.Range(horizontalShakeRange.x, horizontalShakeRange.y);
+			shakeTargetValue = escalatedShake;
+			glitchUntilTime = Time.time + Random.Range(shakeDurationRange.x, shakeDurationRange.y);
 			ScheduleNextGlitch();
 		}
 
 		float stressT = Mathf.InverseLerp(visualGlitchStressThreshold, 1f, stress01);
-		float baselineDigital = maxBaselineDigitalIntensity * stressT;
-		float burstDigital = Time.time < glitchUntilTime ? glitchTargetIntensity : 0f;
-		float digitalTarget = Mathf.Max(baselineDigital, burstDigital);
-
-		float analogTarget = Mathf.Lerp(analogJitterRange.x, analogJitterRange.y, stressT);
-		float colorDriftTarget = Mathf.Lerp(analogColorDriftRange.x, analogColorDriftRange.y, stressT);
+		float baselineShake = maxBaselineHorizontalShake * stressT;
+		float burstShake = Time.time < glitchUntilTime ? shakeTargetValue : 0f;
+		float horizontalShakeTarget = Mathf.Max(baselineShake, burstShake);
 		float severeBoost = stress01 >= severeStressThreshold ? Mathf.InverseLerp(severeStressThreshold, 1f, stress01) : 0f;
-		analogTarget = Mathf.Clamp01(analogTarget + (severeBoost * 0.25f));
-		colorDriftTarget = Mathf.Clamp01(colorDriftTarget + (severeBoost * 0.2f));
+		horizontalShakeTarget = Mathf.Clamp01(horizontalShakeTarget + (severeBoost * 0.25f));
 
 		if (analogGlitch != null)
 		{
-			analogGlitch.scanLineJitter = Mathf.MoveTowards(analogGlitch.scanLineJitter, analogTarget, Time.deltaTime * 1.8f);
-			analogGlitch.horizontalShake = Mathf.MoveTowards(analogGlitch.horizontalShake, analogTarget * 0.7f, Time.deltaTime * 2.2f);
-			analogGlitch.verticalJump = Mathf.MoveTowards(analogGlitch.verticalJump, analogTarget * 0.5f, Time.deltaTime * 2f);
-			analogGlitch.colorDrift = Mathf.MoveTowards(analogGlitch.colorDrift, colorDriftTarget, Time.deltaTime * 2.4f);
-		}
-
-		if (digitalGlitch != null)
-		{
-			digitalGlitch.intensity = Mathf.MoveTowards(digitalGlitch.intensity, digitalTarget, Time.deltaTime * 2.8f);
+			analogGlitch.horizontalShake = Mathf.MoveTowards(analogGlitch.horizontalShake, horizontalShakeTarget, Time.deltaTime * 2.2f);
 		}
 	}
 
@@ -279,15 +260,7 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	{
 		if (analogGlitch != null)
 		{
-			analogGlitch.scanLineJitter = Mathf.MoveTowards(analogGlitch.scanLineJitter, 0f, Time.deltaTime * 2f);
 			analogGlitch.horizontalShake = Mathf.MoveTowards(analogGlitch.horizontalShake, 0f, Time.deltaTime * 2.4f);
-			analogGlitch.verticalJump = Mathf.MoveTowards(analogGlitch.verticalJump, 0f, Time.deltaTime * 2.2f);
-			analogGlitch.colorDrift = Mathf.MoveTowards(analogGlitch.colorDrift, 0f, Time.deltaTime * 2.5f);
-		}
-
-		if (digitalGlitch != null)
-		{
-			digitalGlitch.intensity = Mathf.MoveTowards(digitalGlitch.intensity, 0f, Time.deltaTime * 3f);
 		}
 	}
 
@@ -295,15 +268,7 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	{
 		if (analogGlitch != null)
 		{
-			analogGlitch.scanLineJitter = 0f;
 			analogGlitch.horizontalShake = 0f;
-			analogGlitch.verticalJump = 0f;
-			analogGlitch.colorDrift = 0f;
-		}
-
-		if (digitalGlitch != null)
-		{
-			digitalGlitch.intensity = 0f;
 		}
 	}
 
@@ -343,8 +308,8 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	void ScheduleNextGlitch()
 	{
 		float stressT = Mathf.InverseLerp(visualGlitchStressThreshold, 1f, stress01);
-		float minInterval = Mathf.Lerp(glitchIntervalRange.x, glitchIntervalRange.x * 0.35f, stressT);
-		float maxInterval = Mathf.Lerp(glitchIntervalRange.y, glitchIntervalRange.y * 0.35f, stressT);
+		float minInterval = Mathf.Lerp(shakeIntervalRange.x, shakeIntervalRange.x * 0.35f, stressT);
+		float maxInterval = Mathf.Lerp(shakeIntervalRange.y, shakeIntervalRange.y * 0.35f, stressT);
 		nextGlitchTime = Time.time + Random.Range(minInterval, maxInterval);
 	}
 }
