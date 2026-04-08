@@ -289,7 +289,7 @@ public class SanityVisualCueController : MonoBehaviour
 		if (sanityValueText != null)
 		{
 			sanityValueText.gameObject.SetActive(showHudBar);
-			sanityValueText.text = Mathf.RoundToInt(clampedSanityValue).ToString("000") + "/" + Mathf.RoundToInt(maxSanity).ToString("000");
+			sanityValueText.text = Mathf.RoundToInt(clampedSanityValue) + "/" + Mathf.RoundToInt(maxSanity);
 		}
 
 		if (runtimeHudRoot != null)
