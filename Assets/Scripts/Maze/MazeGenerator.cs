@@ -527,15 +527,19 @@ public class MazeGenerator : MonoBehaviour
 	{
 		Vector3 exitWorldCenter = GetExitPosition();
 		Vector3 doorFacingDirection = GetExitDoorFacingDirection();
+		Vector3 doorWorldPosition = exitWorldCenter + (doorFacingDirection * (cellSize * 0.5f));
 
 		GameObject exitDoorRoot = new GameObject("MazeExitDoor");
 		exitDoorRoot.transform.SetParent(transform);
-		exitDoorRoot.transform.position = new Vector3(exitWorldCenter.x, 0f, exitWorldCenter.z);
+		exitDoorRoot.transform.position = new Vector3(doorWorldPosition.x, 0f, doorWorldPosition.z);
 		exitDoorRoot.transform.rotation = Quaternion.LookRotation(doorFacingDirection);
 
 		float doorWidth = 3.95f;
 		float doorThickness = 0.1f;
 		float fullDoorHeight = doorHeight;
+		float frameThickness = 0.2f;
+
+		CreateExitWallFrame(exitDoorRoot.transform, doorWidth, fullDoorHeight, frameThickness);
 
 		GameObject leftDoor = new GameObject("Door_Left");
 		leftDoor.transform.SetParent(exitDoorRoot.transform);
@@ -571,6 +575,31 @@ public class MazeGenerator : MonoBehaviour
 		exitTriggerCollider.center = new Vector3(0f, fullDoorHeight / 2f, 0f);
 
 		exitDoorRoot.AddComponent<MazeExitDoor>();
+	}
+
+	void CreateExitWallFrame(Transform doorRoot, float doorWidth, float doorHeight, float frameThickness)
+	{
+		float sideSegmentWidth = Mathf.Max(0.25f, (cellSize - doorWidth) * 0.5f);
+		float topHeight = Mathf.Max(0.25f, wallHeight - doorHeight);
+
+		CreateExitFrameSegment("ExitWall_Left", doorRoot, new Vector3(sideSegmentWidth, doorHeight, frameThickness), new Vector3(-(doorWidth * 0.5f) - (sideSegmentWidth * 0.5f), doorHeight * 0.5f, 0f));
+		CreateExitFrameSegment("ExitWall_Right", doorRoot, new Vector3(sideSegmentWidth, doorHeight, frameThickness), new Vector3((doorWidth * 0.5f) + (sideSegmentWidth * 0.5f), doorHeight * 0.5f, 0f));
+
+		if (topHeight > 0.01f)
+		{
+			CreateExitFrameSegment("ExitWall_Top", doorRoot, new Vector3(cellSize, topHeight, frameThickness), new Vector3(0f, doorHeight + (topHeight * 0.5f), 0f));
+		}
+	}
+
+	void CreateExitFrameSegment(string segmentName, Transform parent, Vector3 localScale, Vector3 localPosition)
+	{
+		GameObject segment = GameObject.CreatePrimitive(PrimitiveType.Cube);
+		segment.name = segmentName;
+		segment.transform.SetParent(parent);
+		segment.transform.localPosition = localPosition;
+		segment.transform.localRotation = Quaternion.identity;
+		segment.transform.localScale = localScale;
+		segment.GetComponent<Renderer>().material = wallMaterial;
 	}
 
 	Vector3 GetExitDoorFacingDirection()
