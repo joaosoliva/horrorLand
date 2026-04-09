@@ -1,5 +1,5 @@
 using UnityEngine;
-using UnityEngine.UI;
+using Kino;
 
 public class SanityPsychologicalEffects : MonoBehaviour
 {
@@ -8,8 +8,7 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	public AudioLowPassFilter listenerLowPass;
 	public AudioSource falseCueAudioSource;
 	public AudioClip[] falseCueClips;
-	public CanvasGroup glitchCanvasGroup;
-	public Image glitchImage;
+	public AnalogGlitch analogGlitch;
 	public Camera playerCamera;
 	public AudioSource tinnitusLoop;
 
@@ -46,11 +45,10 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	public Transform player;
 
 	[Header("Visual Glitch")]
-	public Vector2 glitchIntervalRange = new Vector2(5f, 11f);
-	public Vector2 glitchDurationRange = new Vector2(0.05f, 0.18f);
-	public Vector2 glitchAlphaRange = new Vector2(0.1f, 0.3f);
-	public Color glitchColor = new Color(1f, 1f, 1f, 0.2f);
-	public float maxBaselineGlitchAlpha = 0.3f;
+	public Vector2 shakeIntervalRange = new Vector2(5f, 11f);
+	public Vector2 shakeDurationRange = new Vector2(0.05f, 0.18f);
+	public Vector2 horizontalShakeRange = new Vector2(0.05f, 0.35f);
+	public float maxBaselineHorizontalShake = 0.2f;
 
 	[Header("Camera Instability")]
 	public float maxFovReduction = 10f;
@@ -62,7 +60,7 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	private float nextFalseCueTime = -999f;
 	private float nextGlitchTime = -999f;
 	private float glitchUntilTime = -999f;
-	private float glitchTargetAlpha;
+	private float shakeTargetValue;
 	private float stress01;
 	private float baseFieldOfView = 60f;
 	private Vector3 baseLocalPosition;
@@ -93,6 +91,13 @@ public class SanityPsychologicalEffects : MonoBehaviour
 		{
 			playerCamera = Camera.main;
 		}
+		if (playerCamera != null)
+		{
+			if (analogGlitch == null)
+			{
+				analogGlitch = playerCamera.GetComponent<AnalogGlitch>();
+			}
+		}
 
 		if (playerCamera != null)
 		{
@@ -101,15 +106,7 @@ public class SanityPsychologicalEffects : MonoBehaviour
 			baseLocalRotation = playerCamera.transform.localRotation;
 		}
 
-		if (glitchImage != null)
-		{
-			glitchImage.color = glitchColor;
-		}
-
-		if (glitchCanvasGroup != null)
-		{
-			glitchCanvasGroup.alpha = 0f;
-		}
+		ResetGlitchValues();
 
 		ScheduleNextFalseCue();
 		ScheduleNextGlitch();
@@ -227,29 +224,52 @@ public class SanityPsychologicalEffects : MonoBehaviour
 
 	void UpdateVisualGlitches()
 	{
-		if (glitchCanvasGroup == null)
+		if (analogGlitch == null)
 		{
 			return;
 		}
 
 		if (!enableVisualGlitches || stress01 < visualGlitchStressThreshold)
 		{
-			glitchCanvasGroup.alpha = Mathf.MoveTowards(glitchCanvasGroup.alpha, 0f, Time.deltaTime * 6f);
+			FadeOutGlitches();
 			return;
 		}
 
 		if (Time.time >= nextGlitchTime && Time.time >= glitchUntilTime)
 		{
-			float escalatedAlpha = stress01 >= criticalStressThreshold ? glitchAlphaRange.y : Random.Range(glitchAlphaRange.x, glitchAlphaRange.y);
-			glitchTargetAlpha = escalatedAlpha;
-			glitchUntilTime = Time.time + Random.Range(glitchDurationRange.x, glitchDurationRange.y);
+			float escalatedShake = stress01 >= criticalStressThreshold ? horizontalShakeRange.y : Random.Range(horizontalShakeRange.x, horizontalShakeRange.y);
+			shakeTargetValue = escalatedShake;
+			glitchUntilTime = Time.time + Random.Range(shakeDurationRange.x, shakeDurationRange.y);
 			ScheduleNextGlitch();
 		}
 
-		float baseline = maxBaselineGlitchAlpha * Mathf.InverseLerp(visualGlitchStressThreshold, 1f, stress01);
-		float burst = Time.time < glitchUntilTime ? glitchTargetAlpha : 0f;
-		float target = Mathf.Max(baseline, burst);
-		glitchCanvasGroup.alpha = Mathf.MoveTowards(glitchCanvasGroup.alpha, target, Time.deltaTime * 14f);
+		float stressT = Mathf.InverseLerp(visualGlitchStressThreshold, 1f, stress01);
+		float baselineShake = maxBaselineHorizontalShake * stressT;
+		float burstShake = Time.time < glitchUntilTime ? shakeTargetValue : 0f;
+		float horizontalShakeTarget = Mathf.Max(baselineShake, burstShake);
+		float severeBoost = stress01 >= severeStressThreshold ? Mathf.InverseLerp(severeStressThreshold, 1f, stress01) : 0f;
+		horizontalShakeTarget = Mathf.Clamp01(horizontalShakeTarget + (severeBoost * 0.25f));
+
+		if (analogGlitch != null)
+		{
+			analogGlitch.horizontalShake = Mathf.MoveTowards(analogGlitch.horizontalShake, horizontalShakeTarget, Time.deltaTime * 2.2f);
+		}
+	}
+
+	void FadeOutGlitches()
+	{
+		if (analogGlitch != null)
+		{
+			analogGlitch.horizontalShake = Mathf.MoveTowards(analogGlitch.horizontalShake, 0f, Time.deltaTime * 2.4f);
+		}
+	}
+
+	void ResetGlitchValues()
+	{
+		if (analogGlitch != null)
+		{
+			analogGlitch.horizontalShake = 0f;
+		}
 	}
 
 	void UpdateCameraInstability()
@@ -288,8 +308,8 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	void ScheduleNextGlitch()
 	{
 		float stressT = Mathf.InverseLerp(visualGlitchStressThreshold, 1f, stress01);
-		float minInterval = Mathf.Lerp(glitchIntervalRange.x, glitchIntervalRange.x * 0.35f, stressT);
-		float maxInterval = Mathf.Lerp(glitchIntervalRange.y, glitchIntervalRange.y * 0.35f, stressT);
+		float minInterval = Mathf.Lerp(shakeIntervalRange.x, shakeIntervalRange.x * 0.35f, stressT);
+		float maxInterval = Mathf.Lerp(shakeIntervalRange.y, shakeIntervalRange.y * 0.35f, stressT);
 		nextGlitchTime = Time.time + Random.Range(minInterval, maxInterval);
 	}
 }

@@ -27,8 +27,8 @@ public class SanityVisualCueController : MonoBehaviour
 	public Sprite sanityBarFillSprite;
 	public Vector2 hudAnchoredPosition = new Vector2(28f, -28f);
 
-	[Header("Optional Vignette Overlay")]
-	public bool showVignetteOverlay = true;
+	[Header("Optional Vignette Overlay (ThreatFeedbackSystem owns danger vignette)")]
+	public bool showVignetteOverlay = false;
 	public CanvasGroup vignetteCanvasGroup;
 	public Image vignetteImage;
 	public Color vignetteColor = new Color(0.35f, 0f, 0f, 0.8f);
@@ -265,7 +265,6 @@ public class SanityVisualCueController : MonoBehaviour
 	void RefreshVisuals(float sanityValue, float normalizedSanity)
 	{
 		float clampedSanity = Mathf.Clamp01(normalizedSanity);
-		float stress = 1f - clampedSanity;
 		float clampedSanityValue = Mathf.Clamp(sanityValue, minSanity, maxSanity);
 
 		if (sanitySlider != null)
@@ -299,14 +298,14 @@ public class SanityVisualCueController : MonoBehaviour
 
 		if (vignetteImage != null)
 		{
-			vignetteImage.gameObject.SetActive(showVignetteOverlay);
+			vignetteImage.gameObject.SetActive(false);
 			vignetteImage.color = vignetteColor;
 		}
 
 		if (vignetteCanvasGroup != null)
 		{
-			vignetteCanvasGroup.gameObject.SetActive(showVignetteOverlay);
-			vignetteCanvasGroup.alpha = showVignetteOverlay ? vignetteStrengthByStress.Evaluate(stress) * vignetteColor.a : 0f;
+			vignetteCanvasGroup.gameObject.SetActive(false);
+			vignetteCanvasGroup.alpha = 0f;
 		}
 	}
 }
