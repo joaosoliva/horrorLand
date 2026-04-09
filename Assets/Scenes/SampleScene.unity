@@ -27226,8 +27226,8 @@ MonoBehaviour:
   player: {fileID: 1956618892}
   shakeIntervalRange: {x: 5, y: 11}
   shakeDurationRange: {x: 0.05, y: 0.18}
-  horizontalShakeRange: {x: 0.05, y: 0.35}
-  maxBaselineHorizontalShake: 0.2
+  scanlineJitterRange: {x: 0.05, y: 1}
+  maxBaselineScanlineJitter: 1
   maxFovReduction: 10
   fovPulseAmplitude: 2.4
   fovPulseFrequency: 3.2
@@ -35367,6 +35367,7 @@ MonoBehaviour:
   safeSpaceRadius: 3.5
   safeSpaceDuration: 12
   safeSpaceSanityRestorePerSecond: 5
+  exitDoorColor: {r: 0.7, g: 0.1, b: 0.1, a: 1}
 --- !u!1 &2115418859
 GameObject:
   m_ObjectHideFlags: 0
