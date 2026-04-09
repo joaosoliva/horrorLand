@@ -1,5 +1,6 @@
 using UnityEngine;
 using Kino;
+using UnityEngine.Serialization;
 
 public class SanityPsychologicalEffects : MonoBehaviour
 {
@@ -47,8 +48,8 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	[Header("Visual Glitch")]
 	public Vector2 shakeIntervalRange = new Vector2(5f, 11f);
 	public Vector2 shakeDurationRange = new Vector2(0.05f, 0.18f);
-	public Vector2 horizontalShakeRange = new Vector2(0.05f, 0.35f);
-	public float maxBaselineHorizontalShake = 0.2f;
+	[FormerlySerializedAs("horizontalShakeRange")] public Vector2 scanlineJitterRange = new Vector2(0.05f, 0.35f);
+	[FormerlySerializedAs("maxBaselineHorizontalShake")] public float maxBaselineScanlineJitter = 0.2f;
 
 	[Header("Camera Instability")]
 	public float maxFovReduction = 10f;
@@ -237,14 +238,14 @@ public class SanityPsychologicalEffects : MonoBehaviour
 
 		if (Time.time >= nextGlitchTime && Time.time >= glitchUntilTime)
 		{
-			float escalatedShake = stress01 >= criticalStressThreshold ? horizontalShakeRange.y : Random.Range(horizontalShakeRange.x, horizontalShakeRange.y);
+			float escalatedShake = stress01 >= criticalStressThreshold ? scanlineJitterRange.y : Random.Range(scanlineJitterRange.x, scanlineJitterRange.y);
 			shakeTargetValue = escalatedShake;
 			glitchUntilTime = Time.time + Random.Range(shakeDurationRange.x, shakeDurationRange.y);
 			ScheduleNextGlitch();
 		}
 
 		float stressT = Mathf.InverseLerp(visualGlitchStressThreshold, 1f, stress01);
-		float baselineShake = maxBaselineHorizontalShake * stressT;
+		float baselineShake = maxBaselineScanlineJitter * stressT;
 		float burstShake = Time.time < glitchUntilTime ? shakeTargetValue : 0f;
 		float horizontalShakeTarget = Mathf.Max(baselineShake, burstShake);
 		float severeBoost = stress01 >= severeStressThreshold ? Mathf.InverseLerp(severeStressThreshold, 1f, stress01) : 0f;
@@ -252,7 +253,8 @@ public class SanityPsychologicalEffects : MonoBehaviour
 
 		if (analogGlitch != null)
 		{
-			analogGlitch.horizontalShake = Mathf.MoveTowards(analogGlitch.horizontalShake, horizontalShakeTarget, Time.deltaTime * 2.2f);
+			analogGlitch.scanLineJitter = Mathf.MoveTowards(analogGlitch.scanLineJitter, horizontalShakeTarget, Time.deltaTime * 2.2f);
+			analogGlitch.horizontalShake = Mathf.MoveTowards(analogGlitch.horizontalShake, 0f, Time.deltaTime * 3.5f);
 		}
 	}
 
@@ -260,6 +262,7 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	{
 		if (analogGlitch != null)
 		{
+			analogGlitch.scanLineJitter = Mathf.MoveTowards(analogGlitch.scanLineJitter, 0f, Time.deltaTime * 2.4f);
 			analogGlitch.horizontalShake = Mathf.MoveTowards(analogGlitch.horizontalShake, 0f, Time.deltaTime * 2.4f);
 		}
 	}
@@ -268,6 +271,7 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	{
 		if (analogGlitch != null)
 		{
+			analogGlitch.scanLineJitter = 0f;
 			analogGlitch.horizontalShake = 0f;
 		}
 	}
@@ -291,10 +295,7 @@ public class SanityPsychologicalEffects : MonoBehaviour
 		Quaternion targetRotation = baseLocalRotation * Quaternion.Euler(0f, 0f, tilt);
 		playerCamera.transform.localRotation = Quaternion.Slerp(playerCamera.transform.localRotation, targetRotation, Time.deltaTime * 10f);
 
-		Vector3 shakeOffset = Random.insideUnitSphere * (maxPositionShake * instability);
-		shakeOffset.z = 0f;
-		Vector3 targetPosition = baseLocalPosition + shakeOffset;
-		playerCamera.transform.localPosition = Vector3.Lerp(playerCamera.transform.localPosition, targetPosition, Time.deltaTime * 11f);
+		playerCamera.transform.localPosition = Vector3.Lerp(playerCamera.transform.localPosition, baseLocalPosition, Time.deltaTime * 11f);
 	}
 
 	void ScheduleNextFalseCue()
