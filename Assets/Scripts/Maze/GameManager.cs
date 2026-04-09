@@ -20,7 +20,10 @@ public class GameManager : MonoBehaviour
 	[Header("Lose Settings")]
 	public float loseDistance = 2f;
 	public float loseDelay = 1f;
-	public float caughtAnticipationDelay = 0.2f;
+	public float pointOfNoEscapeDistance = 1.7f;
+	public float pointOfNoEscapeCommitTime = 0.18f;
+	public bool enforceImmediateCaptureJumpscare = true;
+	public float caughtAnticipationDelay = 0f;
 	public float caughtCameraShakeDuration = 0.28f;
 	public float caughtCameraShakeAmount = 0.14f;
     
@@ -46,6 +49,7 @@ public class GameManager : MonoBehaviour
 	private AudioSource audioSource;
 	private CanvasGroup canvasGroup;
 	private float originalTimeScale;
+	private float noEscapeEnteredAt = -999f;
 
 	void Start()
 	{
@@ -155,6 +159,23 @@ public class GameManager : MonoBehaviour
 		if (SafeSpaceZone.IsPlayerProtectedGlobal(player)) return;
         
 		float distanceToVillain = Vector3.Distance(player.position, villainAI.transform.position);
+		bool inNoEscapeDistance = distanceToVillain <= pointOfNoEscapeDistance && villainAI.IsChasing;
+		if (inNoEscapeDistance)
+		{
+			if (noEscapeEnteredAt < 0f)
+			{
+				noEscapeEnteredAt = Time.time;
+			}
+			else if (Time.time - noEscapeEnteredAt >= pointOfNoEscapeCommitTime)
+			{
+				LoseGame();
+				return;
+			}
+		}
+		else
+		{
+			noEscapeEnteredAt = -999f;
+		}
         
 		// Lose Condition: Close distance AND villain can see player (line of sight)
 		if (distanceToVillain <= loseDistance && VillainCanSeePlayer())
@@ -221,12 +242,19 @@ public class GameManager : MonoBehaviour
 
 	IEnumerator PlayCaughtSequence()
 	{
-		if (jumpscareSystem != null && !jumpscareSystem.IsJumpscareActive())
+		if (jumpscareSystem != null)
 		{
-			jumpscareSystem.ForceMajorScare(false);
+			if (enforceImmediateCaptureJumpscare)
+			{
+				jumpscareSystem.ForceCaptureJumpscareImmediate();
+			}
+			else if (!jumpscareSystem.IsJumpscareActive())
+			{
+				jumpscareSystem.ForceMajorScare(false);
+			}
 		}
 
-		if (caughtAnticipationDelay > 0f)
+		if (!enforceImmediateCaptureJumpscare && caughtAnticipationDelay > 0f)
 		{
 			yield return new WaitForSecondsRealtime(caughtAnticipationDelay);
 		}

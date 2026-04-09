@@ -53,6 +53,12 @@ public class ProceduralVillain : MonoBehaviour
 	[SerializeField] private float horrorArmSwingAmount = 60f;
 	[SerializeField] private float horrorArmSwingSpeed = 5f;
 	[SerializeField] private float spineRotationAmount = 5f;
+	[SerializeField] private float uncannyCadenceQuantization = 7f;
+	[SerializeField] private float uncannyCadenceDesync = 0.22f;
+	[SerializeField] private float uncannyMicroJerkAmount = 8f;
+	[SerializeField] private float uncannyMicroJerkSpeed = 17f;
+	[SerializeField] private float uncannyPoseOffsetAmount = 4f;
+	[SerializeField] private float uncannyNoEscapeAnimationMultiplier = 1.35f;
     
 	[Header("Horror Head Effects")]
 	[SerializeField] private float headWiggleSpeed = 15f;
@@ -73,6 +79,7 @@ public class ProceduralVillain : MonoBehaviour
 	private Vector3 lastPosition;
 	private bool isMoving = false;
 	private float nextRatSoundTime = 0f;
+	private VillainAI villainAI;
     
 	// Body structure
 	private Transform skeleton;
@@ -99,6 +106,7 @@ public class ProceduralVillain : MonoBehaviour
 		ratAudioSource.volume = 2f;
         
 		lastPosition = transform.position;
+		villainAI = GetComponent<VillainAI>();
         
 		GenerateVillain();
 		SetupEZSoftBones();
@@ -304,8 +312,12 @@ public class ProceduralVillain : MonoBehaviour
 		// Update walk cycle
 		if (isMoving)
 		{
-			float currentSpeed = Mathf.Lerp(moveSpeed, horrorMoveSpeed, currentHorrorLevel);
-			walkCycle += Time.deltaTime * stepFrequency * currentSpeed;
+			float aggressionMultiplier = (villainAI != null && villainAI.IsInPointOfNoEscape) ? uncannyNoEscapeAnimationMultiplier : 1f;
+			float currentSpeed = Mathf.Lerp(moveSpeed, horrorMoveSpeed, currentHorrorLevel) * aggressionMultiplier;
+			float cadence = Time.deltaTime * stepFrequency * currentSpeed;
+			float quantization = Mathf.Max(1f, uncannyCadenceQuantization);
+			cadence = Mathf.Round(cadence * quantization) / quantization;
+			walkCycle += cadence;
 		}
         
 		// Apply transformations
@@ -344,8 +356,11 @@ public class ProceduralVillain : MonoBehaviour
             
 			for (int i = 0; i < cubes.Count; i++)
 			{
-				// Add random offset between cubes
-				Vector3 separation = Random.insideUnitSphere * maxCubeSeparation * currentHorrorLevel;
+				float t = Time.time * (2.5f + i * 0.31f);
+				Vector3 separation = new Vector3(
+					Mathf.Sin(t + i) * 0.5f,
+					Mathf.Cos(t * 1.7f + i * 0.7f) * 0.35f,
+					Mathf.Sin(t * 1.3f + i * 1.1f) * 0.5f) * maxCubeSeparation * currentHorrorLevel;
 				cubes[i].transform.localPosition = offsets[i] + separation;
 			}
 		}
@@ -358,6 +373,8 @@ public class ProceduralVillain : MonoBehaviour
 		// Blend between Minecraft-style and organic horror animation
 		float minecraftWeight = 1f - currentHorrorLevel;
 		float horrorWeight = currentHorrorLevel;
+		float aggressionWeight = villainAI != null ? Mathf.Clamp01(villainAI.CurrentAggressionLevel - 1f) : 0f;
+		float microJerk = Mathf.Sin(Time.time * uncannyMicroJerkSpeed) * uncannyMicroJerkAmount * (0.3f + horrorWeight + aggressionWeight);
         
 		// Calculate leg positions
 		float leftLegSwing = Mathf.Sin(walkCycle * Mathf.PI);
@@ -370,7 +387,7 @@ public class ProceduralVillain : MonoBehaviour
 			float horrorAngle = leftLegSwing * horrorArmSwingAmount * Mathf.Sin(walkCycle * horrorArmSwingSpeed);
 			float finalAngle = Mathf.Lerp(minecraftAngle, horrorAngle, currentHorrorLevel);
             
-			leftLegBone.localRotation = Quaternion.Euler(finalAngle, 0, 0);
+			leftLegBone.localRotation = Quaternion.Euler(finalAngle + microJerk * 0.45f, 0, 0);
             
 			// Add step height
 			Vector3 legPos = leftLegBone.localPosition;
@@ -385,7 +402,7 @@ public class ProceduralVillain : MonoBehaviour
 			float horrorAngle = rightLegSwing * horrorArmSwingAmount * Mathf.Sin((walkCycle + 1f) * horrorArmSwingSpeed);
 			float finalAngle = Mathf.Lerp(minecraftAngle, horrorAngle, currentHorrorLevel);
             
-			rightLegBone.localRotation = Quaternion.Euler(finalAngle, 0, 0);
+			rightLegBone.localRotation = Quaternion.Euler(finalAngle - microJerk * 0.45f, 0, 0);
             
 			// Add step height
 			Vector3 legPos = rightLegBone.localPosition;
@@ -401,7 +418,7 @@ public class ProceduralVillain : MonoBehaviour
 			float horrorAngle = Mathf.Sin(walkCycle * horrorArmSwingSpeed * 1.5f) * horrorArmSwingAmount;
 			float finalAngle = Mathf.Lerp(minecraftAngle, horrorAngle, currentHorrorLevel);
             
-			leftArmBone.localRotation = Quaternion.Euler(finalAngle, 0, 0);
+			leftArmBone.localRotation = Quaternion.Euler(finalAngle, 0, microJerk * 0.28f);
 		}
         
 		if (rightArmBone != null)
@@ -410,14 +427,14 @@ public class ProceduralVillain : MonoBehaviour
 			float horrorAngle = Mathf.Sin((walkCycle + 0.5f) * horrorArmSwingSpeed * 1.5f) * horrorArmSwingAmount;
 			float finalAngle = Mathf.Lerp(minecraftAngle, horrorAngle, currentHorrorLevel);
             
-			rightArmBone.localRotation = Quaternion.Euler(finalAngle, 0, 0);
+			rightArmBone.localRotation = Quaternion.Euler(finalAngle, 0, -microJerk * 0.28f);
 		}
         
 		// Torso rotation for more organic movement in horror mode
 		if (torsoBone != null)
 		{
-			float torsoSway = Mathf.Sin(walkCycle * Mathf.PI * 2f) * spineRotationAmount * horrorWeight;
-			torsoBone.localRotation = Quaternion.Euler(0, torsoSway, 0);
+			float torsoSway = Mathf.Sin((walkCycle + uncannyCadenceDesync) * Mathf.PI * 2f) * spineRotationAmount * horrorWeight;
+			torsoBone.localRotation = Quaternion.Euler(microJerk * 0.08f, torsoSway, Mathf.Sin(Time.time * uncannyMicroJerkSpeed * 0.5f) * uncannyPoseOffsetAmount * horrorWeight);
 		}
         
 		// Head animation
@@ -441,13 +458,14 @@ public class ProceduralVillain : MonoBehaviour
 		if (currentHorrorLevel > 0.3f)
 		{
 			float time = Time.time;
+			float aggressionBias = villainAI != null ? Mathf.Clamp01(villainAI.CurrentAggressionLevel - 1f) : 0f;
             
 			// Rapid side-to-side wiggle (rat-like head movement)
-			float wiggleX = Mathf.Sin(time * headWiggleSpeed) * headWiggleAmount * horrorWeight;
+			float wiggleX = Mathf.Sin(time * headWiggleSpeed) * headWiggleAmount * (horrorWeight + aggressionBias * 0.35f);
             
 			// Random twitching
-			float twitchY = Mathf.PerlinNoise(time * headTwitchSpeed, 0) * headTwitchIntensity * horrorWeight;
-			float twitchZ = Mathf.PerlinNoise(0, time * headTwitchSpeed) * headTwitchIntensity * 0.5f * horrorWeight;
+			float twitchY = Mathf.PerlinNoise(time * headTwitchSpeed, 0) * headTwitchIntensity * (horrorWeight + aggressionBias * 0.4f);
+			float twitchZ = Mathf.PerlinNoise(0, time * headTwitchSpeed) * headTwitchIntensity * 0.5f * (horrorWeight + aggressionBias * 0.4f);
             
 			// Occasional violent snap
 			float snapIntensity = Mathf.PerlinNoise(time * 2f, 100f);
