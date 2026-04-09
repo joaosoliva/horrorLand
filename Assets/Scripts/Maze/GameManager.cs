@@ -42,6 +42,7 @@ public class GameManager : MonoBehaviour
 	public bool pauseOnGameOver = true;
     
 	private bool gameEnded = false;
+	private bool exitDoorActivated = false;
 	private AudioSource audioSource;
 	private CanvasGroup canvasGroup;
 	private float originalTimeScale;
@@ -133,25 +134,19 @@ public class GameManager : MonoBehaviour
 			return;
 		}
         
-		// Win Condition 2: Reach the maze exit
-		if (HasPlayerReachedExit())
+		// Win Condition 2: Interact with the maze exit door
+		if (exitDoorActivated)
 		{
 			WinGame("[FINAL #01] Você encontrou a saída, mas o mistério continua...");
 			return;
 		}
 	}
 
-	bool HasPlayerReachedExit()
+	public void ActivateExitDoor()
 	{
-		if (player == null || mazeGenerator == null) return false;
-		
-		Vector3 exitPosition = mazeGenerator.GetExitPosition();
-		float distanceToExit = Vector3.Distance(player.position, exitPosition);
-		
-		// Consider player reached exit if within 2 cells distance
-		float exitReachDistance = mazeGenerator.cellSize * 2f;
-		
-		return distanceToExit <= exitReachDistance;
+		if (gameEnded || exitDoorActivated) return;
+		exitDoorActivated = true;
+		Debug.Log("Exit door activated by player.");
 	}
 
 	void CheckLoseCondition()
