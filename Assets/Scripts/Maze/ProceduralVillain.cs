@@ -326,9 +326,8 @@ public class ProceduralVillain : MonoBehaviour
 		{
 			float aggressionMultiplier = (villainAI != null && villainAI.IsInPointOfNoEscape) ? uncannyNoEscapeAnimationMultiplier : 1f;
 			float strideLength = Mathf.Lerp(farStrideLength, nearStrideLength, proximityHumanizeBlend);
-			float cadence = (distanceMoved / Mathf.Max(0.01f, strideLength)) * aggressionMultiplier;
-			float quantization = Mathf.Max(1f, uncannyCadenceQuantization);
-			cadence = Mathf.Round(cadence * quantization) / quantization;
+			float cadenceRate = Mathf.Max(0.35f, stepFrequency * 0.5f);
+			float cadence = (distanceMoved / Mathf.Max(0.01f, strideLength)) * cadenceRate * aggressionMultiplier;
 			walkCycle += cadence;
 		}
         
@@ -384,20 +383,21 @@ public class ProceduralVillain : MonoBehaviour
         
 		float horrorWeight = currentHorrorLevel;
 		float aggressionWeight = villainAI != null ? Mathf.Clamp01(villainAI.CurrentAggressionLevel - 1f) : 0f;
+		float animationCycle = GetQuantizedWalkCycle();
 		float microJerk = Mathf.Sin(Time.time * uncannyMicroJerkSpeed) * uncannyMicroJerkAmount * (0.3f + horrorWeight + aggressionWeight);
 		float nearBlend = proximityHumanizeBlend;
 		float footLift = Mathf.Lerp(footLiftFar, footLiftNear, nearBlend) + (stepHeight * 0.15f);
 		float forwardReach = Mathf.Lerp(legForwardReachFar, legForwardReachNear, nearBlend);
 		float stance = Mathf.Clamp(stancePortion, 0.35f, 0.8f);
-		float leftPhase = Mathf.Repeat(walkCycle, 1f);
-		float rightPhase = Mathf.Repeat(walkCycle + 0.5f, 1f);
+		float leftPhase = Mathf.Repeat(animationCycle, 1f);
+		float rightPhase = Mathf.Repeat(animationCycle + 0.5f, 1f);
 		float leftLift = GetFootLift(leftPhase, stance, footLift);
 		float rightLift = GetFootLift(rightPhase, stance, footLift);
 		float leftForward = GetFootForward(leftPhase, forwardReach);
 		float rightForward = GetFootForward(rightPhase, forwardReach);
 		float leftLegAngle = GetLegAngle(leftPhase, nearBlend);
 		float rightLegAngle = GetLegAngle(rightPhase, nearBlend);
-		float hipBob = (Mathf.Min(leftLift, rightLift) * 0.45f) + Mathf.Sin(walkCycle * Mathf.PI * 2f) * hipBobAmount * (0.4f + nearBlend * 0.6f);
+		float hipBob = (Mathf.Min(leftLift, rightLift) * 0.45f) + Mathf.Sin(animationCycle * Mathf.PI * 2f) * hipBobAmount * (0.4f + nearBlend * 0.6f);
         
 		if (leftLegBone != null)
 		{
@@ -420,9 +420,9 @@ public class ProceduralVillain : MonoBehaviour
 		// Arm swing (opposite to legs)
 		if (leftArmBone != null)
 		{
-			float rightLegSwing = Mathf.Sin((walkCycle + 1f) * Mathf.PI);
+			float rightLegSwing = Mathf.Sin((animationCycle + 1f) * Mathf.PI);
 			float minecraftAngle = rightLegSwing * armSwingAmount * 0.45f;
-			float horrorAngle = Mathf.Sin(walkCycle * horrorArmSwingSpeed * 1.5f) * horrorArmSwingAmount;
+			float horrorAngle = Mathf.Sin(animationCycle * horrorArmSwingSpeed * 1.5f) * horrorArmSwingAmount;
 			float finalAngle = Mathf.Lerp(minecraftAngle, horrorAngle, Mathf.Clamp01(currentHorrorLevel + nearBlend * 0.2f));
             
 			leftArmBone.localRotation = Quaternion.Euler(finalAngle, 0, microJerk * 0.28f);
@@ -430,9 +430,9 @@ public class ProceduralVillain : MonoBehaviour
         
 		if (rightArmBone != null)
 		{
-			float leftLegSwing = Mathf.Sin(walkCycle * Mathf.PI);
+			float leftLegSwing = Mathf.Sin(animationCycle * Mathf.PI);
 			float minecraftAngle = leftLegSwing * armSwingAmount * 0.45f;
-			float horrorAngle = Mathf.Sin((walkCycle + 0.5f) * horrorArmSwingSpeed * 1.5f) * horrorArmSwingAmount;
+			float horrorAngle = Mathf.Sin((animationCycle + 0.5f) * horrorArmSwingSpeed * 1.5f) * horrorArmSwingAmount;
 			float finalAngle = Mathf.Lerp(minecraftAngle, horrorAngle, Mathf.Clamp01(currentHorrorLevel + nearBlend * 0.2f));
             
 			rightArmBone.localRotation = Quaternion.Euler(finalAngle, 0, -microJerk * 0.28f);
@@ -440,7 +440,7 @@ public class ProceduralVillain : MonoBehaviour
         
 		if (torsoBone != null)
 		{
-			float torsoSway = Mathf.Sin((walkCycle + uncannyCadenceDesync) * Mathf.PI * 2f) * spineRotationAmount * horrorWeight;
+			float torsoSway = Mathf.Sin((animationCycle + uncannyCadenceDesync) * Mathf.PI * 2f) * spineRotationAmount * horrorWeight;
 			float forwardLean = Mathf.Lerp(0f, torsoForwardLeanNear, nearBlend);
 			torsoBone.localRotation = Quaternion.Euler(
 				forwardLean + (microJerk * 0.08f),
@@ -450,6 +450,12 @@ public class ProceduralVillain : MonoBehaviour
         
 		// Head animation
 		AnimateHead(1f - currentHorrorLevel, horrorWeight);
+	}
+
+	float GetQuantizedWalkCycle()
+	{
+		float quantization = Mathf.Max(1f, uncannyCadenceQuantization);
+		return Mathf.Round(walkCycle * quantization) / quantization;
 	}
 
 	float GetFootLift(float phase, float stance, float liftAmount)
