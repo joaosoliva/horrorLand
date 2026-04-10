@@ -54,6 +54,7 @@ public class ProceduralVillain : MonoBehaviour
 	[SerializeField] private float walkStepHeight = 0.2f;
 	[SerializeField] private float walkLegSwing = 28f;
 	[SerializeField] private float walkArmSwing = 16f;
+	[SerializeField] private float spineRotationAmount = 5f;
 
 	[Header("Grounded Run (Near)")]
 	[SerializeField] private float runCadence = 3f;
