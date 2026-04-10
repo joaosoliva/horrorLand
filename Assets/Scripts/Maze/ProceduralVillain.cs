@@ -6,110 +6,95 @@ public class ProceduralVillain : MonoBehaviour
 {
 	[Header("Player Reference")]
 	public Transform player;
-    
+
 	[Header("Head Prefab")]
 	[SerializeField] private GameObject headPrefab;
 	[SerializeField] private Vector3 headPrefabScale = Vector3.one;
 	[SerializeField] private Vector3 headPrefabRotationOffset = Vector3.zero;
-    
+
 	[Header("Villain Dimensions (Minecraft-style)")]
 	[SerializeField] private float cubeSize = 0.2f;
-	[SerializeField] private float characterHeight = 1.8f; // Same as player
-    
+	[SerializeField] private float characterHeight = 1.8f;
+
 	[Header("Body Part Colors")]
 	[SerializeField] private Color torsoColor = new Color(0.4f, 0.4f, 0.4f);
 	[SerializeField] private Color armColor = new Color(0.8f, 0.7f, 0.6f);
 	[SerializeField] private Color legColor = new Color(0.3f, 0.3f, 0.5f);
-    
+
 	[Header("Transformation Settings")]
 	[SerializeField] private float activationDistance = 10f;
 	[SerializeField] private float fullHorrorDistance = 3f;
 	[SerializeField] private float transformSpeed = 2f;
-    
+
 	[Header("Cube Separation")]
 	[SerializeField] private float maxCubeSeparation = 0.05f;
-    
+
 	[Header("Soft Bone Settings - Normal State")]
 	[SerializeField] private float normalDamping = 0.8f;
 	[SerializeField] private float normalStiffness = 0.95f;
-    
+
 	[Header("Soft Bone Settings - Horror State")]
 	[SerializeField] private float horrorDamping = 0.15f;
 	[SerializeField] private float horrorStiffness = 0.1f;
 	[SerializeField] private Vector3 horrorGravity = new Vector3(0, -0.3f, 0);
-    
+
 	[Header("Horror Sound & Rat Sound")]
 	[SerializeField] private AudioClip horrorSound;
-	[SerializeField] private AudioClip ratSound; // Rat squeaking/chittering sound
+	[SerializeField] private AudioClip ratSound;
 	[SerializeField] private float ratSoundMinInterval = 0.5f;
 	[SerializeField] private float ratSoundMaxInterval = 2f;
-    
-	[Header("Procedural Animation")]
-	[SerializeField] private float moveSpeed = 2f;
-	[SerializeField] private float horrorMoveSpeed = 5f;
-	[SerializeField] private float stepHeight = 0.2f;
-	[SerializeField] private float stepFrequency = 2f;
-	[SerializeField] private float armSwingAmount = 30f;
-	[SerializeField] private float horrorArmSwingAmount = 60f;
-	[SerializeField] private float horrorArmSwingSpeed = 5f;
-	[SerializeField] private float spineRotationAmount = 5f;
-	[SerializeField] private float nearPlayerHumanizedWalkDistance = 6f;
-	[SerializeField] private float farModeDistance = 12f;
-	[SerializeField] private float nearModeDistance = 4.5f;
-	[SerializeField] private float farCartoonStylizationWeight = 1f;
-	[SerializeField] private float nearRealismWeight = 1f;
-	[SerializeField] private float walkStrideLength = 0.92f;
-	[SerializeField] private float runStrideLength = 0.62f;
-	[SerializeField] private float walkCadence = 1.4f;
-	[SerializeField] private float runCadence = 2.6f;
-	[SerializeField] private float stancePortion = 0.58f;
+
+	[Header("Locomotion Blend")]
+	[SerializeField] private float farStylizedDistance = 12f;
+	[SerializeField] private float nearGroundedDistance = 5f;
+	[SerializeField] private float runSpeedForFullBlend = 6f;
+
+	[Header("Stylized Walk (Far)")]
+	[SerializeField] private float walkCadence = 1.6f;
+	[SerializeField] private float walkStepHeight = 0.2f;
+	[SerializeField] private float walkLegSwing = 28f;
+	[SerializeField] private float walkArmSwing = 16f;
+
+	[Header("Grounded Run (Near)")]
+	[SerializeField] private float runCadence = 3f;
+	[SerializeField] private float runStride = 0.24f;
+	[SerializeField] private float runLift = 0.08f;
 	[SerializeField] private float footPlantStrength = 0.82f;
-	[SerializeField] private float stepAnticipation = 0.05f;
-	[SerializeField] private float footLiftFar = 0.14f;
-	[SerializeField] private float footLiftNear = 0.06f;
-	[SerializeField] private float legForwardReachFar = 0.1f;
-	[SerializeField] private float legForwardReachNear = 0.16f;
-	[SerializeField] private float pelvisSwayAmount = 0.045f;
-	[SerializeField] private float bodyLean = 11f;
-	[SerializeField] private float armSwingBase = 24f;
-	[SerializeField] private float armFlailIntensity = 30f;
-	[SerializeField] private float runAggression = 1.25f;
-	[SerializeField] private float uncannyBendIntensity = 9f;
+	[SerializeField] private float ikBlendSpeed = 12f;
+	[SerializeField] private float floorRayStartHeight = 0.7f;
+	[SerializeField] private float floorRayLength = 2.2f;
+	[SerializeField] private LayerMask groundMask = ~0;
+
+	[Header("Balance / Threat")]
+	[SerializeField] private float torsoLeanNear = 14f;
+	[SerializeField] private float torsoSwayAmount = 3f;
+	[SerializeField] private float balanceArmSpread = 12f;
+	[SerializeField] private float balanceArmSwing = 42f;
+	[SerializeField] private float uncannyNearBend = 10f;
 	[SerializeField] private float asymmetryAmount = 0.25f;
-	[SerializeField] private float speedForRunBlend = 6f;
-	[SerializeField] private float uncannyCadenceQuantization = 7f;
-	[SerializeField] private float uncannyCadenceDesync = 0.22f;
-	[SerializeField] private float uncannyMicroJerkAmount = 8f;
-	[SerializeField] private float uncannyMicroJerkSpeed = 17f;
-	[SerializeField] private float uncannyPoseOffsetAmount = 4f;
-	[SerializeField] private float uncannyNoEscapeAnimationMultiplier = 1.35f;
-    
+
 	[Header("Horror Head Effects")]
 	[SerializeField] private float headWiggleSpeed = 15f;
 	[SerializeField] private float headWiggleAmount = 25f;
 	[SerializeField] private float headTwitchIntensity = 45f;
 	[SerializeField] private float headTwitchSpeed = 12f;
-    
-	// Internal references
+
 	private Dictionary<string, List<GameObject>> bodyPartCubes = new Dictionary<string, List<GameObject>>();
 	private Dictionary<string, EZSoftBone> bodyPartBones = new Dictionary<string, EZSoftBone>();
 	private Dictionary<string, List<Vector3>> originalCubeOffsets = new Dictionary<string, List<Vector3>>();
 	private GameObject headInstance;
 	private AudioSource audioSource;
 	private AudioSource ratAudioSource;
-    
+
 	private float currentHorrorLevel = 0f;
 	private float walkCycle = 0f;
 	private Vector3 lastPosition;
 	private bool isMoving = false;
 	private float nextRatSoundTime = 0f;
-	private VillainAI villainAI;
-	private float proximityHumanizeBlend = 0f;
-	private float styleNearBlend = 0f;
-	private float speedBlend = 0f;
 	private float worldMoveSpeed = 0f;
-    
-	// Body structure
+	private float nearBlend = 0f;
+	private VillainAI villainAI;
+
 	private Transform skeleton;
 	private Transform headBone;
 	private Transform torsoBone;
@@ -118,54 +103,69 @@ public class ProceduralVillain : MonoBehaviour
 	private Transform leftLegBone;
 	private Transform rightLegBone;
 
+	private float leftLegBaseY;
+	private float rightLegBaseY;
+	private float leftLegBaseX;
+	private float rightLegBaseX;
+
 	void Start()
 	{
 		audioSource = gameObject.AddComponent<AudioSource>();
 		audioSource.clip = horrorSound;
 		audioSource.loop = true;
 		audioSource.spatialBlend = 1f;
-        
-		// Add second audio source for rat sounds
+
 		ratAudioSource = gameObject.AddComponent<AudioSource>();
 		ratAudioSource.clip = ratSound;
 		ratAudioSource.loop = false;
 		ratAudioSource.spatialBlend = 1f;
 		ratAudioSource.pitch = 1f;
 		ratAudioSource.volume = 2f;
-        
+
 		lastPosition = transform.position;
 		villainAI = GetComponent<VillainAI>();
-        
+
 		GenerateVillain();
 		SetupEZSoftBones();
+		CacheLegBaseOffsets();
+	}
+
+	void CacheLegBaseOffsets()
+	{
+		if (leftLegBone != null)
+		{
+			leftLegBaseY = leftLegBone.localPosition.y;
+			leftLegBaseX = leftLegBone.localPosition.x;
+		}
+		if (rightLegBone != null)
+		{
+			rightLegBaseY = rightLegBone.localPosition.y;
+			rightLegBaseX = rightLegBone.localPosition.x;
+		}
 	}
 
 	void GenerateVillain()
 	{
-		// Create skeleton structure
 		skeleton = new GameObject("Skeleton").transform;
 		skeleton.SetParent(transform);
 		skeleton.localPosition = Vector3.zero;
-        
-		// Calculate proportions based on Minecraft standards
-		float headSize = cubeSize * 8f; // Head is 8x8x8
+
+		float headSize = cubeSize * 8f;
 		float torsoWidth = cubeSize * 8f;
 		float torsoHeight = cubeSize * 12f;
 		float limbWidth = cubeSize * 4f;
-        
-		// Create bone hierarchy
-		headBone = CreateBone("Head", skeleton, new Vector3(0, characterHeight - headSize/2, 0));
-		torsoBone = CreateBone("Torso", skeleton, new Vector3(0, characterHeight - headSize - torsoHeight/2, 0));
-        
+
+		headBone = CreateBone("Head", skeleton, new Vector3(0, characterHeight - headSize / 2, 0));
+		torsoBone = CreateBone("Torso", skeleton, new Vector3(0, characterHeight - headSize - torsoHeight / 2, 0));
+
 		float armHeight = characterHeight - headSize - cubeSize * 2f;
-		leftArmBone = CreateBone("LeftArm", skeleton, new Vector3(-torsoWidth/2 - limbWidth/2, armHeight, 0));
-		rightArmBone = CreateBone("RightArm", skeleton, new Vector3(torsoWidth/2 + limbWidth/2, armHeight, 0));
-        
+		leftArmBone = CreateBone("LeftArm", skeleton, new Vector3(-torsoWidth / 2 - limbWidth / 2, armHeight, 0));
+		rightArmBone = CreateBone("RightArm", skeleton, new Vector3(torsoWidth / 2 + limbWidth / 2, armHeight, 0));
+
 		float legHeight = characterHeight - headSize - torsoHeight;
-		leftLegBone = CreateBone("LeftLeg", skeleton, new Vector3(-limbWidth/2, legHeight, 0));
-		rightLegBone = CreateBone("RightLeg", skeleton, new Vector3(limbWidth/2, legHeight, 0));
-        
-		// Generate body parts
+		leftLegBone = CreateBone("LeftLeg", skeleton, new Vector3(-limbWidth / 2, legHeight, 0));
+		rightLegBone = CreateBone("RightLeg", skeleton, new Vector3(limbWidth / 2, legHeight, 0));
+
 		GenerateHead(headBone);
 		GenerateTorso(torsoBone);
 		GenerateLimb("LeftArm", leftArmBone, armColor, new Vector3(0, -1, 0));
@@ -173,7 +173,7 @@ public class ProceduralVillain : MonoBehaviour
 		GenerateLimb("LeftLeg", leftLegBone, legColor, new Vector3(0, -1, 0));
 		GenerateLimb("RightLeg", rightLegBone, legColor, new Vector3(0, -1, 0));
 	}
-    
+
 	Transform CreateBone(string name, Transform parent, Vector3 localPos)
 	{
 		GameObject bone = new GameObject(name + "_Bone");
@@ -181,7 +181,7 @@ public class ProceduralVillain : MonoBehaviour
 		bone.transform.localPosition = localPos;
 		return bone.transform;
 	}
-    
+
 	void GenerateHead(Transform parent)
 	{
 		if (headPrefab == null)
@@ -189,126 +189,96 @@ public class ProceduralVillain : MonoBehaviour
 			Debug.LogWarning("Head prefab is not assigned! Skipping head generation.");
 			return;
 		}
-        
-		// Instantiate the head prefab
+
 		headInstance = Instantiate(headPrefab, parent);
 		headInstance.name = "HeadPrefab";
 		headInstance.transform.localPosition = Vector3.zero;
 		headInstance.transform.localRotation = Quaternion.Euler(headPrefabRotationOffset);
 		headInstance.transform.localScale = headPrefabScale;
 	}
-    
+
 	void GenerateTorso(Transform parent)
 	{
 		float torsoWidth = cubeSize * 8f;
 		float torsoHeight = cubeSize * 12f;
 		float torsoDepth = cubeSize * 4f;
-        
-		// Torso as single piece (no soft bone)
+
 		GameObject torsoCube = CreateCube(new Vector3(torsoWidth, torsoHeight, torsoDepth), torsoColor);
 		torsoCube.transform.SetParent(parent);
 		torsoCube.transform.localPosition = Vector3.zero;
 	}
-    
+
 	void GenerateLimb(string name, Transform parent, Color color, Vector3 direction)
 	{
 		List<GameObject> cubes = new List<GameObject>();
 		List<Vector3> offsets = new List<Vector3>();
-		List<Transform> bones = new List<Transform>();
-        
+
 		float limbWidth = cubeSize * 4f;
 		int cubeCount = 5;
-        
 		Transform previousBone = parent;
-        
+
 		for (int i = 0; i < cubeCount; i++)
 		{
-			// Create bone
 			Transform bone = CreateBone(name + "_Segment" + i, previousBone, direction * limbWidth * (i > 0 ? 1 : 0));
-			bones.Add(bone);
-            
-			// Create cube
 			GameObject cube = CreateCube(limbWidth, color);
 			cube.name = name + "_Cube" + i;
 			cube.transform.SetParent(bone);
 			cube.transform.localPosition = Vector3.zero;
-            
+
 			cubes.Add(cube);
 			offsets.Add(Vector3.zero);
-            
 			previousBone = bone;
 		}
-        
+
 		bodyPartCubes[name] = cubes;
 		originalCubeOffsets[name] = offsets;
-        
-		// Store first bone for EZSoftBone
-		bodyPartBones[name] = null; // Will be set up in SetupEZSoftBones
+		bodyPartBones[name] = null;
 	}
-	
+
 	GameObject CreateCube(float size, Color color)
 	{
 		return CreateCube(new Vector3(size, size, size), color);
 	}
-    
+
 	GameObject CreateCube(Vector3 size, Color color)
 	{
 		GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
 		cube.transform.localScale = size;
-        
 		Material mat = new Material(Shader.Find("Standard"));
 		mat.color = color;
 		cube.GetComponent<Renderer>().material = mat;
-        
-		// Remove collider for now (add back if needed)
 		Destroy(cube.GetComponent<Collider>());
-        
 		return cube;
 	}
-    
+
 	void SetupEZSoftBones()
 	{
-		// Add EZSoftBone components to limbs
 		string[] limbs = { "LeftArm", "RightArm", "LeftLeg", "RightLeg" };
-        
 		foreach (string limb in limbs)
 		{
 			Transform limbRoot = skeleton.Find(limb + "_Bone");
 			if (limbRoot == null) continue;
-            
-			// Add EZSoftBone component to the limb root bone
+
 			EZSoftBone softBone = limbRoot.gameObject.AddComponent<EZSoftBone>();
-            
-			// Create material using CreateInstance
 			EZSoftBoneMaterial softBoneMaterial = ScriptableObject.CreateInstance<EZSoftBoneMaterial>();
-            
-			// Set initial material properties
 			softBoneMaterial.damping = normalDamping;
 			softBoneMaterial.stiffness = normalStiffness;
 			softBoneMaterial.resistance = 0f;
 			softBoneMaterial.slackness = 0f;
-            
-			// Assign material to the soft bone
 			softBone.sharedMaterial = softBoneMaterial;
-            
-			// Set root bones - need to find the first segment and add to the list
+
 			Transform firstSegment = limbRoot.Find(limb + "_Segment0");
 			if (firstSegment != null)
 			{
 				softBone.rootBones.Clear();
 				softBone.rootBones.Add(firstSegment);
 			}
-            
-			// Configure simulation settings
+
 			softBone.startDepth = 0;
 			softBone.iterations = 2;
 			softBone.sleepThreshold = 0.005f;
 			softBone.deltaTimeMode = EZSoftBone.DeltaTimeMode.DeltaTime;
-            
-			// Set gravity directly on the EZSoftBone component (not the material)
 			softBone.gravity = Vector3.zero;
-            
-			// Store reference
 			bodyPartBones[limb] = softBone;
 		}
 	}
@@ -316,19 +286,15 @@ public class ProceduralVillain : MonoBehaviour
 	void Update()
 	{
 		if (player == null) return;
-        
-		// Check if moving
+
 		float distanceMoved = Vector3.Distance(transform.position, lastPosition);
 		isMoving = distanceMoved > 0.001f;
 		worldMoveSpeed = distanceMoved / Mathf.Max(0.0001f, Time.deltaTime);
-		speedBlend = Mathf.Clamp01(worldMoveSpeed / Mathf.Max(0.1f, speedForRunBlend));
 		lastPosition = transform.position;
-        
+
 		float distance = Vector3.Distance(player.position, transform.position);
-		proximityHumanizeBlend = 1f - Mathf.Clamp01((distance - nearPlayerHumanizedWalkDistance) / Mathf.Max(0.01f, activationDistance - nearPlayerHumanizedWalkDistance));
-		styleNearBlend = 1f - Mathf.Clamp01((distance - nearModeDistance) / Mathf.Max(0.01f, farModeDistance - nearModeDistance));
-        
-		// Calculate horror level
+		nearBlend = 1f - Mathf.Clamp01((distance - nearGroundedDistance) / Mathf.Max(0.01f, farStylizedDistance - nearGroundedDistance));
+
 		float targetHorrorLevel = 0f;
 		if (distance <= fullHorrorDistance)
 		{
@@ -338,235 +304,202 @@ public class ProceduralVillain : MonoBehaviour
 		{
 			targetHorrorLevel = 1f - ((distance - fullHorrorDistance) / (activationDistance - fullHorrorDistance));
 		}
-        
 		currentHorrorLevel = Mathf.Lerp(currentHorrorLevel, targetHorrorLevel, Time.deltaTime * transformSpeed);
-        
-		// Update walk cycle
+
 		if (isMoving)
 		{
-			float aggressionMultiplier = (villainAI != null && villainAI.IsInPointOfNoEscape) ? uncannyNoEscapeAnimationMultiplier : 1f;
-			float strideLength = Mathf.Lerp(walkStrideLength, runStrideLength, speedBlend);
-			float styleCadence = Mathf.Lerp(walkCadence, runCadence, speedBlend);
-			float cadence = (distanceMoved / Mathf.Max(0.01f, strideLength)) * styleCadence * aggressionMultiplier;
-			walkCycle += cadence;
+			float speedNorm = Mathf.Clamp01(worldMoveSpeed / Mathf.Max(0.1f, runSpeedForFullBlend));
+			float cadence = Mathf.Lerp(walkCadence, runCadence, Mathf.Clamp01(nearBlend * 0.8f + speedNorm * 0.6f));
+			walkCycle += Time.deltaTime * cadence;
 		}
-        
-		// Apply transformations
+
 		ApplyHorrorTransformation();
 		ApplyCubeSeparation();
-		AnimateWalk();
+		AnimateLocomotion();
 		HandleAudio();
 		HandleRatSounds();
 	}
-    
+
+	void AnimateLocomotion()
+	{
+		if (!isMoving) return;
+
+		if (nearBlend < 0.45f)
+		{
+			AnimateStylizedWalk();
+		}
+		else
+		{
+			AnimateGroundedRun();
+		}
+	}
+
+	void AnimateStylizedWalk()
+	{
+		float leftSwing = Mathf.Sin(walkCycle * Mathf.PI);
+		float rightSwing = Mathf.Sin((walkCycle + 1f) * Mathf.PI);
+
+		if (leftLegBone != null)
+		{
+			leftLegBone.localRotation = Quaternion.Euler(leftSwing * walkLegSwing, 0f, 0f);
+			Vector3 p = leftLegBone.localPosition;
+			p.y = leftLegBaseY + Mathf.Max(0f, leftSwing) * walkStepHeight;
+			p.x = leftLegBaseX;
+			p.z = 0f;
+			leftLegBone.localPosition = p;
+		}
+
+		if (rightLegBone != null)
+		{
+			rightLegBone.localRotation = Quaternion.Euler(rightSwing * walkLegSwing, 0f, 0f);
+			Vector3 p = rightLegBone.localPosition;
+			p.y = rightLegBaseY + Mathf.Max(0f, rightSwing) * walkStepHeight;
+			p.x = rightLegBaseX;
+			p.z = 0f;
+			rightLegBone.localPosition = p;
+		}
+
+		if (leftArmBone != null)
+		{
+			leftArmBone.localRotation = Quaternion.Euler(rightSwing * walkArmSwing, 0f, 0f);
+		}
+		if (rightArmBone != null)
+		{
+			rightArmBone.localRotation = Quaternion.Euler(leftSwing * walkArmSwing, 0f, 0f);
+		}
+
+		if (torsoBone != null)
+		{
+			torsoBone.localRotation = Quaternion.Euler(0f, Mathf.Sin(walkCycle * Mathf.PI * 2f) * spineRotationAmount, 0f);
+		}
+
+		AnimateHead(1f - currentHorrorLevel, currentHorrorLevel);
+	}
+
+	void AnimateGroundedRun()
+	{
+		float speedNorm = Mathf.Clamp01(worldMoveSpeed / Mathf.Max(0.1f, runSpeedForFullBlend));
+		float intensity = Mathf.Clamp01((nearBlend * 0.65f) + (speedNorm * 0.7f));
+		float asym = Mathf.Sin(Time.time * 2.2f) * asymmetryAmount;
+
+		float leftPhase = Mathf.Repeat(walkCycle, 1f);
+		float rightPhase = Mathf.Repeat(walkCycle + 0.5f, 1f);
+
+		ApplyGroundedLeg(leftLegBone, leftPhase, -1f, intensity, asym);
+		ApplyGroundedLeg(rightLegBone, rightPhase, 1f, intensity, -asym);
+
+		float leftSwing = Mathf.Sin(leftPhase * Mathf.PI * 2f);
+		float rightSwing = Mathf.Sin(rightPhase * Mathf.PI * 2f);
+		float armBalance = balanceArmSwing * intensity;
+
+		if (leftArmBone != null)
+		{
+			leftArmBone.localRotation = Quaternion.Euler((rightSwing * armBalance) + (asym * 12f), -balanceArmSpread * intensity, 8f * intensity);
+		}
+		if (rightArmBone != null)
+		{
+			rightArmBone.localRotation = Quaternion.Euler((leftSwing * armBalance) - (asym * 12f), balanceArmSpread * intensity, -8f * intensity);
+		}
+
+		if (torsoBone != null)
+		{
+			float lean = torsoLeanNear * intensity;
+			float sway = Mathf.Sin(walkCycle * Mathf.PI * 2f) * torsoSwayAmount * (1f - intensity * 0.2f);
+			float bend = Mathf.Sin(Time.time * 3.5f) * uncannyNearBend * intensity;
+			torsoBone.localRotation = Quaternion.Euler(lean, sway + bend, bend * 0.3f);
+		}
+
+		AnimateHead(0.2f, 0.8f + currentHorrorLevel * 0.2f);
+	}
+
+	void ApplyGroundedLeg(Transform legBone, float phase, float sideSign, float intensity, float asymmetry)
+	{
+		if (legBone == null)
+		{
+			return;
+		}
+
+		float strideForward = Mathf.Sin(phase * Mathf.PI * 2f) * runStride * (0.6f + intensity * 0.7f);
+		float lift = Mathf.Max(0f, Mathf.Sin((phase - 0.08f) * Mathf.PI * 2f)) * runLift * (0.55f + intensity * 0.6f);
+		float bend = Mathf.Sin(Time.time * 4.4f + (sideSign > 0f ? 0.7f : 0f)) * uncannyNearBend * intensity * 0.35f;
+
+		Vector3 localTarget = new Vector3(sideSign * cubeSize * 2f, (sideSign < 0f ? leftLegBaseY : rightLegBaseY) + lift, strideForward);
+		Vector3 worldTarget = transform.TransformPoint(localTarget);
+		worldTarget = ProjectToGround(worldTarget);
+
+		Vector3 current = legBone.position;
+		legBone.position = Vector3.Lerp(current, worldTarget, Time.deltaTime * ikBlendSpeed * Mathf.Lerp(0.45f, 1f, footPlantStrength));
+		legBone.localRotation = Quaternion.Euler((-strideForward * 180f) + bend + asymmetry * 8f, asymmetry * 6f, 0f);
+	}
+
+	Vector3 ProjectToGround(Vector3 worldPos)
+	{
+		Vector3 origin = worldPos + Vector3.up * floorRayStartHeight;
+		if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, floorRayLength, groundMask, QueryTriggerInteraction.Ignore))
+		{
+			worldPos.y = hit.point.y;
+		}
+		return worldPos;
+	}
+
 	void ApplyHorrorTransformation()
 	{
 		foreach (var kvp in bodyPartBones)
 		{
 			if (kvp.Value != null && kvp.Value.sharedMaterial != null)
 			{
-				// Get the material (this creates an instance if using .material property)
 				EZSoftBoneMaterial mat = kvp.Value.material;
-                
-				// Update material properties
 				mat.damping = Mathf.Lerp(normalDamping, horrorDamping, currentHorrorLevel);
 				mat.stiffness = Mathf.Lerp(normalStiffness, horrorStiffness, currentHorrorLevel);
-                
-				// Set gravity based on horror level
 				kvp.Value.gravity = Vector3.Lerp(Vector3.zero, horrorGravity, currentHorrorLevel);
 			}
 		}
 	}
-    
+
 	void ApplyCubeSeparation()
 	{
 		foreach (var kvp in bodyPartCubes)
 		{
 			List<GameObject> cubes = kvp.Value;
 			List<Vector3> offsets = originalCubeOffsets[kvp.Key];
-            
 			for (int i = 0; i < cubes.Count; i++)
 			{
-				float t = Time.time * (2.5f + i * 0.31f);
-				Vector3 separation = new Vector3(
-					Mathf.Sin(t + i) * 0.5f,
-					Mathf.Cos(t * 1.7f + i * 0.7f) * 0.35f,
-					Mathf.Sin(t * 1.3f + i * 1.1f) * 0.5f) * maxCubeSeparation * currentHorrorLevel;
+				Vector3 separation = Random.insideUnitSphere * maxCubeSeparation * currentHorrorLevel;
 				cubes[i].transform.localPosition = offsets[i] + separation;
 			}
 		}
 	}
-    
-	void AnimateWalk()
-	{
-		if (!isMoving) return;
-        
-		float horrorWeight = currentHorrorLevel;
-		float aggressionWeight = villainAI != null ? Mathf.Clamp01(villainAI.CurrentAggressionLevel - 1f) : 0f;
-		float animationCycle = GetQuantizedWalkCycle();
-		float nearBlend = Mathf.Clamp01(styleNearBlend * nearRealismWeight);
-		float farBlend = Mathf.Clamp01((1f - styleNearBlend) * farCartoonStylizationWeight);
-		float runBlend = Mathf.Clamp01(speedBlend * runAggression);
-		float microJerk = Mathf.Sin(Time.time * uncannyMicroJerkSpeed) * uncannyMicroJerkAmount * (0.2f + horrorWeight + aggressionWeight * 0.8f);
-		float footLift = Mathf.Lerp(footLiftFar, footLiftNear, nearBlend) + (stepHeight * Mathf.Lerp(0.35f, 0.08f, nearBlend));
-		float forwardReach = Mathf.Lerp(legForwardReachFar, legForwardReachNear, nearBlend) * Mathf.Lerp(0.9f, 1.25f, runBlend);
-		float stance = Mathf.Clamp(stancePortion, 0.35f, 0.8f);
-		float leftPhase = Mathf.Repeat(animationCycle, 1f);
-		float rightPhase = Mathf.Repeat(animationCycle + 0.5f, 1f);
-		float leftLift = GetFootLift(leftPhase, stance, footLift) * Mathf.Lerp(1.15f, 0.9f, nearBlend);
-		float rightLift = GetFootLift(rightPhase, stance, footLift) * Mathf.Lerp(1.15f, 0.9f, nearBlend);
-		float leftForward = GetFootForward(leftPhase, forwardReach, stance, stepAnticipation, footPlantStrength);
-		float rightForward = GetFootForward(rightPhase, forwardReach, stance, stepAnticipation, footPlantStrength);
-		float leftLegAngle = GetLegAngle(leftPhase, nearBlend);
-		float rightLegAngle = GetLegAngle(rightPhase, nearBlend);
-		float pelvisShift = Mathf.Sin(animationCycle * Mathf.PI * 2f) * pelvisSwayAmount * Mathf.Lerp(1.2f, 0.7f, nearBlend);
-		float hipBob = (Mathf.Min(leftLift, rightLift) * 0.42f) + Mathf.Sin(animationCycle * Mathf.PI * 2f) * pelvisSwayAmount * (0.3f + nearBlend * 0.8f);
-		float asymmetryPhase = Mathf.Sin((Time.time * 1.7f) + 0.35f) * asymmetryAmount;
-        
-		if (leftLegBone != null)
-		{
-			float bend = Mathf.Sin(Time.time * 3.1f) * uncannyBendIntensity * (0.25f + nearBlend * 0.55f);
-			leftLegBone.localRotation = Quaternion.Euler(leftLegAngle + microJerk * 0.25f + bend, (2.5f * farBlend) + asymmetryPhase, 0f);
-			Vector3 legPos = leftLegBone.localPosition;
-			legPos.y = characterHeight - (cubeSize * 8f) - (cubeSize * 12f) - (cubeSize * 4f) + leftLift - hipBob;
-			legPos.z = leftForward;
-			legPos.x = (-cubeSize * 2f) + pelvisShift;
-			leftLegBone.localPosition = legPos;
-		}
-        
-		if (rightLegBone != null)
-		{
-			float bend = Mathf.Sin((Time.time * 3.4f) + 1.13f) * uncannyBendIntensity * (0.25f + nearBlend * 0.55f);
-			rightLegBone.localRotation = Quaternion.Euler(rightLegAngle - microJerk * 0.25f - bend, (-2.5f * farBlend) - asymmetryPhase, 0f);
-			Vector3 legPos = rightLegBone.localPosition;
-			legPos.y = characterHeight - (cubeSize * 8f) - (cubeSize * 12f) - (cubeSize * 4f) + rightLift - hipBob;
-			legPos.z = rightForward;
-			legPos.x = (cubeSize * 2f) + pelvisShift;
-			rightLegBone.localPosition = legPos;
-		}
-        
-		// Arm swing (opposite to legs)
-		if (leftArmBone != null)
-		{
-			float rightLegSwing = Mathf.Sin((animationCycle + 1f) * Mathf.PI);
-			float cartoonAngle = rightLegSwing * armSwingBase * (1f + farBlend * 0.55f);
-			float nearFlail = Mathf.Sin((animationCycle * horrorArmSwingSpeed * 1.35f) + 0.2f) * armFlailIntensity * (nearBlend * (0.5f + runBlend));
-			float finalAngle = Mathf.Lerp(cartoonAngle, nearFlail + (rightLegSwing * armSwingBase * 0.75f), nearBlend);
-            
-			leftArmBone.localRotation = Quaternion.Euler(finalAngle, 0, (microJerk * 0.22f) + (asymmetryPhase * 8f));
-		}
-        
-		if (rightArmBone != null)
-		{
-			float leftLegSwing = Mathf.Sin(animationCycle * Mathf.PI);
-			float cartoonAngle = leftLegSwing * armSwingBase * (1f + farBlend * 0.55f);
-			float nearFlail = Mathf.Sin((animationCycle + 0.5f) * horrorArmSwingSpeed * 1.35f) * armFlailIntensity * (nearBlend * (0.5f + runBlend));
-			float finalAngle = Mathf.Lerp(cartoonAngle, nearFlail + (leftLegSwing * armSwingBase * 0.75f), nearBlend);
-            
-			rightArmBone.localRotation = Quaternion.Euler(finalAngle, 0, (-microJerk * 0.22f) - (asymmetryPhase * 8f));
-		}
-        
-		if (torsoBone != null)
-		{
-			float torsoSway = Mathf.Sin((animationCycle + uncannyCadenceDesync) * Mathf.PI * 2f) * spineRotationAmount * Mathf.Lerp(1.35f, 0.8f, nearBlend);
-			float forwardLean = Mathf.Lerp(0f, bodyLean, nearBlend) * (0.75f + runBlend * 0.4f);
-			torsoBone.localRotation = Quaternion.Euler(
-				forwardLean + (microJerk * 0.06f),
-				torsoSway + (asymmetryPhase * uncannyBendIntensity),
-				Mathf.Sin(Time.time * uncannyMicroJerkSpeed * 0.5f) * uncannyPoseOffsetAmount * horrorWeight);
-		}
-        
-		// Head animation
-		AnimateHead(1f - currentHorrorLevel, horrorWeight);
-	}
 
-	float GetQuantizedWalkCycle()
-	{
-		float quantization = Mathf.Max(1f, uncannyCadenceQuantization);
-		return Mathf.Round(walkCycle * quantization) / quantization;
-	}
-
-	float GetFootLift(float phase, float stance, float liftAmount)
-	{
-		if (phase <= stance)
-		{
-			return 0f;
-		}
-
-		float swingT = (phase - stance) / Mathf.Max(0.01f, 1f - stance);
-		return Mathf.Sin(swingT * Mathf.PI) * liftAmount;
-	}
-
-	float GetFootForward(float phase, float forwardReach, float stance, float anticipation, float plantStrength)
-	{
-		if (phase <= stance)
-		{
-			float plantedT = phase / Mathf.Max(0.01f, stance);
-			float plantedStart = forwardReach * Mathf.Lerp(0.85f, 1.1f, plantStrength);
-			float plantedEnd = -forwardReach * Mathf.Lerp(0.95f, 1.2f, plantStrength);
-			return Mathf.Lerp(plantedStart, plantedEnd, plantedT);
-		}
-
-		float swingT = (phase - stance) / Mathf.Max(0.01f, 1f - stance);
-		float toeOff = -forwardReach - anticipation;
-		float nextContact = forwardReach + anticipation;
-		return Mathf.Lerp(toeOff, nextContact, swingT);
-	}
-
-	float GetLegAngle(float phase, float nearBlend)
-	{
-		float forwardAngle = Mathf.Lerp(16f, 23f, nearBlend);
-		return Mathf.Lerp(forwardAngle, -forwardAngle, phase);
-	}
-    
 	void AnimateHead(float minecraftWeight, float horrorWeight)
 	{
 		if (headBone == null) return;
-        
-		// Head bob
+
 		Vector3 headPos = headBone.localPosition;
 		float bobAmount = Mathf.Sin(walkCycle * Mathf.PI * 2f) * 0.05f;
 		headPos.y = characterHeight - (cubeSize * 4f) + bobAmount * minecraftWeight;
 		headBone.localPosition = headPos;
-        
-		// Base rotation - make sure head follows body
+
 		Quaternion baseRotation = Quaternion.identity;
-        
-		// In horror mode, add freaky effects
 		if (currentHorrorLevel > 0.3f)
 		{
 			float time = Time.time;
-			float aggressionBias = villainAI != null ? Mathf.Clamp01(villainAI.CurrentAggressionLevel - 1f) : 0f;
-            
-			// Rapid side-to-side wiggle (rat-like head movement)
-			float wiggleX = Mathf.Sin(time * headWiggleSpeed) * headWiggleAmount * (horrorWeight + aggressionBias * 0.35f);
-            
-			// Random twitching
-			float twitchY = Mathf.PerlinNoise(time * headTwitchSpeed, 0) * headTwitchIntensity * (horrorWeight + aggressionBias * 0.4f);
-			float twitchZ = Mathf.PerlinNoise(0, time * headTwitchSpeed) * headTwitchIntensity * 0.5f * (horrorWeight + aggressionBias * 0.4f);
-            
-			// Occasional violent snap
-			float snapIntensity = Mathf.PerlinNoise(time * 2f, 100f);
-			if (snapIntensity > 0.95f)
+			float wiggleX = Mathf.Sin(time * headWiggleSpeed) * headWiggleAmount * horrorWeight;
+			float twitchY = Mathf.PerlinNoise(time * headTwitchSpeed, 0) * headTwitchIntensity * horrorWeight;
+			float twitchZ = Mathf.PerlinNoise(0, time * headTwitchSpeed) * headTwitchIntensity * 0.5f * horrorWeight;
+			if (Mathf.PerlinNoise(time * 2f, 100f) > 0.95f)
 			{
 				twitchY += Mathf.Sin(time * 30f) * 60f * horrorWeight;
 			}
-            
-			// Combine all rotations
-			baseRotation = Quaternion.Euler(wiggleX, twitchY - twitchY/2, twitchZ);
+			baseRotation = Quaternion.Euler(wiggleX, twitchY - twitchY / 2, twitchZ);
 		}
-        
-		// Apply rotation to head bone
+
 		headBone.localRotation = baseRotation;
-        
-		// Also apply rotation directly to head instance to ensure it follows
 		if (headInstance != null)
 		{
-			// Reset local rotation first, then apply offset
 			headInstance.transform.localRotation = Quaternion.Euler(headPrefabRotationOffset);
 		}
 	}
-    
+
 	void HandleAudio()
 	{
 		if (audioSource != null && horrorSound != null)
@@ -579,35 +512,27 @@ public class ProceduralVillain : MonoBehaviour
 			{
 				audioSource.Stop();
 			}
-            
 			audioSource.volume = currentHorrorLevel;
 		}
 	}
-    
+
 	void HandleRatSounds()
 	{
-		// Only play rat sounds when in high horror state
 		if (currentHorrorLevel > 0.7f && ratSound != null && ratAudioSource != null)
 		{
 			if (Time.time >= nextRatSoundTime && !ratAudioSource.isPlaying)
 			{
-				// Random pitch variation for more variety
 				ratAudioSource.pitch = Random.Range(0.8f, 1.3f);
 				ratAudioSource.PlayOneShot(ratSound);
-                
-				// Schedule next rat sound
-				float interval = Random.Range(ratSoundMinInterval, ratSoundMaxInterval);
-				nextRatSoundTime = Time.time + interval;
+				nextRatSoundTime = Time.time + Random.Range(ratSoundMinInterval, ratSoundMaxInterval);
 			}
 		}
 	}
-    
+
 	void OnDrawGizmosSelected()
 	{
-		// Visualize activation distances
 		Gizmos.color = Color.yellow;
 		Gizmos.DrawWireSphere(transform.position, activationDistance);
-        
 		Gizmos.color = Color.red;
 		Gizmos.DrawWireSphere(transform.position, fullHorrorDistance);
 	}
