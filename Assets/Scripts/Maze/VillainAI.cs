@@ -53,6 +53,16 @@ public class VillainAI : MonoBehaviour
 	public float closeRangeMicroPauseMultiplier = 1.4f;
 	public float noEscapeMicroPauseMultiplier = 1.9f;
 
+	[Header("Panic Sprint")]
+	public float panicSprintTriggerDistance = 4.25f;
+	public float panicSprintReleaseDistance = 7.5f;
+	public float panicSprintRampTime = 1.1f;
+	public float panicSprintMinDuration = 1.4f;
+	public float panicSprintSpeedMultiplier = 1.4f;
+	public float panicSprintAccelerationMultiplier = 1.3f;
+	public float panicSprintTurnMultiplier = 1.22f;
+	public float panicSprintRepathMultiplier = 0.68f;
+
 	[Header("Aggression Escalation")]
 	public float midRangeDistance = 10f;
 	public float closeRangeDistance = 5.25f;
@@ -108,7 +118,6 @@ public class VillainAI : MonoBehaviour
 	[Tooltip("Seconds until full speed boost is reached.")]
 	public float boostTime = 10f;
 
-	private Vector3 currentTarget;
 	private Vector3 lastKnownPlayerPosition;
 	private float lastDetectionTime;
 	private ProceduralVillain proceduralVillain;
@@ -116,7 +125,6 @@ public class VillainAI : MonoBehaviour
 	private int currentPathIndex = 0;
 	private float lastRepathTime = 0f;
 	private bool isInitialized = false;
-	private float dreadTimer = 0f;
 	private float lastStateChangeTime = 0f;
 	private bool isMovingToNextSearchPoint = false;
 	
@@ -158,9 +166,12 @@ public class VillainAI : MonoBehaviour
 	private float currentMoveSpeed = 0f;
 	private float microPauseUntilTime = -999f;
 	private float motionNoiseSeed;
+	private bool panicSprintActive = false;
+	private float panicSprintStartedAt = -999f;
 
 	public bool IsInPointOfNoEscape { get; private set; }
 	public float CurrentAggressionLevel { get; private set; }
+	public bool IsPanicSprintActive => panicSprintActive;
 	
 	
 
@@ -513,6 +524,7 @@ public class VillainAI : MonoBehaviour
 		float distanceToPlayer = player != null ? Vector3.Distance(transform.position, player.position) : 999f;
 		CurrentAggressionLevel = GetAggressionMultiplier(distanceToPlayer);
 		IsInPointOfNoEscape = IsChasing && distanceToPlayer <= pointOfNoEscapeDistance;
+		float panicSprintIntensity = GetPanicSprintIntensity();
 
 		// Calculate speed with chase escalation profile.
 		float currentSpeed = IsChasing ? chaseSpeed : patrolSpeed;
@@ -528,6 +540,7 @@ public class VillainAI : MonoBehaviour
 
 			currentSpeed *= CurrentAggressionLevel;
 			currentSpeed *= chaseDreadSpeedMultiplier;
+			currentSpeed *= Mathf.Lerp(1f, panicSprintSpeedMultiplier, panicSprintIntensity);
 		}
 
 		float jitterMultiplier = GetAggressionWeightedValue(1f, closeRangeJitterMultiplier, noEscapeJitterMultiplier, distanceToPlayer);
@@ -542,6 +555,7 @@ public class VillainAI : MonoBehaviour
 		if (IsChasing)
 		{
 			acceleration *= chaseDreadAccelerationMultiplier;
+			acceleration *= Mathf.Lerp(1f, panicSprintAccelerationMultiplier, panicSprintIntensity);
 		}
 
 		if (ShouldTriggerMicroPause(distanceToPlayer))
@@ -566,6 +580,10 @@ public class VillainAI : MonoBehaviour
 				float turnMultiplier = IsChasing
 					? GetAggressionWeightedValue(midRangeTurnMultiplier, closeRangeTurnMultiplier, pointOfNoEscapeTurnMultiplier, distanceToPlayer)
 					: 1f;
+				if (IsChasing)
+				{
+					turnMultiplier *= Mathf.Lerp(1f, panicSprintTurnMultiplier, panicSprintIntensity);
+				}
 				float snapMultiplier = IsChasing
 					? GetAggressionWeightedValue(1f, closeRangeCorrectionMultiplier, noEscapeCorrectionMultiplier, distanceToPlayer)
 					: 1f;
@@ -607,6 +625,7 @@ public class VillainAI : MonoBehaviour
 		if (IsChasing)
 		{
 			dynamicRepathInterval *= chaseDreadRepathMultiplier;
+			dynamicRepathInterval *= Mathf.Lerp(1f, panicSprintRepathMultiplier, panicSprintIntensity);
 		}
 		if (IsChasing && Time.time - lastRepathTime > dynamicRepathInterval)
 		{
@@ -698,6 +717,47 @@ public class VillainAI : MonoBehaviour
 		return false;
 	}
 
+	void UpdatePanicSprintState(float distanceToPlayer)
+	{
+		if (!IsChasing)
+		{
+			panicSprintActive = false;
+			return;
+		}
+
+		if (distanceToPlayer <= panicSprintTriggerDistance)
+		{
+			if (!panicSprintActive)
+			{
+				panicSprintActive = true;
+				panicSprintStartedAt = Time.time;
+			}
+			return;
+		}
+
+		if (!panicSprintActive)
+		{
+			return;
+		}
+
+		bool heldLongEnough = Time.time - panicSprintStartedAt >= panicSprintMinDuration;
+		if (heldLongEnough && distanceToPlayer >= panicSprintReleaseDistance)
+		{
+			panicSprintActive = false;
+		}
+	}
+
+	float GetPanicSprintIntensity()
+	{
+		if (!panicSprintActive)
+		{
+			return 0f;
+		}
+
+		float elapsed = Time.time - panicSprintStartedAt;
+		return Mathf.Clamp01(elapsed / Mathf.Max(0.05f, panicSprintRampTime));
+	}
+
 	void HandlePatrolState(float distanceToPlayer)
 	{
 		bool canSeePlayer = CanSeePlayer();
@@ -745,6 +805,8 @@ public class VillainAI : MonoBehaviour
 
 	void HandleChaseState(float distanceToPlayer)
 	{
+		UpdatePanicSprintState(distanceToPlayer);
+
 		if (proceduralVillain != null)
 		{
 			proceduralVillain.player = player;
@@ -1361,6 +1423,8 @@ public class VillainAI : MonoBehaviour
 		{
 			IsInPointOfNoEscape = false;
 			CurrentAggressionLevel = 1f;
+			panicSprintActive = false;
+			panicSprintStartedAt = -999f;
 		}
 
 		if (previousState != AIState.Chasing && newState == AIState.Chasing)
