@@ -1710,13 +1710,53 @@ MonoBehaviour:
   mazeGenerator: {fileID: 2113078750}
   chaseSystem: {fileID: 716215839}
   currentState: 0
-  detectionRadius: 15
-  chaseRadius: 20
+  detectionRadius: 30
+  chaseRadius: 40
   loseRadius: 25
   fieldOfView: 180
-  patrolSpeed: 2
-  chaseSpeed: 20
+  patrolSpeed: 20
+  chaseSpeed: 60
   rotationSpeed: 5
+  patrolAcceleration: 15
+  chaseAcceleration: 60
+  closeRangeAcceleration: 80
+  noEscapeAcceleration: 120
+  chaseDreadSpeedMultiplier: 3
+  chaseDreadAccelerationMultiplier: 1.15
+  chaseDreadRepathMultiplier: 0.8
+  directionSnapStrength: 2.8
+  correctionSnapAngle: 38
+  closeRangeCorrectionMultiplier: 1.45
+  noEscapeCorrectionMultiplier: 2.1
+  movementJitterAmplitude: 5
+  movementJitterFrequency: 15
+  closeRangeJitterMultiplier: 1.35
+  noEscapeJitterMultiplier: 1.9
+  microPauseChancePerSecond: 0.12
+  microPauseDurationRange: {x: 0.03, y: 0.09}
+  closeRangeMicroPauseMultiplier: 1.4
+  noEscapeMicroPauseMultiplier: 1.9
+  panicSprintTriggerDistance: 20
+  panicSprintReleaseDistance: 30
+  panicSprintRampTime: 1.1
+  panicSprintMinDuration: 1.4
+  panicSprintSpeedMultiplier: 1.4
+  panicSprintAccelerationMultiplier: 1.3
+  panicSprintTurnMultiplier: 1.22
+  panicSprintRepathMultiplier: 0.68
+  midRangeDistance: 40
+  closeRangeDistance: 30
+  pointOfNoEscapeDistance: 5
+  midRangeSpeedMultiplier: 2
+  closeRangeSpeedMultiplier: 3
+  pointOfNoEscapeSpeedMultiplier: 1.55
+  midRangeTurnMultiplier: 1.15
+  closeRangeTurnMultiplier: 1.35
+  pointOfNoEscapeTurnMultiplier: 1.8
+  midRangeRepathMultiplier: 0.9
+  closeRangeRepathMultiplier: 0.65
+  pointOfNoEscapeRepathMultiplier: 0.45
+  pointOfNoEscapeLungeIntensity: 0.55
   ambientRevealCommitDistance: 7
   ambientRevealRetreatDistance: 12
   hiddenRetreatMinDistance: 6
@@ -23079,6 +23119,9 @@ MonoBehaviour:
   winDelay: 1
   loseDistance: 7
   loseDelay: 0.1
+  pointOfNoEscapeDistance: 1.7
+  pointOfNoEscapeCommitTime: 0.18
+  enforceImmediateCaptureJumpscare: 1
   caughtAnticipationDelay: 0.2
   caughtCameraShakeDuration: 0.28
   caughtCameraShakeAmount: 0.14
@@ -25939,6 +25982,8 @@ MonoBehaviour:
   anticipationDelay: 0.09
   anticipationFlashAlpha: 0.25
   majorStingPitch: 1.08
+  guaranteedCaptureJumpscareDelay: 0.01
+  guaranteedCaptureBypassesWarning: 1
   minorFlashColor: {r: 0.75, g: 0, b: 0, a: 0.55}
   minorFlashDuration: 0.18
   minorSoundVolume: 0.35
@@ -27226,8 +27271,8 @@ MonoBehaviour:
   player: {fileID: 1956618892}
   shakeIntervalRange: {x: 5, y: 11}
   shakeDurationRange: {x: 0.05, y: 0.18}
-  scanlineJitterRange: {x: 0.05, y: 1}
-  maxBaselineScanlineJitter: 1
+  scanlineJitterRange: {x: 0, y: 0.2}
+  maxBaselineScanlineJitter: 0.2
   maxFovReduction: 10
   fovPulseAmplitude: 2.4
   fovPulseFrequency: 3.2
@@ -27688,14 +27733,39 @@ MonoBehaviour:
   ratSound: {fileID: 8300000, guid: c8578a8fc95f3f9408acdde553f3e866, type: 3}
   ratSoundMinInterval: 0.5
   ratSoundMaxInterval: 2
-  moveSpeed: 10
-  horrorMoveSpeed: 20
-  stepHeight: 0.2
-  stepFrequency: 1.2
-  armSwingAmount: 30
-  horrorArmSwingAmount: 30
-  horrorArmSwingSpeed: 2
-  spineRotationAmount: 10
+  farStylizedDistance: 12
+  nearGroundedDistance: 5
+  runSpeedForFullBlend: 6
+  walkCadence: 5
+  walkStepHeight: 0.2
+  walkLegSwing: 28
+  walkArmSwing: 48
+  spineRotationAmount: 10.09
+  runCadence: 8
+  runStride: 1
+  runLift: 0.2
+  footPlantStrength: 0.82
+  ikBlendSpeed: 12
+  floorRayStartHeight: 0.7
+  floorRayLength: 2.2
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  chaseRunBlendBoost: 2
+  chaseCadenceMultiplier: 1.3
+  chaseStrideMultiplier: 3
+  chaseArmBalanceMultiplier: 1.35
+  chaseTorsoLeanMultiplier: 1.2
+  panicSprintCadenceMultiplier: 2
+  panicSprintStrideMultiplier: 5
+  panicSprintArmBalanceMultiplier: 1.22
+  panicSprintTorsoLeanMultiplier: 1.18
+  torsoLeanNear: 28
+  torsoSwayAmount: 3
+  balanceArmSpread: 12
+  balanceArmSwing: 42
+  uncannyNearBend: 10
+  asymmetryAmount: 0.25
   headWiggleSpeed: 50
   headWiggleAmount: 25
   headTwitchIntensity: 45
