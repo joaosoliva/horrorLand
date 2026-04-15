@@ -37,6 +37,9 @@ public class VillainAI : MonoBehaviour
 	public float chaseAcceleration = 14f;
 	public float closeRangeAcceleration = 20f;
 	public float noEscapeAcceleration = 28f;
+	public float chaseDreadSpeedMultiplier = 1.2f;
+	public float chaseDreadAccelerationMultiplier = 1.15f;
+	public float chaseDreadRepathMultiplier = 0.8f;
 	public float directionSnapStrength = 2.8f;
 	public float correctionSnapAngle = 38f;
 	public float closeRangeCorrectionMultiplier = 1.45f;
@@ -524,6 +527,7 @@ public class VillainAI : MonoBehaviour
 			}
 
 			currentSpeed *= CurrentAggressionLevel;
+			currentSpeed *= chaseDreadSpeedMultiplier;
 		}
 
 		float jitterMultiplier = GetAggressionWeightedValue(1f, closeRangeJitterMultiplier, noEscapeJitterMultiplier, distanceToPlayer);
@@ -535,6 +539,10 @@ public class VillainAI : MonoBehaviour
 		float acceleration = IsChasing
 			? GetAggressionWeightedValue(chaseAcceleration, closeRangeAcceleration, noEscapeAcceleration, distanceToPlayer)
 			: patrolAcceleration;
+		if (IsChasing)
+		{
+			acceleration *= chaseDreadAccelerationMultiplier;
+		}
 
 		if (ShouldTriggerMicroPause(distanceToPlayer))
 		{
@@ -596,6 +604,10 @@ public class VillainAI : MonoBehaviour
 		float dynamicRepathInterval = IsChasing
 			? Mathf.Max(0.06f, repathInterval * GetAggressionWeightedValue(midRangeRepathMultiplier, closeRangeRepathMultiplier, pointOfNoEscapeRepathMultiplier, distanceToPlayer))
 			: repathInterval;
+		if (IsChasing)
+		{
+			dynamicRepathInterval *= chaseDreadRepathMultiplier;
+		}
 		if (IsChasing && Time.time - lastRepathTime > dynamicRepathInterval)
 		{
 			FindPathTo(player.position);

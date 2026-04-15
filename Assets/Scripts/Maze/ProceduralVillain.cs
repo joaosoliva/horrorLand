@@ -66,6 +66,13 @@ public class ProceduralVillain : MonoBehaviour
 	[SerializeField] private float floorRayLength = 2.2f;
 	[SerializeField] private LayerMask groundMask = ~0;
 
+	[Header("Chase Dread Boost")]
+	[SerializeField] private float chaseRunBlendBoost = 0.3f;
+	[SerializeField] private float chaseCadenceMultiplier = 1.3f;
+	[SerializeField] private float chaseStrideMultiplier = 1.2f;
+	[SerializeField] private float chaseArmBalanceMultiplier = 1.35f;
+	[SerializeField] private float chaseTorsoLeanMultiplier = 1.2f;
+
 	[Header("Balance / Threat")]
 	[SerializeField] private float torsoLeanNear = 14f;
 	[SerializeField] private float torsoSwayAmount = 3f;
@@ -95,6 +102,7 @@ public class ProceduralVillain : MonoBehaviour
 	private float worldMoveSpeed = 0f;
 	private float nearBlend = 0f;
 	private VillainAI villainAI;
+	private bool chaseActive = false;
 
 	private Transform skeleton;
 	private Transform headBone;
@@ -295,6 +303,11 @@ public class ProceduralVillain : MonoBehaviour
 
 		float distance = Vector3.Distance(player.position, transform.position);
 		nearBlend = 1f - Mathf.Clamp01((distance - nearGroundedDistance) / Mathf.Max(0.01f, farStylizedDistance - nearGroundedDistance));
+		chaseActive = villainAI != null && villainAI.IsChasing;
+		if (chaseActive)
+		{
+			nearBlend = Mathf.Clamp01(nearBlend + chaseRunBlendBoost);
+		}
 
 		float targetHorrorLevel = 0f;
 		if (distance <= fullHorrorDistance)
@@ -311,6 +324,10 @@ public class ProceduralVillain : MonoBehaviour
 		{
 			float speedNorm = Mathf.Clamp01(worldMoveSpeed / Mathf.Max(0.1f, runSpeedForFullBlend));
 			float cadence = Mathf.Lerp(walkCadence, runCadence, Mathf.Clamp01(nearBlend * 0.8f + speedNorm * 0.6f));
+			if (chaseActive)
+			{
+				cadence *= chaseCadenceMultiplier;
+			}
 			walkCycle += Time.deltaTime * cadence;
 		}
 
@@ -381,6 +398,10 @@ public class ProceduralVillain : MonoBehaviour
 	{
 		float speedNorm = Mathf.Clamp01(worldMoveSpeed / Mathf.Max(0.1f, runSpeedForFullBlend));
 		float intensity = Mathf.Clamp01((nearBlend * 0.65f) + (speedNorm * 0.7f));
+		if (chaseActive)
+		{
+			intensity = Mathf.Clamp01(intensity + 0.25f);
+		}
 		float asym = Mathf.Sin(Time.time * 2.2f) * asymmetryAmount;
 
 		float leftPhase = Mathf.Repeat(walkCycle, 1f);
@@ -392,6 +413,10 @@ public class ProceduralVillain : MonoBehaviour
 		float leftSwing = Mathf.Sin(leftPhase * Mathf.PI * 2f);
 		float rightSwing = Mathf.Sin(rightPhase * Mathf.PI * 2f);
 		float armBalance = balanceArmSwing * intensity;
+		if (chaseActive)
+		{
+			armBalance *= chaseArmBalanceMultiplier;
+		}
 
 		if (leftArmBone != null)
 		{
@@ -405,6 +430,10 @@ public class ProceduralVillain : MonoBehaviour
 		if (torsoBone != null)
 		{
 			float lean = torsoLeanNear * intensity;
+			if (chaseActive)
+			{
+				lean *= chaseTorsoLeanMultiplier;
+			}
 			float sway = Mathf.Sin(walkCycle * Mathf.PI * 2f) * torsoSwayAmount * (1f - intensity * 0.2f);
 			float bend = Mathf.Sin(Time.time * 3.5f) * uncannyNearBend * intensity;
 			torsoBone.localRotation = Quaternion.Euler(lean, sway + bend, bend * 0.3f);
@@ -421,6 +450,10 @@ public class ProceduralVillain : MonoBehaviour
 		}
 
 		float strideForward = Mathf.Sin(phase * Mathf.PI * 2f) * runStride * (0.6f + intensity * 0.7f);
+		if (chaseActive)
+		{
+			strideForward *= chaseStrideMultiplier;
+		}
 		float lift = Mathf.Max(0f, Mathf.Sin((phase - 0.08f) * Mathf.PI * 2f)) * runLift * (0.55f + intensity * 0.6f);
 		float bend = Mathf.Sin(Time.time * 4.4f + (sideSign > 0f ? 0.7f : 0f)) * uncannyNearBend * intensity * 0.35f;
 
