@@ -7,9 +7,29 @@ public class flashlight : MonoBehaviour
     public GameObject light;
     public bool toggle;
     public AudioSource toggleSound;
+    [Header("Scare Flicker")]
+    public bool allowScareFlicker = true;
+    public int scareFlickerBursts = 4;
+    public float scareFlickerDuration = 0.32f;
+    public float scareFlickerOffIntensity = 0f;
+    public float scareFlickerCooldown = 0.4f;
+
+    private Light lightComponent;
+    private Coroutine scareFlickerRoutine;
+    private float lastScareFlickerTime = -999f;
+    private float baseIntensity = 1f;
 
     void Start()
     {
+        if (light != null)
+        {
+            lightComponent = light.GetComponentInChildren<Light>();
+            if (lightComponent != null)
+            {
+                baseIntensity = lightComponent.intensity;
+            }
+        }
+
         if (toggle == false)
         {
             light.SetActive(false);
@@ -34,6 +54,68 @@ public class flashlight : MonoBehaviour
             {
                 light.SetActive(true);
             }
+        }
+    }
+
+    public void TriggerScareFlicker(float delay = 0f)
+    {
+        if (!allowScareFlicker || light == null)
+        {
+            return;
+        }
+
+        if (Time.time - lastScareFlickerTime < scareFlickerCooldown)
+        {
+            return;
+        }
+
+        if (scareFlickerRoutine != null)
+        {
+            StopCoroutine(scareFlickerRoutine);
+        }
+
+        scareFlickerRoutine = StartCoroutine(ScareFlickerRoutine(Mathf.Max(0f, delay)));
+        lastScareFlickerTime = Time.time;
+    }
+
+    IEnumerator ScareFlickerRoutine(float delay)
+    {
+        if (delay > 0f)
+        {
+            yield return new WaitForSeconds(delay);
+        }
+
+        bool wasToggleOn = toggle;
+        bool wasLightActive = light.activeSelf;
+        float burstDuration = Mathf.Max(0.04f, scareFlickerDuration / Mathf.Max(1, scareFlickerBursts * 2));
+
+        for (int i = 0; i < scareFlickerBursts; i++)
+        {
+            SetFlickerLightState(false);
+            yield return new WaitForSeconds(burstDuration);
+            SetFlickerLightState(true);
+            yield return new WaitForSeconds(burstDuration);
+        }
+
+        toggle = wasToggleOn;
+        light.SetActive(wasLightActive && wasToggleOn);
+        if (lightComponent != null)
+        {
+            lightComponent.intensity = baseIntensity;
+        }
+    }
+
+    void SetFlickerLightState(bool enabled)
+    {
+        if (light == null)
+        {
+            return;
+        }
+
+        light.SetActive(enabled);
+        if (lightComponent != null)
+        {
+            lightComponent.intensity = enabled ? baseIntensity : scareFlickerOffIntensity;
         }
     }
 }

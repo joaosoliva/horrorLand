@@ -8,6 +8,7 @@ public class VillainAI : MonoBehaviour
 	public Transform player;
 	public MazeGenerator mazeGenerator;
 	public ChaseSystem chaseSystem;
+	public flashlight playerFlashlight;
 
 	public enum AIState
 	{
@@ -84,6 +85,9 @@ public class VillainAI : MonoBehaviour
 	public float hiddenRetreatMinDistance = 6f;
 	public float hiddenRetreatMaxDistance = 16f;
 	public float closeSightCommitGrace = 0.65f;
+	public float forcedCommitDistance = 4.6f;
+	public float failoverCloseRangeSearchBuffer = 2.8f;
+	public float vanishFlashlightBlinkDelay = 0.05f;
 
 	[Header("Pathfinding Settings")]
 	public float repathInterval = 0.5f;
@@ -185,6 +189,10 @@ public class VillainAI : MonoBehaviour
 		if (horrorDirector == null)
 		{
 			horrorDirector = FindObjectOfType<HorrorDirector>();
+		}
+		if (playerFlashlight == null)
+		{
+			playerFlashlight = FindObjectOfType<flashlight>();
 		}
 
 		gameStartTime = Time.time;
@@ -834,7 +842,8 @@ public class VillainAI : MonoBehaviour
 			}
 		}
 
-		if (!inNoEscapeRange && (playerOutOfRange || (cannotSeePlayer && lostPlayerForTooLong)))
+		bool allowSearchFallback = distanceToPlayer > failoverCloseRangeSearchBuffer;
+		if (allowSearchFallback && !inNoEscapeRange && (playerOutOfRange || (cannotSeePlayer && lostPlayerForTooLong)))
 		{
 			StartSearch();
 			return;
@@ -1475,7 +1484,8 @@ public class VillainAI : MonoBehaviour
 
 		if (horrorDirector != null && horrorDirector.ShouldEndAmbientReveal(distanceToPlayer))
 		{
-			if (canSeePlayer && distanceToPlayer <= ambientRevealCommitDistance)
+			bool closeThreatRange = distanceToPlayer <= forcedCommitDistance;
+			if ((canSeePlayer && distanceToPlayer <= ambientRevealCommitDistance) || closeThreatRange)
 			{
 				RequestChaseStart("Ambient reveal escalated into direct threat");
 				return;
@@ -1520,6 +1530,7 @@ public class VillainAI : MonoBehaviour
 
 	void TryRetreatToHiddenPosition(string reason)
 	{
+		TriggerVanishFlashlightCue();
 		Vector3 hiddenPosition = FindHiddenPositionFromPlayer();
 		if (hiddenPosition == Vector3.zero)
 		{
@@ -1530,6 +1541,16 @@ public class VillainAI : MonoBehaviour
 		EndAmbientReveal();
 		FindPathTo(hiddenPosition);
 		Debug.Log("Villain retreated to hidden position. Reason: " + reason);
+	}
+
+	void TriggerVanishFlashlightCue()
+	{
+		if (playerFlashlight == null)
+		{
+			return;
+		}
+
+		playerFlashlight.TriggerScareFlicker(vanishFlashlightBlinkDelay);
 	}
 
 	Vector3 FindHiddenPositionFromPlayer()
