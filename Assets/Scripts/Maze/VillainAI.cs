@@ -8,6 +8,7 @@ public class VillainAI : MonoBehaviour
 	public Transform player;
 	public MazeGenerator mazeGenerator;
 	public ChaseSystem chaseSystem;
+	public flashlight playerFlashlight;
 
 	public enum AIState
 	{
@@ -84,6 +85,9 @@ public class VillainAI : MonoBehaviour
 	public float hiddenRetreatMinDistance = 6f;
 	public float hiddenRetreatMaxDistance = 16f;
 	public float closeSightCommitGrace = 0.65f;
+	public float forcedCommitDistance = 4.6f;
+	public float failoverCloseRangeSearchBuffer = 2.8f;
+	public float vanishFlashlightBlinkDelay = 0.05f;
 
 	[Header("Pathfinding Settings")]
 	public float repathInterval = 0.5f;
@@ -149,6 +153,12 @@ public class VillainAI : MonoBehaviour
 	public float firstEncounterSightingRequirement = 1.4f;
 	[Tooltip("Cooldown between blocked first-encounter commit attempts.")]
 	public float firstEncounterRetryCooldown = 6f;
+	[Tooltip("Force the first commit if this much time passes after minimum runtime, even if sighting requirement is not met.")]
+	public float firstEncounterForceCommitDelay = 20f;
+	[Tooltip("Close distance that can bypass first-encounter sighting when runtime is mostly ready.")]
+	public float firstEncounterClosePressureBypassDistance = 6f;
+	[Tooltip("When first chase is delayed, transition from patrol into search pressure around the player.")]
+	public bool firstEncounterDelayUsesSearchPressure = true;
 	public bool gateFirstChaseWithBuildup = true;
 
 	private float gameStartTime;
@@ -185,6 +195,10 @@ public class VillainAI : MonoBehaviour
 		if (horrorDirector == null)
 		{
 			horrorDirector = FindObjectOfType<HorrorDirector>();
+		}
+		if (playerFlashlight == null)
+		{
+			playerFlashlight = FindObjectOfType<flashlight>();
 		}
 
 		gameStartTime = Time.time;
@@ -834,7 +848,8 @@ public class VillainAI : MonoBehaviour
 			}
 		}
 
-		if (!inNoEscapeRange && (playerOutOfRange || (cannotSeePlayer && lostPlayerForTooLong)))
+		bool allowSearchFallback = distanceToPlayer > failoverCloseRangeSearchBuffer;
+		if (allowSearchFallback && !inNoEscapeRange && (playerOutOfRange || (cannotSeePlayer && lostPlayerForTooLong)))
 		{
 			StartSearch();
 			return;
@@ -1255,6 +1270,11 @@ public class VillainAI : MonoBehaviour
 			{
 				lastKnownPlayerPosition = player.position;
 				lastDetectionTime = Time.time;
+
+				if (firstEncounterDelayUsesSearchPressure && IsPatrolling)
+				{
+					BeginSearch(lastKnownPlayerPosition, "First encounter gate applied pressure search");
+				}
 			}
 			return;
 		}
@@ -1287,7 +1307,11 @@ public class VillainAI : MonoBehaviour
 		float runtime = Time.time - gameStartTime;
 		bool runtimeReady = runtime >= firstEncounterMinimumRuntime;
 		bool sightReady = firstEncounterSightingTime >= firstEncounterSightingRequirement;
-		if (runtimeReady && sightReady)
+		bool closePressureBypass = player != null &&
+			Vector3.Distance(transform.position, player.position) <= firstEncounterClosePressureBypassDistance &&
+			runtime >= firstEncounterMinimumRuntime * 0.7f;
+		bool timeoutForceCommit = runtime >= firstEncounterMinimumRuntime + firstEncounterForceCommitDelay;
+		if ((runtimeReady && sightReady) || closePressureBypass || timeoutForceCommit)
 		{
 			firstEncounterCommitted = true;
 			return false;
@@ -1475,7 +1499,8 @@ public class VillainAI : MonoBehaviour
 
 		if (horrorDirector != null && horrorDirector.ShouldEndAmbientReveal(distanceToPlayer))
 		{
-			if (canSeePlayer && distanceToPlayer <= ambientRevealCommitDistance)
+			bool closeThreatRange = distanceToPlayer <= forcedCommitDistance;
+			if ((canSeePlayer && distanceToPlayer <= ambientRevealCommitDistance) || closeThreatRange)
 			{
 				RequestChaseStart("Ambient reveal escalated into direct threat");
 				return;
@@ -1520,6 +1545,7 @@ public class VillainAI : MonoBehaviour
 
 	void TryRetreatToHiddenPosition(string reason)
 	{
+		TriggerVanishFlashlightCue();
 		Vector3 hiddenPosition = FindHiddenPositionFromPlayer();
 		if (hiddenPosition == Vector3.zero)
 		{
@@ -1530,6 +1556,16 @@ public class VillainAI : MonoBehaviour
 		EndAmbientReveal();
 		FindPathTo(hiddenPosition);
 		Debug.Log("Villain retreated to hidden position. Reason: " + reason);
+	}
+
+	void TriggerVanishFlashlightCue()
+	{
+		if (playerFlashlight == null)
+		{
+			return;
+		}
+
+		playerFlashlight.TriggerScareFlicker(vanishFlashlightBlinkDelay);
 	}
 
 	Vector3 FindHiddenPositionFromPlayer()

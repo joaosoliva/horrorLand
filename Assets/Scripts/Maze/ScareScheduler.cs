@@ -17,6 +17,8 @@ public class ScareScheduler : MonoBehaviour
 	public Vector2 reliefBeatInterval = new Vector2(8f, 12f);
 	public Vector2 finaleBeatInterval = new Vector2(6f, 10f);
 	public float majorScareCooldown = 35f;
+	public float minimumScareFrequency = 13f;
+	public float failedBeatRetryDelay = 1.75f;
 	public float presenceCueGuarantee = 25f;
 	public int repeatHistorySize = 2;
 	[Range(0f, 1f)] public float nonPayoffBuildChance = 0.35f;
@@ -38,6 +40,7 @@ public class ScareScheduler : MonoBehaviour
 	private float lastRoutePressureTime = -999f;
 	private float lastEnvironmentShiftTime = -999f;
 	private float lastHardScareCategoryTime = -999f;
+	private float lastExecutedBeatTime = -999f;
 
 	void Start()
 	{
@@ -86,6 +89,7 @@ public class ScareScheduler : MonoBehaviour
 			}
 		}
 
+		lastExecutedBeatTime = Time.time;
 		ScheduleNextBeat();
 	}
 
@@ -115,6 +119,10 @@ public class ScareScheduler : MonoBehaviour
 			TriggerScheduledBeat(catchUpBeatQueued);
 			catchUpBeatQueued = false;
 		}
+		else if (Time.time - lastExecutedBeatTime >= Mathf.Max(2f, minimumScareFrequency))
+		{
+			TriggerScheduledBeat(forced: true);
+		}
 	}
 
 	public void RequestCatchUpBeat()
@@ -125,8 +133,16 @@ public class ScareScheduler : MonoBehaviour
 	void TriggerScheduledBeat(bool forced)
 	{
 		EncounterIntent nextIntent = SelectNextEncounter(horrorDirector.CurrentPhase, forced);
-		ExecuteEncounter(nextIntent, forced);
-		ScheduleNextBeat();
+		bool executed = ExecuteEncounter(nextIntent, forced);
+		if (executed)
+		{
+			lastExecutedBeatTime = Time.time;
+			ScheduleNextBeat();
+		}
+		else
+		{
+			nextBeatTime = Time.time + Mathf.Max(0.25f, failedBeatRetryDelay);
+		}
 	}
 
 	EncounterIntent SelectNextEncounter(HorrorPhase phase, bool forced)
@@ -201,7 +217,7 @@ public class ScareScheduler : MonoBehaviour
 		return candidates[Random.Range(0, candidates.Count)];
 	}
 
-	void ExecuteEncounter(EncounterIntent encounterIntent, bool forced)
+	bool ExecuteEncounter(EncounterIntent encounterIntent, bool forced)
 	{
 		if (enableDebugLogs)
 		{
@@ -216,7 +232,7 @@ public class ScareScheduler : MonoBehaviour
 
 		if (encounterDirector != null && encounterDirector.ExecuteEncounter(encounterIntent, forced))
 		{
-			return;
+			return true;
 		}
 
 		ScareType fallbackScare = MapEncounterToFallbackScare(encounterIntent, forced);
@@ -225,14 +241,15 @@ public class ScareScheduler : MonoBehaviour
 			if (fallbackScare == ScareType.MajorJumpscare && !jumpscareSystem.IsJumpscareActive())
 			{
 				jumpscareSystem.ForceMajorScare(true);
-				return;
+				return true;
 			}
 
 			jumpscareSystem.ForceMinorScare(fallbackScare);
-			return;
+			return true;
 		}
 
 		HorrorEvents.RaiseScareTriggered(fallbackScare);
+		return true;
 	}
 
 	void ScheduleNextBeat()
