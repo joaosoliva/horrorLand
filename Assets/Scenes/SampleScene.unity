@@ -1709,18 +1709,19 @@ MonoBehaviour:
   player: {fileID: 1956618892}
   mazeGenerator: {fileID: 2113078750}
   chaseSystem: {fileID: 716215839}
+  playerFlashlight: {fileID: 1877671497}
   currentState: 0
-  detectionRadius: 30
+  detectionRadius: 20
   chaseRadius: 40
   loseRadius: 25
   fieldOfView: 180
-  patrolSpeed: 20
-  chaseSpeed: 60
+  patrolSpeed: 10
+  chaseSpeed: 20
   rotationSpeed: 5
   patrolAcceleration: 15
-  chaseAcceleration: 60
-  closeRangeAcceleration: 80
-  noEscapeAcceleration: 120
+  chaseAcceleration: 30
+  closeRangeAcceleration: 40
+  noEscapeAcceleration: 50
   chaseDreadSpeedMultiplier: 3
   chaseDreadAccelerationMultiplier: 1.15
   chaseDreadRepathMultiplier: 0.8
@@ -1762,6 +1763,9 @@ MonoBehaviour:
   hiddenRetreatMinDistance: 6
   hiddenRetreatMaxDistance: 16
   closeSightCommitGrace: 0.3
+  forcedCommitDistance: 4.6
+  failoverCloseRangeSearchBuffer: 2.8
+  vanishFlashlightBlinkDelay: 0.05
   repathInterval: 0.5
   nodeReachedDistance: 0.3
   searchTime: 2
@@ -1787,6 +1791,9 @@ MonoBehaviour:
   firstEncounterMinimumRuntime: 45
   firstEncounterSightingRequirement: 1.4
   firstEncounterRetryCooldown: 6
+  firstEncounterForceCommitDelay: 20
+  firstEncounterClosePressureBypassDistance: 6
+  firstEncounterDelayUsesSearchPressure: 1
   gateFirstChaseWithBuildup: 1
 --- !u!4 &92354976
 Transform:
@@ -5072,6 +5079,8 @@ MonoBehaviour:
   reliefBeatInterval: {x: 8, y: 12}
   finaleBeatInterval: {x: 6, y: 10}
   majorScareCooldown: 10
+  minimumScareFrequency: 13
+  failedBeatRetryDelay: 1.75
   presenceCueGuarantee: 25
   repeatHistorySize: 2
   nonPayoffBuildChance: 0.35
@@ -11852,9 +11861,9 @@ MonoBehaviour:
   jumpscareSystem: {fileID: 1559133037}
   villainAI: {fileID: 92354975}
   environmentScareController: {fileID: 743005041}
-  commitmentChaseBias: 0.7
+  commitmentChaseBias: 1
   probeRoutePressureBias: 0.45
-  releaseEnvironmentalBias: 0.65
+  releaseEnvironmentalBias: 0.25
   enableDebugLogs: 0
 --- !u!4 &684804315
 Transform:
@@ -12176,11 +12185,21 @@ MonoBehaviour:
   reacquireSpeedBonus: 0.18
   reacquireBurstDuration: 1.15
   successfulEscapeSafetyWindow: 3.5
+  closeRangePersistenceDistance: 4.5
+  pointBlankPersistenceDistance: 2.35
+  closeRangeMinCommitTime: 2.1
   driveJumpscareBudget: 1
   jumpscareWarmup: 1.5
   jumpscareCooldownDuringChase: 7
   jumpscareCooldownOutsideChase: 14
   postChaseJumpscareLockout: 4
+  tensionSpeedInfluence: 0.45
+  buildPhaseSpeedBonus: 0.08
+  threatPhaseSpeedBonus: 0.2
+  peakPhaseSpeedBonus: 0.35
+  finalePhaseSpeedBonus: 0.5
+  earlyChaseAssistWindow: 75
+  earlyChaseSpeedAssist: 0.14
   enableDebugLogs: 1
 --- !u!4 &716215840
 Transform:
@@ -12876,6 +12895,11 @@ MonoBehaviour:
   light: {fileID: 1877671494}
   toggle: 0
   toggleSound: {fileID: 0}
+  allowScareFlicker: 1
+  scareFlickerBursts: 4
+  scareFlickerDuration: 0.32
+  scareFlickerOffIntensity: 0
+  scareFlickerCooldown: 0.4
 --- !u!95 &753465944
 Animator:
   serializedVersion: 7
@@ -28672,6 +28696,8 @@ MonoBehaviour:
   humorReboundDuration: 3
   humorReboundStrength: 0.18
   maxQuietSeconds: 20
+  maxScareQuietSeconds: 14
+  catchUpGraceSeconds: 2
   finaleStartTime: 240
   reliefPhaseSeconds: 10
   buildThreshold: 0.28
@@ -30683,6 +30709,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1877671495}
   - component: {fileID: 1877671496}
+  - component: {fileID: 1877671497}
   m_Layer: 6
   m_Name: Point Light
   m_TagString: Untagged
@@ -30770,6 +30797,26 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!114 &1877671497
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1877671494}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c221a8e556e34a478e3c8bd90bc43f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::flashlight
+  light: {fileID: 1877671494}
+  toggle: 1
+  toggleSound: {fileID: 0}
+  allowScareFlicker: 1
+  scareFlickerBursts: 4
+  scareFlickerDuration: 0.32
+  scareFlickerOffIntensity: 0
+  scareFlickerCooldown: 0.4
 --- !u!1 &1883972111
 GameObject:
   m_ObjectHideFlags: 0
