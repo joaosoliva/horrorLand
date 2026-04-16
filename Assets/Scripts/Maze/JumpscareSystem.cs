@@ -46,6 +46,8 @@ public class JumpscareSystem : MonoBehaviour
 	public float anticipationDelay = 0.09f;
 	public float anticipationFlashAlpha = 0.25f;
 	public float majorStingPitch = 1.08f;
+	public float guaranteedCaptureJumpscareDelay = 0.01f;
+	public bool guaranteedCaptureBypassesWarning = true;
 
 	[Header("Minor Scare Visual")]
 	public Color minorFlashColor = new Color(0.75f, 0f, 0f, 0.55f);
@@ -76,6 +78,7 @@ public class JumpscareSystem : MonoBehaviour
 	private bool hadLineOfSightLastFrame = false;
 	private float lastLineOfSightSnapTime = -999f;
 	private float lastProximitySnapTime = -999f;
+	private bool forceImmediateMajorJumpscare = false;
 
 	void Start()
 	{
@@ -251,6 +254,34 @@ public class JumpscareSystem : MonoBehaviour
 		}
 	}
 
+	public void ForceCaptureJumpscareImmediate()
+	{
+		if (currentWarningCoroutine != null)
+		{
+			StopCoroutine(currentWarningCoroutine);
+			currentWarningCoroutine = null;
+		}
+		if (currentJumpscareCoroutine != null)
+		{
+			StopCoroutine(currentJumpscareCoroutine);
+			currentJumpscareCoroutine = null;
+		}
+
+		isWarningActive = false;
+		isJumpscareActive = false;
+		forceImmediateMajorJumpscare = true;
+		pendingScareType = ScareType.MajorJumpscare;
+
+		if (guaranteedCaptureBypassesWarning || !enableWarning)
+		{
+			TriggerJumpscare(ScareType.MajorJumpscare);
+		}
+		else
+		{
+			StartWarning(GetMessageForScareType(ScareType.MajorJumpscare), warningColor, ScareType.MajorJumpscare);
+		}
+	}
+
 	public void ForceMinorScare(ScareType scareType)
 	{
 		if (isJumpscareActive)
@@ -391,6 +422,8 @@ public class JumpscareSystem : MonoBehaviour
 	IEnumerator JumpscareRoutine(ScareType scareType)
 	{
 		isJumpscareActive = true;
+		bool immediateCaptureScare = forceImmediateMajorJumpscare && scareType == ScareType.MajorJumpscare;
+		forceImmediateMajorJumpscare = false;
 
 		if (jumpscareSound != null && audioSource != null)
 		{
@@ -401,13 +434,14 @@ public class JumpscareSystem : MonoBehaviour
 
 		if (scareType == ScareType.MajorJumpscare && jumpscareImage != null && jumpscareSprite != null)
 		{
-			if (screenFlash != null && anticipationDelay > 0.005f)
+			float effectiveAnticipationDelay = immediateCaptureScare ? guaranteedCaptureJumpscareDelay : anticipationDelay;
+			if (screenFlash != null && effectiveAnticipationDelay > 0.001f)
 			{
 				screenFlash.gameObject.SetActive(true);
 				Color anticipationColor = flashColor;
 				anticipationColor.a = Mathf.Clamp01(anticipationFlashAlpha);
 				screenFlash.color = anticipationColor;
-				yield return new WaitForSeconds(anticipationDelay);
+				yield return new WaitForSeconds(effectiveAnticipationDelay);
 			}
 
 			if (jumpscareCanvas != null)

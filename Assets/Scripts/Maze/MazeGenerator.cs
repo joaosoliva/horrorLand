@@ -43,6 +43,9 @@ public class MazeGenerator : MonoBehaviour
 	public float safeSpaceRadius = 3.5f;
 	public float safeSpaceDuration = 12f;
 	public float safeSpaceSanityRestorePerSecond = 5f;
+
+	[Header("Exit Door Settings")]
+	public Color exitDoorColor = new Color(0.7f, 0.1f, 0.1f);
 	
 	private Vector2Int exitPosition;
 	
@@ -65,6 +68,7 @@ public class MazeGenerator : MonoBehaviour
 			Debug.Log($"Maze value at ({entryCell.x + 1}, {entryCell.y}) AFTER carve: {maze[entryCell.x + 1, entryCell.y]}");
     
 		BuildMazeGeometry();
+		CreateExitDoor();
 		
 		// CHECK IF WALL EXISTS AFTER BUILDING
 		GameObject blockingWall = GameObject.Find("Wall_1_10");
@@ -517,6 +521,113 @@ public class MazeGenerator : MonoBehaviour
 		doorTrigger.isTrigger = true;
 		doorTrigger.size = new Vector3(1f, height, 0.5f); // Slightly larger for easy interaction
 		doorTrigger.center = new Vector3(0, 0, 0.25f);
+	}
+
+	void CreateExitDoor()
+	{
+		Vector3 exitWorldCenter = GetExitPosition();
+		Vector3 doorFacingDirection = GetExitDoorFacingDirection();
+		Vector3 doorWorldPosition = exitWorldCenter + (doorFacingDirection * (cellSize * 0.5f));
+
+		GameObject exitDoorRoot = new GameObject("MazeExitDoor");
+		exitDoorRoot.transform.SetParent(transform);
+		exitDoorRoot.transform.position = new Vector3(doorWorldPosition.x, 0f, doorWorldPosition.z);
+		exitDoorRoot.transform.rotation = Quaternion.LookRotation(doorFacingDirection);
+
+		float doorWidth = 3.95f;
+		float doorThickness = 0.1f;
+		float fullDoorHeight = doorHeight;
+		float frameThickness = 0.2f;
+
+		CreateExitWallFrame(exitDoorRoot.transform, doorWidth, fullDoorHeight, frameThickness);
+
+		GameObject leftDoor = new GameObject("Door_Left");
+		leftDoor.transform.SetParent(exitDoorRoot.transform);
+		leftDoor.transform.localPosition = new Vector3(-doorWidth / 2f, fullDoorHeight / 2f, 0f);
+		leftDoor.transform.localRotation = Quaternion.identity;
+
+		GameObject leftDoorVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+		leftDoorVisual.name = "LeftDoor_Visual";
+		leftDoorVisual.transform.SetParent(leftDoor.transform);
+		leftDoorVisual.transform.localScale = new Vector3(doorWidth / 2f, fullDoorHeight, doorThickness);
+		leftDoorVisual.transform.localPosition = new Vector3(doorWidth / 4f, 0f, -doorThickness / 2f);
+		leftDoorVisual.transform.localRotation = Quaternion.identity;
+		leftDoorVisual.GetComponent<Renderer>().material.color = exitDoorColor;
+		DestroyImmediate(leftDoorVisual.GetComponent<BoxCollider>());
+
+		GameObject rightDoor = new GameObject("Door_Right");
+		rightDoor.transform.SetParent(exitDoorRoot.transform);
+		rightDoor.transform.localPosition = new Vector3(doorWidth / 2f, fullDoorHeight / 2f, 0f);
+		rightDoor.transform.localRotation = Quaternion.identity;
+
+		GameObject rightDoorVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+		rightDoorVisual.name = "RightDoor_Visual";
+		rightDoorVisual.transform.SetParent(rightDoor.transform);
+		rightDoorVisual.transform.localScale = new Vector3(doorWidth / 2f, fullDoorHeight, doorThickness);
+		rightDoorVisual.transform.localPosition = new Vector3(-doorWidth / 4f, 0f, -doorThickness / 2f);
+		rightDoorVisual.transform.localRotation = Quaternion.identity;
+		rightDoorVisual.GetComponent<Renderer>().material.color = exitDoorColor;
+		DestroyImmediate(rightDoorVisual.GetComponent<BoxCollider>());
+
+		BoxCollider exitTriggerCollider = exitDoorRoot.AddComponent<BoxCollider>();
+		exitTriggerCollider.isTrigger = true;
+		exitTriggerCollider.size = new Vector3(doorWidth + 1f, fullDoorHeight, 4f);
+		exitTriggerCollider.center = new Vector3(0f, fullDoorHeight / 2f, 0f);
+
+		exitDoorRoot.AddComponent<MazeExitDoor>();
+	}
+
+	void CreateExitWallFrame(Transform doorRoot, float doorWidth, float doorHeight, float frameThickness)
+	{
+		float sideSegmentWidth = Mathf.Max(0.25f, (cellSize - doorWidth) * 0.5f);
+		float topHeight = Mathf.Max(0.25f, wallHeight - doorHeight);
+
+		CreateExitFrameSegment("ExitWall_Left", doorRoot, new Vector3(sideSegmentWidth, doorHeight, frameThickness), new Vector3(-(doorWidth * 0.5f) - (sideSegmentWidth * 0.5f), doorHeight * 0.5f, 0f));
+		CreateExitFrameSegment("ExitWall_Right", doorRoot, new Vector3(sideSegmentWidth, doorHeight, frameThickness), new Vector3((doorWidth * 0.5f) + (sideSegmentWidth * 0.5f), doorHeight * 0.5f, 0f));
+
+		if (topHeight > 0.01f)
+		{
+			CreateExitFrameSegment("ExitWall_Top", doorRoot, new Vector3(cellSize, topHeight, frameThickness), new Vector3(0f, doorHeight + (topHeight * 0.5f), 0f));
+		}
+	}
+
+	void CreateExitFrameSegment(string segmentName, Transform parent, Vector3 localScale, Vector3 localPosition)
+	{
+		GameObject segment = GameObject.CreatePrimitive(PrimitiveType.Cube);
+		segment.name = segmentName;
+		segment.transform.SetParent(parent);
+		segment.transform.localPosition = localPosition;
+		segment.transform.localRotation = Quaternion.identity;
+		segment.transform.localScale = localScale;
+		segment.GetComponent<Renderer>().material = wallMaterial;
+	}
+
+	Vector3 GetExitDoorFacingDirection()
+	{
+		Vector2Int[] offsets = new Vector2Int[]
+		{
+			Vector2Int.up,
+			Vector2Int.right,
+			Vector2Int.down,
+			Vector2Int.left
+		};
+
+		for (int i = 0; i < offsets.Length; i++)
+		{
+			Vector2Int neighbor = exitPosition + offsets[i];
+			if (neighbor.x < 0 || neighbor.x >= width || neighbor.y < 0 || neighbor.y >= height)
+			{
+				continue;
+			}
+
+			if (maze[neighbor.x, neighbor.y] == 0)
+			{
+				Vector2 direction = (Vector2)(exitPosition - neighbor);
+				return new Vector3(direction.x, 0f, direction.y).normalized;
+			}
+		}
+
+		return Vector3.forward;
 	}
 
 

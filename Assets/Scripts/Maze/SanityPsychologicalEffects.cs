@@ -1,5 +1,6 @@
 using UnityEngine;
-using UnityEngine.UI;
+using Kino;
+using UnityEngine.Serialization;
 
 public class SanityPsychologicalEffects : MonoBehaviour
 {
@@ -8,25 +9,34 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	public AudioLowPassFilter listenerLowPass;
 	public AudioSource falseCueAudioSource;
 	public AudioClip[] falseCueClips;
-	public CanvasGroup glitchCanvasGroup;
-	public Image glitchImage;
+	public AnalogGlitch analogGlitch;
+	public Camera playerCamera;
+	public AudioSource tinnitusLoop;
 
 	[Header("Feature Toggles")]
 	public bool enableAudioDistortion = true;
 	public bool enableFalseAudioCues = true;
 	public bool enableVisualGlitches = true;
+	public bool enableCameraInstability = true;
+	public bool enableRinging = true;
 
 	[Header("Thresholds")]
-	[Range(0f, 1f)] public float distortionStressThreshold = 0.3f;
-	[Range(0f, 1f)] public float falseCueStressThreshold = 0.5f;
-	[Range(0f, 1f)] public float visualGlitchStressThreshold = 0.65f;
+	[Range(0f, 1f)] public float distortionStressThreshold = 0.2f;
+	[Range(0f, 1f)] public float falseCueStressThreshold = 0.45f;
+	[Range(0f, 1f)] public float visualGlitchStressThreshold = 0.55f;
+	[Range(0f, 1f)] public float severeStressThreshold = 0.72f;
+	[Range(0f, 1f)] public float criticalStressThreshold = 0.88f;
 
 	[Header("Audio Distortion")]
-	public float distortionSmoothing = 2f;
-	public float minCutoff = 680f;
+	public float distortionSmoothing = 2.5f;
+	public float minCutoff = 420f;
 	public float maxCutoff = 22000f;
 	public float minResonanceQ = 0.8f;
-	public float maxResonanceQ = 1.35f;
+	public float maxResonanceQ = 1.45f;
+
+	[Header("Ringing")]
+	public float maxRingingVolume = 0.55f;
+	public float ringingFadeSpeed = 2.2f;
 
 	[Header("False Audio Cue")]
 	public Vector2 falseCueIntervalRange = new Vector2(8f, 16f);
@@ -36,16 +46,26 @@ public class SanityPsychologicalEffects : MonoBehaviour
 	public Transform player;
 
 	[Header("Visual Glitch")]
-	public Vector2 glitchIntervalRange = new Vector2(5f, 11f);
-	public Vector2 glitchDurationRange = new Vector2(0.05f, 0.18f);
-	public Vector2 glitchAlphaRange = new Vector2(0.1f, 0.3f);
-	public Color glitchColor = new Color(1f, 1f, 1f, 0.2f);
+	public Vector2 shakeIntervalRange = new Vector2(5f, 11f);
+	public Vector2 shakeDurationRange = new Vector2(0.05f, 0.18f);
+	[FormerlySerializedAs("horizontalShakeRange")] public Vector2 scanlineJitterRange = new Vector2(0.05f, 0.35f);
+	[FormerlySerializedAs("maxBaselineHorizontalShake")] public float maxBaselineScanlineJitter = 0.2f;
+
+	[Header("Camera Instability")]
+	public float maxFovReduction = 10f;
+	public float fovPulseAmplitude = 2.4f;
+	public float fovPulseFrequency = 3.2f;
+	public float maxTiltAngle = 1.8f;
+	public float maxPositionShake = 0.018f;
 
 	private float nextFalseCueTime = -999f;
 	private float nextGlitchTime = -999f;
 	private float glitchUntilTime = -999f;
-	private float glitchTargetAlpha;
+	private float shakeTargetValue;
 	private float stress01;
+	private float baseFieldOfView = 60f;
+	private Vector3 baseLocalPosition;
+	private Quaternion baseLocalRotation;
 
 	void Start()
 	{
@@ -68,15 +88,26 @@ public class SanityPsychologicalEffects : MonoBehaviour
 			listenerLowPass = FindObjectOfType<AudioLowPassFilter>();
 		}
 
-		if (glitchImage != null)
+		if (playerCamera == null)
 		{
-			glitchImage.color = glitchColor;
+			playerCamera = Camera.main;
+		}
+		if (playerCamera != null)
+		{
+			if (analogGlitch == null)
+			{
+				analogGlitch = playerCamera.GetComponent<AnalogGlitch>();
+			}
 		}
 
-		if (glitchCanvasGroup != null)
+		if (playerCamera != null)
 		{
-			glitchCanvasGroup.alpha = 0f;
+			baseFieldOfView = playerCamera.fieldOfView;
+			baseLocalPosition = playerCamera.transform.localPosition;
+			baseLocalRotation = playerCamera.transform.localRotation;
 		}
+
+		ResetGlitchValues();
 
 		ScheduleNextFalseCue();
 		ScheduleNextGlitch();
@@ -92,7 +123,7 @@ public class SanityPsychologicalEffects : MonoBehaviour
 		HorrorEvents.OnSanityChanged -= HandleSanityChanged;
 	}
 
-	void Update()
+	void LateUpdate()
 	{
 		if (sanitySystem != null)
 		{
@@ -100,8 +131,10 @@ public class SanityPsychologicalEffects : MonoBehaviour
 		}
 
 		UpdateAudioDistortion();
+		UpdateRinging();
 		UpdateFalseCues();
 		UpdateVisualGlitches();
+		UpdateCameraInstability();
 	}
 
 	void HandleSanityChanged(float currentSanity, float normalizedSanity, float stress)
@@ -122,9 +155,38 @@ public class SanityPsychologicalEffects : MonoBehaviour
 			t = Mathf.InverseLerp(distortionStressThreshold, 1f, stress01);
 		}
 
+		float severeBoost = stress01 >= severeStressThreshold ? Mathf.InverseLerp(severeStressThreshold, 1f, stress01) : 0f;
+		t = Mathf.Clamp01(t + (severeBoost * 0.25f));
+
 		float targetCutoff = Mathf.Lerp(maxCutoff, minCutoff, t);
-		listenerLowPass.cutoffFrequency = Mathf.MoveTowards(listenerLowPass.cutoffFrequency, targetCutoff, Time.deltaTime * distortionSmoothing * 12000f);
+		listenerLowPass.cutoffFrequency = Mathf.MoveTowards(listenerLowPass.cutoffFrequency, targetCutoff, Time.deltaTime * distortionSmoothing * 16000f);
 		listenerLowPass.lowpassResonanceQ = Mathf.Lerp(minResonanceQ, maxResonanceQ, t);
+	}
+
+	void UpdateRinging()
+	{
+		if (tinnitusLoop == null || !enableRinging)
+		{
+			return;
+		}
+
+		float target = 0f;
+		if (stress01 >= severeStressThreshold)
+		{
+			float t = Mathf.InverseLerp(severeStressThreshold, 1f, stress01);
+			target = maxRingingVolume * t;
+		}
+
+		if (target > 0.01f && !tinnitusLoop.isPlaying)
+		{
+			tinnitusLoop.Play();
+		}
+
+		tinnitusLoop.volume = Mathf.MoveTowards(tinnitusLoop.volume, target, Time.deltaTime * ringingFadeSpeed);
+		if (tinnitusLoop.volume <= 0.01f && tinnitusLoop.isPlaying)
+		{
+			tinnitusLoop.Stop();
+		}
 	}
 
 	void UpdateFalseCues()
@@ -145,7 +207,8 @@ public class SanityPsychologicalEffects : MonoBehaviour
 		}
 
 		AudioClip cue = falseCueClips[Random.Range(0, falseCueClips.Length)];
-		float volume = Random.Range(falseCueVolumeRange.x, falseCueVolumeRange.y);
+		float stressBias = Mathf.InverseLerp(falseCueStressThreshold, 1f, stress01);
+		float volume = Mathf.Lerp(falseCueVolumeRange.x, falseCueVolumeRange.y, stressBias);
 		if (use3DSpatialFalseCues && player != null)
 		{
 			Vector2 offset = Random.insideUnitCircle * falseCueRadius;
@@ -162,35 +225,92 @@ public class SanityPsychologicalEffects : MonoBehaviour
 
 	void UpdateVisualGlitches()
 	{
-		if (glitchCanvasGroup == null)
+		if (analogGlitch == null)
 		{
 			return;
 		}
 
 		if (!enableVisualGlitches || stress01 < visualGlitchStressThreshold)
 		{
-			glitchCanvasGroup.alpha = Mathf.MoveTowards(glitchCanvasGroup.alpha, 0f, Time.deltaTime * 6f);
+			FadeOutGlitches();
 			return;
 		}
 
 		if (Time.time >= nextGlitchTime && Time.time >= glitchUntilTime)
 		{
-			glitchTargetAlpha = Random.Range(glitchAlphaRange.x, glitchAlphaRange.y);
-			glitchUntilTime = Time.time + Random.Range(glitchDurationRange.x, glitchDurationRange.y);
+			float escalatedShake = stress01 >= criticalStressThreshold ? scanlineJitterRange.y : Random.Range(scanlineJitterRange.x, scanlineJitterRange.y);
+			shakeTargetValue = escalatedShake;
+			glitchUntilTime = Time.time + Random.Range(shakeDurationRange.x, shakeDurationRange.y);
 			ScheduleNextGlitch();
 		}
 
-		float target = Time.time < glitchUntilTime ? glitchTargetAlpha : 0f;
-		glitchCanvasGroup.alpha = Mathf.MoveTowards(glitchCanvasGroup.alpha, target, Time.deltaTime * 14f);
+		float stressT = Mathf.InverseLerp(visualGlitchStressThreshold, 1f, stress01);
+		float baselineShake = maxBaselineScanlineJitter * stressT;
+		float burstShake = Time.time < glitchUntilTime ? shakeTargetValue : 0f;
+		float horizontalShakeTarget = Mathf.Max(baselineShake, burstShake);
+		float severeBoost = stress01 >= severeStressThreshold ? Mathf.InverseLerp(severeStressThreshold, 1f, stress01) : 0f;
+		horizontalShakeTarget = Mathf.Clamp01(horizontalShakeTarget + (severeBoost * 0.25f));
+
+		if (analogGlitch != null)
+		{
+			analogGlitch.scanLineJitter = Mathf.MoveTowards(analogGlitch.scanLineJitter, horizontalShakeTarget, Time.deltaTime * 2.2f);
+			analogGlitch.horizontalShake = Mathf.MoveTowards(analogGlitch.horizontalShake, 0f, Time.deltaTime * 3.5f);
+		}
+	}
+
+	void FadeOutGlitches()
+	{
+		if (analogGlitch != null)
+		{
+			analogGlitch.scanLineJitter = Mathf.MoveTowards(analogGlitch.scanLineJitter, 0f, Time.deltaTime * 2.4f);
+			analogGlitch.horizontalShake = Mathf.MoveTowards(analogGlitch.horizontalShake, 0f, Time.deltaTime * 2.4f);
+		}
+	}
+
+	void ResetGlitchValues()
+	{
+		if (analogGlitch != null)
+		{
+			analogGlitch.scanLineJitter = 0f;
+			analogGlitch.horizontalShake = 0f;
+		}
+	}
+
+	void UpdateCameraInstability()
+	{
+		if (playerCamera == null || !enableCameraInstability)
+		{
+			return;
+		}
+
+		float instability = Mathf.InverseLerp(visualGlitchStressThreshold, 1f, stress01);
+		float criticalBoost = stress01 >= criticalStressThreshold ? Mathf.InverseLerp(criticalStressThreshold, 1f, stress01) : 0f;
+		instability = Mathf.Clamp01(instability + (criticalBoost * 0.35f));
+
+		float pulse = Mathf.Sin(Time.time * fovPulseFrequency) * fovPulseAmplitude * instability;
+		float fovTarget = baseFieldOfView - (maxFovReduction * instability) + pulse;
+		playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, fovTarget, Time.deltaTime * 7f);
+
+		float tilt = Mathf.Sin(Time.time * (fovPulseFrequency * 0.7f)) * maxTiltAngle * instability;
+		Quaternion targetRotation = baseLocalRotation * Quaternion.Euler(0f, 0f, tilt);
+		playerCamera.transform.localRotation = Quaternion.Slerp(playerCamera.transform.localRotation, targetRotation, Time.deltaTime * 10f);
+
+		playerCamera.transform.localPosition = Vector3.Lerp(playerCamera.transform.localPosition, baseLocalPosition, Time.deltaTime * 11f);
 	}
 
 	void ScheduleNextFalseCue()
 	{
-		nextFalseCueTime = Time.time + Random.Range(falseCueIntervalRange.x, falseCueIntervalRange.y);
+		float stressT = Mathf.InverseLerp(falseCueStressThreshold, 1f, stress01);
+		float minInterval = Mathf.Lerp(falseCueIntervalRange.x, falseCueIntervalRange.x * 0.45f, stressT);
+		float maxInterval = Mathf.Lerp(falseCueIntervalRange.y, falseCueIntervalRange.y * 0.45f, stressT);
+		nextFalseCueTime = Time.time + Random.Range(minInterval, maxInterval);
 	}
 
 	void ScheduleNextGlitch()
 	{
-		nextGlitchTime = Time.time + Random.Range(glitchIntervalRange.x, glitchIntervalRange.y);
+		float stressT = Mathf.InverseLerp(visualGlitchStressThreshold, 1f, stress01);
+		float minInterval = Mathf.Lerp(shakeIntervalRange.x, shakeIntervalRange.x * 0.35f, stressT);
+		float maxInterval = Mathf.Lerp(shakeIntervalRange.y, shakeIntervalRange.y * 0.35f, stressT);
+		nextGlitchTime = Time.time + Random.Range(minInterval, maxInterval);
 	}
 }

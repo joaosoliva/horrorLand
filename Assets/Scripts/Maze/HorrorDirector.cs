@@ -32,6 +32,8 @@ public class HorrorDirector : MonoBehaviour
 
 	[Header("Pacing Controls")]
 	public float maxQuietSeconds = 20f;
+	public float maxScareQuietSeconds = 14f;
+	public float catchUpGraceSeconds = 2f;
 	public float finaleStartTime = 240f;
 	public float reliefPhaseSeconds = 10f;
 	public float buildThreshold = 0.28f;
@@ -65,6 +67,7 @@ public class HorrorDirector : MonoBehaviour
 	private PacingBand currentBand = PacingBand.Calm;
 	private HorrorPhase currentPhase = HorrorPhase.Calm;
 	private float lastScareTime = -999f;
+	private float lastThreateningBeatTime = -999f;
 	private float lastMeaningfulBeatTime = -999f;
 	private float lastSoundboardTime = -999f;
 	private float lastSoundboardLoudness = 0f;
@@ -104,6 +107,7 @@ public class HorrorDirector : MonoBehaviour
 		}
 
 		lastMeaningfulBeatTime = Time.time;
+		lastThreateningBeatTime = Time.time;
 		RefreshPacing(forceBroadcast: true);
 	}
 
@@ -181,6 +185,13 @@ public class HorrorDirector : MonoBehaviour
 			scareScheduler.RequestCatchUpBeat();
 			lastMeaningfulBeatTime = Time.time;
 		}
+
+		if (scareScheduler != null && Time.time - lastThreateningBeatTime >= Mathf.Max(2f, maxScareQuietSeconds + catchUpGraceSeconds))
+		{
+			scareScheduler.RequestCatchUpBeat();
+			lastThreateningBeatTime = Time.time;
+			lastMeaningfulBeatTime = Time.time;
+		}
 	}
 
 	public void RegisterMeaningfulBeat(ScareType scareType)
@@ -221,6 +232,7 @@ public class HorrorDirector : MonoBehaviour
 			ambientRevealActive = true;
 			ambientRevealStartTime = Time.time;
 			lastAmbientRevealTime = Time.time;
+			lastThreateningBeatTime = Time.time;
 			lastMeaningfulBeatTime = Time.time;
 		}
 
@@ -267,6 +279,7 @@ public class HorrorDirector : MonoBehaviour
 		EndAmbientReveal();
 		lastPeakTime = Time.time;
 		lastScareTime = Time.time;
+		lastThreateningBeatTime = Time.time;
 		lastMeaningfulBeatTime = Time.time;
 	}
 
@@ -292,6 +305,7 @@ public class HorrorDirector : MonoBehaviour
 	{
 		lastScareTime = Time.time;
 		lastPeakTime = Time.time;
+		lastThreateningBeatTime = Time.time;
 		lastMeaningfulBeatTime = Time.time;
 	}
 
@@ -301,6 +315,7 @@ public class HorrorDirector : MonoBehaviour
 		if (scareType != ScareType.ReliefBeat)
 		{
 			lastScareTime = Time.time;
+			lastThreateningBeatTime = Time.time;
 		}
 
 		if (scareType == ScareType.MajorJumpscare || scareType == ScareType.ChaseTrigger)

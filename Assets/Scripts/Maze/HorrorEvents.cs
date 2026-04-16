@@ -44,6 +44,8 @@ public static class HorrorEvents
 	public static event Action<string, float> OnSoundboardPlayed;
 	public static event Action OnJumpscareTriggered;
 	public static event Action<float, float, float> OnSanityChanged;
+	public static event Action<float, float> OnCorruptionChanged;
+	public static event Action<string, float> OnCorruptionEventTriggered;
 
 	public static void RaiseTensionChanged(float tension)
 	{
@@ -103,5 +105,15 @@ public static class HorrorEvents
 	public static void RaiseSanityChanged(float currentSanity, float normalizedSanity, float stress01)
 	{
 		OnSanityChanged?.Invoke(currentSanity, Mathf.Clamp01(normalizedSanity), Mathf.Clamp01(stress01));
+	}
+
+	public static void RaiseCorruptionChanged(float currentCorruption, float normalizedCorruption)
+	{
+		OnCorruptionChanged?.Invoke(Mathf.Max(0f, currentCorruption), Mathf.Clamp01(normalizedCorruption));
+	}
+
+	public static void RaiseCorruptionEventTriggered(string eventId, float corruptionLevel)
+	{
+		OnCorruptionEventTriggered?.Invoke(eventId, Mathf.Clamp01(corruptionLevel));
 	}
 }
