@@ -31,14 +31,7 @@ public class flashlight : MonoBehaviour
             }
         }
 
-        if (toggle == false)
-        {
-            light.SetActive(false);
-        }
-        if (toggle == true)
-        {
-            light.SetActive(true);
-        }
+        ApplyFlashlightState(toggle);
     }
 
     void Update()
@@ -52,14 +45,7 @@ public class flashlight : MonoBehaviour
 
             toggle = !toggle;
             //toggleSound.Play();
-            if (toggle == false)
-            {
-                light.SetActive(false);
-            }
-            if (toggle == true)
-            {
-                light.SetActive(true);
-            }
+            ApplyFlashlightState(toggle);
         }
     }
 
@@ -104,7 +90,7 @@ public class flashlight : MonoBehaviour
         }
 
         toggle = wasToggleOn;
-        light.SetActive(wasToggleOn);
+        ApplyFlashlightState(wasToggleOn);
         if (lightComponent != null)
         {
             lightComponent.intensity = baseIntensity;
@@ -119,10 +105,40 @@ public class flashlight : MonoBehaviour
             return;
         }
 
-        light.SetActive(enabled);
+        ApplyFlashlightState(enabled);
         if (lightComponent != null)
         {
             lightComponent.intensity = enabled ? baseIntensity : scareFlickerOffIntensity;
         }
+    }
+
+    void ApplyFlashlightState(bool enabled)
+    {
+        if (light == null)
+        {
+            return;
+        }
+
+        if (lightComponent == null)
+        {
+            lightComponent = light.GetComponent<Light>();
+            if (lightComponent == null)
+            {
+                lightComponent = light.GetComponentInChildren<Light>();
+            }
+        }
+
+        if (lightComponent != null)
+        {
+            lightComponent.enabled = enabled;
+            return;
+        }
+
+        if (light == gameObject)
+        {
+            return;
+        }
+
+        light.SetActive(enabled);
     }
 }
