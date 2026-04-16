@@ -18,6 +18,7 @@ public class flashlight : MonoBehaviour
     private Coroutine scareFlickerRoutine;
     private float lastScareFlickerTime = -999f;
     private float baseIntensity = 1f;
+    private bool isScareFlickering = false;
 
     void Start()
     {
@@ -44,6 +45,11 @@ public class flashlight : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.F))
         {
+            if (isScareFlickering)
+            {
+                return;
+            }
+
             toggle = !toggle;
             //toggleSound.Play();
             if (toggle == false)
@@ -80,13 +86,13 @@ public class flashlight : MonoBehaviour
 
     IEnumerator ScareFlickerRoutine(float delay)
     {
+        isScareFlickering = true;
         if (delay > 0f)
         {
             yield return new WaitForSeconds(delay);
         }
 
         bool wasToggleOn = toggle;
-        bool wasLightActive = light.activeSelf;
         float burstDuration = Mathf.Max(0.04f, scareFlickerDuration / Mathf.Max(1, scareFlickerBursts * 2));
 
         for (int i = 0; i < scareFlickerBursts; i++)
@@ -98,11 +104,12 @@ public class flashlight : MonoBehaviour
         }
 
         toggle = wasToggleOn;
-        light.SetActive(wasLightActive && wasToggleOn);
+        light.SetActive(wasToggleOn);
         if (lightComponent != null)
         {
             lightComponent.intensity = baseIntensity;
         }
+        isScareFlickering = false;
     }
 
     void SetFlickerLightState(bool enabled)

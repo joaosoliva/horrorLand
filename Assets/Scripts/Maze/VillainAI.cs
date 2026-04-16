@@ -153,6 +153,12 @@ public class VillainAI : MonoBehaviour
 	public float firstEncounterSightingRequirement = 1.4f;
 	[Tooltip("Cooldown between blocked first-encounter commit attempts.")]
 	public float firstEncounterRetryCooldown = 6f;
+	[Tooltip("Force the first commit if this much time passes after minimum runtime, even if sighting requirement is not met.")]
+	public float firstEncounterForceCommitDelay = 20f;
+	[Tooltip("Close distance that can bypass first-encounter sighting when runtime is mostly ready.")]
+	public float firstEncounterClosePressureBypassDistance = 6f;
+	[Tooltip("When first chase is delayed, transition from patrol into search pressure around the player.")]
+	public bool firstEncounterDelayUsesSearchPressure = true;
 	public bool gateFirstChaseWithBuildup = true;
 
 	private float gameStartTime;
@@ -1264,6 +1270,11 @@ public class VillainAI : MonoBehaviour
 			{
 				lastKnownPlayerPosition = player.position;
 				lastDetectionTime = Time.time;
+
+				if (firstEncounterDelayUsesSearchPressure && IsPatrolling)
+				{
+					BeginSearch(lastKnownPlayerPosition, "First encounter gate applied pressure search");
+				}
 			}
 			return;
 		}
@@ -1296,7 +1307,11 @@ public class VillainAI : MonoBehaviour
 		float runtime = Time.time - gameStartTime;
 		bool runtimeReady = runtime >= firstEncounterMinimumRuntime;
 		bool sightReady = firstEncounterSightingTime >= firstEncounterSightingRequirement;
-		if (runtimeReady && sightReady)
+		bool closePressureBypass = player != null &&
+			Vector3.Distance(transform.position, player.position) <= firstEncounterClosePressureBypassDistance &&
+			runtime >= firstEncounterMinimumRuntime * 0.7f;
+		bool timeoutForceCommit = runtime >= firstEncounterMinimumRuntime + firstEncounterForceCommitDelay;
+		if ((runtimeReady && sightReady) || closePressureBypass || timeoutForceCommit)
 		{
 			firstEncounterCommitted = true;
 			return false;
