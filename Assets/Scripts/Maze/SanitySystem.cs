@@ -27,6 +27,11 @@ public class SanitySystem : MonoBehaviour
 	public float reliefBeatSanityGain = 6f;
 	public float nearMissSanityLoss = 7f;
 
+	[Header("Soundboard Relief")]
+	public bool gainSanityFromSoundboard = true;
+	public float soundboardBaseSanityGain = 0.8f;
+	public float soundboardAdditionalSanityGain = 0.9f;
+
 	[Header("Thresholds")]
 	[Range(0f, 1f)] public float lowSanityThresholdNormalized = 0.3f;
 	[Range(0f, 1f)] public float criticalSanityThresholdNormalized = 0.15f;
@@ -58,6 +63,7 @@ public class SanitySystem : MonoBehaviour
 		HorrorEvents.OnJumpscareTriggered += HandleMajorJumpscare;
 		HorrorEvents.OnScareTriggered += HandleScareTriggered;
 		HorrorEvents.OnThreatBandChanged += HandleThreatBandChanged;
+		HorrorEvents.OnSoundboardPlayed += HandleSoundboardPlayed;
 	}
 
 	void OnDisable()
@@ -67,6 +73,7 @@ public class SanitySystem : MonoBehaviour
 		HorrorEvents.OnJumpscareTriggered -= HandleMajorJumpscare;
 		HorrorEvents.OnScareTriggered -= HandleScareTriggered;
 		HorrorEvents.OnThreatBandChanged -= HandleThreatBandChanged;
+		HorrorEvents.OnSoundboardPlayed -= HandleSoundboardPlayed;
 	}
 
 	void Update()
@@ -136,6 +143,19 @@ public class SanitySystem : MonoBehaviour
 		{
 			ApplySanityDelta(reliefBeatSanityGain, "ReliefBeat");
 		}
+	}
+
+
+	void HandleSoundboardPlayed(string soundTag, float loudness)
+	{
+		if (!gainSanityFromSoundboard)
+		{
+			return;
+		}
+
+		float clampedLoudness = Mathf.Clamp01(loudness);
+		float gain = soundboardBaseSanityGain + ((1f - clampedLoudness) * soundboardAdditionalSanityGain);
+		ApplySanityDelta(gain, "SoundboardRelief:" + soundTag);
 	}
 
 	void HandleThreatBandChanged(EnemyDistanceBand band)
