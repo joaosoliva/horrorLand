@@ -25,6 +25,13 @@ public class PlaySound : MonoBehaviour
 	public bool allowLegacyRandomTrigger = false;
 	public KeyCode legacyRandomTriggerKey = KeyCode.Mouse1;
 
+	[Header("Anti-Spam Cooldown")]
+	public bool useGlobalCooldown = true;
+	public float globalCooldownSeconds = 0.35f;
+	public AudioClip cooldownNotReadySfx;
+	[Range(0f, 1f)] public float cooldownNotReadyVolume = 0.45f;
+	public float cooldownNotReadySfxInterval = 0.15f;
+
 	private static readonly KeyCode[] DefaultKeys =
 	{
 		KeyCode.Alpha1,
@@ -34,7 +41,10 @@ public class PlaySound : MonoBehaviour
 	};
 
 	private AudioSource audioSource;
+	private AudioSource feedbackAudioSource;
 	private float[] slotCooldowns = Array.Empty<float>();
+	private float globalCooldownUntil = -999f;
+	private float nextCooldownBlockedSfxAt = -999f;
 
 	void Start()
 	{
@@ -43,6 +53,11 @@ public class PlaySound : MonoBehaviour
 		{
 			audioSource = gameObject.AddComponent<AudioSource>();
 		}
+
+		feedbackAudioSource = gameObject.AddComponent<AudioSource>();
+		feedbackAudioSource.playOnAwake = false;
+		feedbackAudioSource.loop = false;
+		feedbackAudioSource.spatialBlend = 0f;
 
 		BuildDefaultSoundboardIfNeeded();
 		slotCooldowns = new float[soundboardSlots.Length];
@@ -74,8 +89,11 @@ public class PlaySound : MonoBehaviour
 				continue;
 			}
 
-			if (Time.time < slotCooldowns[i])
+			bool slotCoolingDown = Time.time < slotCooldowns[i];
+			bool globalCoolingDown = useGlobalCooldown && Time.time < globalCooldownUntil;
+			if (slotCoolingDown || globalCoolingDown)
 			{
+				PlayCooldownBlockedFeedback();
 				continue;
 			}
 
@@ -102,6 +120,10 @@ public class PlaySound : MonoBehaviour
 	void PlaySlot(int slotIndex, SoundboardSlot slot)
 	{
 		slotCooldowns[slotIndex] = Time.time + Mathf.Max(0f, slot.cooldownSeconds);
+		if (useGlobalCooldown)
+		{
+			globalCooldownUntil = Time.time + Mathf.Max(0f, globalCooldownSeconds);
+		}
 
 		AudioClip clipToPlay = slot.clip;
 		string tagToPlay = string.IsNullOrWhiteSpace(slot.tag) ? "Slot" + (slotIndex + 1) : slot.tag;
@@ -139,6 +161,23 @@ public class PlaySound : MonoBehaviour
 			float eventLoudness = Mathf.Clamp01((loudness * 0.6f) + (threatAttraction * 0.4f) - (humorReliefValue * 0.15f));
 			HorrorEvents.RaiseSoundboardPlayed(soundboardTag, eventLoudness);
 		}
+	}
+
+
+	void PlayCooldownBlockedFeedback()
+	{
+		if (cooldownNotReadySfx == null || feedbackAudioSource == null)
+		{
+			return;
+		}
+
+		if (Time.time < nextCooldownBlockedSfxAt)
+		{
+			return;
+		}
+
+		nextCooldownBlockedSfxAt = Time.time + Mathf.Max(0.01f, cooldownNotReadySfxInterval);
+		feedbackAudioSource.PlayOneShot(cooldownNotReadySfx, Mathf.Clamp01(cooldownNotReadyVolume));
 	}
 
 	void BuildDefaultSoundboardIfNeeded()

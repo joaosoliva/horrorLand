@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EndingData
   id: 03
   resultMessage: GOOD
-  priority: 0
+  priority: 200
   conditions:
   - {fileID: 11400000, guid: 03953a16124822949a99a34226a528e8, type: 2}
   - {fileID: 11400000, guid: f1e742d8e6380de46a50b88c5ddc471c, type: 2}
