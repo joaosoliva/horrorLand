@@ -14496,12 +14496,14 @@ MonoBehaviour:
       final.\nPaciente R mostra sinais de grande habilidade cognitiva.\n\nDr. Chi
       expressou preocupa\xE7\xE3o com o tempo do teste.\nO comit\xEA espera resultados.\n\n-
       Dra. Tinho"
+    tier: 1
     triggerRadius: 2
     readOnce: 1
   - noteID: 2
     noteText: "DIA 47 - Paciente R\n\nN\xE3o responde mais a est\xEDmulos. \nN\xE3o
       come mais.\nS\xF3 encara as paredes.\n\n\xC0s vezes acho que ele est\xE1 tentando
       se comunicar conosco.\n\nN\xF3s aumentamos o labirinto.\n\n- Dr. Chen"
+    tier: 1
     triggerRadius: 2
     readOnce: 1
   - noteID: 3
@@ -14524,6 +14526,7 @@ MonoBehaviour:
 
 
       - Dr. Morse'
+    tier: 1
     triggerRadius: 2
     readOnce: 1
   - noteID: 4
@@ -14549,6 +14552,7 @@ MonoBehaviour:
 
 
       - Dr. Morse'
+    tier: 1
     triggerRadius: 2
     readOnce: 1
   - noteID: 5
@@ -14582,6 +14586,7 @@ MonoBehaviour:
 
 
       - Dr. Morse'
+    tier: 1
     triggerRadius: 2
     readOnce: 1
   - noteID: 6
@@ -14606,14 +14611,26 @@ MonoBehaviour:
 
       Why
       can''t I stop running?'
+    tier: 1
     triggerRadius: 2
     readOnce: 1
+  allNotes:
+  - {fileID: 11400000, guid: 44ccb63ae67a3824aa23fb48f4b66d83, type: 2}
+  - {fileID: 11400000, guid: 7f658c80d42a7ec478c9fcfcb3f4a37c, type: 2}
+  - {fileID: 11400000, guid: 5d98c6889f5ac2541bb78ace9ea5ff02, type: 2}
+  - {fileID: 11400000, guid: 17e1387780551964e8f9f4cedd4d0d71, type: 2}
+  - {fileID: 11400000, guid: 447633f0a2f8b824fb48f68c92a3584c, type: 2}
+  - {fileID: 11400000, guid: fe59327564f085e4cbc29e0d9a655823, type: 2}
+  - {fileID: 11400000, guid: 6f97ba2bcf5c89b4ea91d01f9eff4cb0, type: 2}
+  notesRequiredToFinish: 6
+  simultaneousWorldNotes: 3
   notePrefab: {fileID: 5744167978809411034, guid: 26f069ba8d336ce43993c334f01da563, type: 3}
   minDistanceBetweenNotes: 10
   minDistanceFromStart: 5
   maxSpawnAttempts: 50
   mazeGenerator: {fileID: 2113078750}
   player: {fileID: 1956618892}
+  gameState: {fileID: 1403009943}
   noteCanvas: {fileID: 777296413}
   noteText: {fileID: 1604700776}
   noteBackground: {fileID: 1428885444}
@@ -16327,6 +16344,11 @@ MonoBehaviour:
   raiseHorrorSoundboardEvent: 1
   allowLegacyRandomTrigger: 1
   legacyRandomTriggerKey: 324
+  useGlobalCooldown: 1
+  globalCooldownSeconds: 0.35
+  cooldownNotReadySfx: {fileID: 0}
+  cooldownNotReadyVolume: 0.45
+  cooldownNotReadySfxInterval: 0.15
 --- !u!4 &923586205
 Transform:
   m_ObjectHideFlags: 0
@@ -23115,6 +23137,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1403009941}
   - component: {fileID: 1403009940}
+  - component: {fileID: 1403009943}
+  - component: {fileID: 1403009942}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -23139,6 +23163,8 @@ MonoBehaviour:
   mazeGenerator: {fileID: 2113078750}
   player: {fileID: 1956618892}
   jumpscareSystem: {fileID: 1559133037}
+  runGameState: {fileID: 1403009943}
+  endingSystem: {fileID: 1403009942}
   notesRequiredToWin: 6
   winDelay: 1
   loseDistance: 7
@@ -23176,6 +23202,34 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1403009942
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1403009939}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2cd9c525b7a44c558cf63e645b9486bb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EndingSystem
+  endings:
+  - {fileID: 11400000, guid: d64d78a8e6235b847adb57b15bb1d771, type: 2}
+  - {fileID: 11400000, guid: 9368721ca92e8eb4d910f403089a5924, type: 2}
+  - {fileID: 11400000, guid: 33e44e98bb2beac4f898ae31df2a0202, type: 2}
+--- !u!114 &1403009943
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1403009939}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d579a503b7c64fe2b37c132bf30ba9ae, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RunGameState
 --- !u!1 &1406425057
 GameObject:
   m_ObjectHideFlags: 0
@@ -29670,6 +29724,9 @@ MonoBehaviour:
   routePressureSanityLoss: 5
   reliefBeatSanityGain: 6
   nearMissSanityLoss: 7
+  gainSanityFromSoundboard: 1
+  soundboardBaseSanityGain: 0.8
+  soundboardAdditionalSanityGain: 0.9
   lowSanityThresholdNormalized: 0.3
   criticalSanityThresholdNormalized: 0.15
   enableDebugLogs: 0
