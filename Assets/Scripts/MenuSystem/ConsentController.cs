@@ -6,9 +6,6 @@ namespace HorrorLand.MenuSystem
 {
     public class ConsentController : MonoBehaviour
     {
-        private const string ConsentAnsweredKey = "Menu.ConsentAnswered";
-        private const string RandomScaresEnabledKey = "Menu.RandomScaresEnabled";
-
         [Header("UI")]
         [SerializeField] private GameObject consentPanel;
         [SerializeField] private Button yesButton;
@@ -16,8 +13,8 @@ namespace HorrorLand.MenuSystem
 
         private Action<bool> onFlowResolved;
 
-        public bool HasAnsweredConsent => PlayerPrefs.GetInt(ConsentAnsweredKey, 0) == 1;
-        public bool AreRandomScaresEnabled => PlayerPrefs.GetInt(RandomScaresEnabledKey, 0) == 1;
+        public bool HasAnsweredConsent => PlayerPrefs.GetInt(MenuPrefsKeys.ConsentAnswered, 0) == 1;
+        public bool AreRandomScaresEnabled => PlayerPrefs.GetInt(MenuPrefsKeys.RandomScaresEnabled, 0) == 1;
 
         private void Awake()
         {
@@ -45,6 +42,13 @@ namespace HorrorLand.MenuSystem
             consentPanel.SetActive(true);
         }
 
+        public void ResetConsentChoice()
+        {
+            PlayerPrefs.DeleteKey(MenuPrefsKeys.ConsentAnswered);
+            PlayerPrefs.DeleteKey(MenuPrefsKeys.RandomScaresEnabled);
+            PlayerPrefs.Save();
+        }
+
         private void OnYesClicked()
         {
             SaveConsent(true);
@@ -57,8 +61,8 @@ namespace HorrorLand.MenuSystem
 
         private void SaveConsent(bool randomScaresEnabled)
         {
-            PlayerPrefs.SetInt(ConsentAnsweredKey, 1);
-            PlayerPrefs.SetInt(RandomScaresEnabledKey, randomScaresEnabled ? 1 : 0);
+            PlayerPrefs.SetInt(MenuPrefsKeys.ConsentAnswered, 1);
+            PlayerPrefs.SetInt(MenuPrefsKeys.RandomScaresEnabled, randomScaresEnabled ? 1 : 0);
             PlayerPrefs.Save();
 
             consentPanel.SetActive(false);
