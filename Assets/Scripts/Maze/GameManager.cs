@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using HorrorLand.MenuSystem;
 using System.Collections;
 using UnityEngine.SceneManagement;
 
@@ -14,6 +15,7 @@ public class GameManager : MonoBehaviour
 	public JumpscareSystem jumpscareSystem;
 	public RunGameState runGameState;
 	public EndingSystem endingSystem;
+	public EndingProgressRecorder endingProgressRecorder;
     
 	[Header("Win Settings")]
 	public int notesRequiredToWin = 6;
@@ -212,6 +214,11 @@ public class GameManager : MonoBehaviour
 		EndingData resolved = endingSystem.ResolveEnding(runGameState);
 		if (resolved == null)
 			return fallbackMessage;
+
+		if (endingProgressRecorder != null)
+		{
+			endingProgressRecorder.RecordEnding(resolved);
+		}
 
 		if (!string.IsNullOrEmpty(resolved.resultMessage))
 			return resolved.resultMessage;
