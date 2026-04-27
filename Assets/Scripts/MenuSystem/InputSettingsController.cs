@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -5,6 +6,8 @@ namespace HorrorLand.MenuSystem
 {
     public class InputSettingsController : MonoBehaviour
     {
+        public static event Action<float, bool, bool> LookSettingsChanged;
+
         [SerializeField] private Slider mouseSensitivitySlider;
         [SerializeField] private Toggle invertMouseToggle;
         [SerializeField] private Toggle mouseSmoothingToggle;
@@ -37,21 +40,26 @@ namespace HorrorLand.MenuSystem
             mouseSensitivitySlider.SetValueWithoutNotify(sensitivity);
             invertMouseToggle.SetIsOnWithoutNotify(invertMouse);
             mouseSmoothingToggle.SetIsOnWithoutNotify(smoothing);
+
+            NotifyLookSettingsChanged();
         }
 
         private void ApplySensitivity(float value)
         {
             GameSettingsStore.SetFloat(MenuPrefsKeys.MouseSensitivity, value);
+            NotifyLookSettingsChanged();
         }
 
         private void ApplyInvertMouse(bool isEnabled)
         {
             GameSettingsStore.SetInt(MenuPrefsKeys.InvertMouse, isEnabled ? 1 : 0);
+            NotifyLookSettingsChanged();
         }
 
         private void ApplyMouseSmoothing(bool isEnabled)
         {
             GameSettingsStore.SetInt(MenuPrefsKeys.MouseSmoothing, isEnabled ? 1 : 0);
+            NotifyLookSettingsChanged();
         }
 
         private void ResetScareChoice()
@@ -60,6 +68,14 @@ namespace HorrorLand.MenuSystem
             PlayerPrefs.DeleteKey(MenuPrefsKeys.RandomScaresEnabled);
             PlayerPrefs.Save();
             Debug.Log("Scare consent reset. The prompt will appear on next launch.");
+        }
+
+        private void NotifyLookSettingsChanged()
+        {
+            LookSettingsChanged?.Invoke(
+                GameSettingsStore.GetFloat(MenuPrefsKeys.MouseSensitivity, 2f),
+                GameSettingsStore.GetInt(MenuPrefsKeys.InvertMouse, 0) == 1,
+                GameSettingsStore.GetInt(MenuPrefsKeys.MouseSmoothing, 0) == 1);
         }
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -6,10 +7,10 @@ namespace HorrorLand.MenuSystem
 {
     public class DisplaySettingsController : MonoBehaviour
     {
-        [SerializeField] private Dropdown resolutionDropdown;
-        [SerializeField] private Dropdown fullscreenDropdown;
+        [SerializeField] private TMP_Dropdown resolutionDropdown;
+        [SerializeField] private TMP_Dropdown fullscreenDropdown;
         [SerializeField] private Toggle vSyncToggle;
-        [SerializeField] private Dropdown qualityDropdown;
+        [SerializeField] private TMP_Dropdown qualityDropdown;
 
         private readonly List<Resolution> uniqueResolutions = new List<Resolution>();
         private readonly List<string> fullscreenOptions = new List<string>
