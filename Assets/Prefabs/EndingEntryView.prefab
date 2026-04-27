@@ -49,8 +49,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f3ce25548db44e0cb5624615fbc205b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HorrorLand.MenuSystem.EndingEntryView
-  endingTitleText: {fileID: 0}
-  hintText: {fileID: 0}
+  endingTitleText: {fileID: 4694981682493078072}
+  hintText: {fileID: 5123044500752440970}
 --- !u!1 &8203068068361755364
 GameObject:
   m_ObjectHideFlags: 0
