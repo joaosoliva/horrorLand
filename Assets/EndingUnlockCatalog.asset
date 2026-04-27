@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 012306a5e5984945bf6b9561578f2d22, type: 3}
+  m_Name: EndingUnlockCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::HorrorLand.MenuSystem.EndingUnlockCatalog
+  entries:
+  - endingData: {fileID: 11400000, guid: d64d78a8e6235b847adb57b15bb1d771, type: 2}
+    endingIdOverride: 
+    endingNumber: 1
+    endingName: Bad
+    unlockHint: Too many tries.
+  - endingData: {fileID: 11400000, guid: 9368721ca92e8eb4d910f403089a5924, type: 2}
+    endingIdOverride: 
+    endingNumber: 2
+    endingName: Good
+    unlockHint: Good job.
+  - endingData: {fileID: 11400000, guid: 33e44e98bb2beac4f898ae31df2a0202, type: 2}
+    endingIdOverride: 
+    endingNumber: 3
+    endingName: Neutral
+    unlockHint: Equilibrium.
