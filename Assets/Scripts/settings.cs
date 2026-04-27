@@ -2,10 +2,11 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class settings : MonoBehaviour
 {
-    public Dropdown graphicsDrop, resoDrop;
+    public TMP_Dropdown graphicsDrop, resoDrop;
     public Slider volumeSlider;
     public Toggle chromaticToggle, vignetteToggle, grainToggle;
     public bool inGame;

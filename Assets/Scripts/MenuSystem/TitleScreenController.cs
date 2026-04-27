@@ -5,6 +5,9 @@ namespace HorrorLand.MenuSystem
 {
     public class TitleScreenController : MonoBehaviour
     {
+        [Header("UI")]
+        [SerializeField] private GameObject titleScreenPanel;
+
         [Header("Buttons")]
         [SerializeField] private Button startGameButton;
         [SerializeField] private Button unlocksButton;
@@ -28,6 +31,22 @@ namespace HorrorLand.MenuSystem
             startGameButton.onClick.RemoveListener(HandleStartGameClicked);
             unlocksButton.onClick.RemoveListener(HandleUnlocksClicked);
             optionsButton.onClick.RemoveListener(HandleOptionsClicked);
+        }
+
+        public void Initialize(bool randomScaresEnabled)
+        {
+            randomScareController?.SetEnabledState(randomScaresEnabled);
+            optionsMenuController?.Close();
+            unlocksMenuController?.Close();
+            SetVisible(true);
+        }
+
+        public void SetVisible(bool isVisible)
+        {
+            if (titleScreenPanel != null)
+            {
+                titleScreenPanel.SetActive(isVisible);
+            }
         }
 
         private void HandleStartGameClicked()

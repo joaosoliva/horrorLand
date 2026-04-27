@@ -1,12 +1,12 @@
+using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace HorrorLand.MenuSystem
 {
     public class EndingEntryView : MonoBehaviour
     {
-        [SerializeField] private Text endingTitleText;
-        [SerializeField] private Text hintText;
+        [SerializeField] private TMP_Text endingTitleText;
+        [SerializeField] private TMP_Text hintText;
 
         public void Bind(int endingNumber, string endingName, string unlockHint, bool isUnlocked)
         {
