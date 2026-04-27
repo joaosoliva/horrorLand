@@ -9,6 +9,7 @@ public class VillainAI : MonoBehaviour
 	public MazeGenerator mazeGenerator;
 	public ChaseSystem chaseSystem;
 	public flashlight playerFlashlight;
+	public EncounterManager preChaseEncounterManager;
 
 	public enum AIState
 	{
@@ -178,6 +179,7 @@ public class VillainAI : MonoBehaviour
 	private float motionNoiseSeed;
 	private bool panicSprintActive = false;
 	private float panicSprintStartedAt = -999f;
+	private bool externalControlActive = false;
 
 	public bool IsInPointOfNoEscape { get; private set; }
 	public float CurrentAggressionLevel { get; private set; }
@@ -430,7 +432,7 @@ public class VillainAI : MonoBehaviour
 
 	void Update()
 	{
-		if (!isInitialized) return;
+		if (!isInitialized || externalControlActive) return;
 		if (Time.time >= awarenessBoostUntilTime)
 		{
 			currentAwarenessBoost = 0f;
@@ -491,6 +493,12 @@ public class VillainAI : MonoBehaviour
 					FindPathTo(player.position);
 					Debug.Log($"Villain reappeared nearby at distance: {Vector3.Distance(dreadPosition, player.position):F1}");
 				}
+			}
+
+			if (externalControlActive)
+			{
+				yield return new WaitForSeconds(0.05f);
+				continue;
 			}
 
 			// State Logic
@@ -1321,7 +1329,14 @@ public class VillainAI : MonoBehaviour
 		{
 			firstEncounterRetryUntilTime = Time.time + firstEncounterRetryCooldown;
 			HorrorEvents.RaiseScareTriggered(ScareType.PresenceCue);
-			TryRetreatToHiddenPosition("Delaying first encounter commit for tension buildup");
+			if (preChaseEncounterManager != null)
+			{
+				preChaseEncounterManager.TryTriggerEncounterFromGate(reason);
+			}
+			else
+			{
+				TryRetreatToHiddenPosition("Delaying first encounter commit for tension buildup");
+			}
 			Debug.Log("First encounter gated before chase. Reason: " + reason + $", runtime={runtime:F1}, sight={firstEncounterSightingTime:F2}");
 		}
 
@@ -1525,7 +1540,7 @@ public class VillainAI : MonoBehaviour
 		}
 	}
 
-	bool CanPlayerSeeVillain()
+	public bool CanPlayerSeeVillain()
 	{
 		if (player == null)
 		{
@@ -1541,6 +1556,63 @@ public class VillainAI : MonoBehaviour
 		}
 
 		return HasLineOfSight(player.position, transform.position, transform);
+	}
+
+
+	public bool IsUnderExternalControl => externalControlActive;
+
+	public bool TryAcquireExternalControl(string reason)
+	{
+		if (externalControlActive)
+		{
+			return true;
+		}
+
+		if (IsChasing)
+		{
+			return false;
+		}
+
+		EndAmbientReveal();
+		externalControlActive = true;
+		return true;
+	}
+
+	public void ReleaseExternalControl()
+	{
+		externalControlActive = false;
+		if (!IsChasing)
+		{
+			SetRandomPatrolTarget();
+		}
+	}
+
+	public void SnapToPosition(Vector3 worldPosition, bool facePlayer = true)
+	{
+		transform.position = new Vector3(worldPosition.x, transform.position.y, worldPosition.z);
+		if (facePlayer && player != null)
+		{
+			Vector3 lookDirection = player.position - transform.position;
+			lookDirection.y = 0f;
+			if (lookDirection.sqrMagnitude > 0.001f)
+			{
+				transform.rotation = Quaternion.LookRotation(lookDirection.normalized, Vector3.up);
+			}
+		}
+	}
+
+	public bool TryDisappearFromPlayer(string reason)
+	{
+		Vector3 hiddenPosition = FindHiddenPositionFromPlayer();
+		if (hiddenPosition == Vector3.zero)
+		{
+			return false;
+		}
+
+		SnapToPosition(hiddenPosition, false);
+		EndAmbientReveal();
+		Debug.Log("Villain disappeared from player. Reason: " + reason);
+		return true;
 	}
 
 	void TryRetreatToHiddenPosition(string reason)
