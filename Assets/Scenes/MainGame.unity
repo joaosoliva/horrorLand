@@ -1716,13 +1716,13 @@ MonoBehaviour:
   chaseRadius: 40
   loseRadius: 25
   fieldOfView: 180
-  patrolSpeed: 10
-  chaseSpeed: 20
+  patrolSpeed: 5
+  chaseSpeed: 10
   rotationSpeed: 5
-  patrolAcceleration: 15
-  chaseAcceleration: 30
-  closeRangeAcceleration: 40
-  noEscapeAcceleration: 50
+  patrolAcceleration: 5
+  chaseAcceleration: 10
+  closeRangeAcceleration: 10
+  noEscapeAcceleration: 20
   chaseDreadSpeedMultiplier: 3
   chaseDreadAccelerationMultiplier: 1.15
   chaseDreadRepathMultiplier: 0.8
@@ -21766,6 +21766,9 @@ MonoBehaviour:
   backEncounterTurnAngleThreshold: 140
   backEncounterMaxPendingTime: 10
   backEncounterMinDelay: 0.75
+  backEncounterMaxPendingTravelMeters: 3
+  backEncounterPostRevealCatchGrace: 0.9
+  cancelBackEncounterOnSegmentChange: 1
   drawDebugOverlay: 1
 --- !u!4 &1265309447
 Transform:
@@ -23438,6 +23441,7 @@ MonoBehaviour:
   endingSystem: {fileID: 1403009942}
   endingProgressRecorder: {fileID: 0}
   mazeContextQuery: {fileID: 0}
+  preChaseEncounterManager: {fileID: 0}
   notesRequiredToWin: 6
   winDelay: 1
   loseDistance: 7
