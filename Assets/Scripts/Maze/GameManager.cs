@@ -59,6 +59,7 @@ public class GameManager : MonoBehaviour
 	private float originalTimeScale;
 	private float noEscapeEnteredAt = -999f;
 	private float gameStartTime;
+	public bool IsGameEnded => gameEnded;
 
 	void Start()
 	{

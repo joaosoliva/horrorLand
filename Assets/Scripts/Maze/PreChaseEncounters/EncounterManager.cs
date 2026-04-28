@@ -10,10 +10,12 @@ public class EncounterManager : MonoBehaviour
     [SerializeField] private ChaseSystem chaseSystem;
     [SerializeField] private JumpscareSystem jumpscareSystem;
     [SerializeField] private MazeContextQuery mazeContextQuery;
+    [SerializeField] private GameManager gameManager;
     [SerializeField] private List<EncounterBase> encounters = new List<EncounterBase>();
 
     [Header("Global Rules")]
     [SerializeField] private bool preChaseEnabled = true;
+    [SerializeField] private bool requireGameActive = true;
     [SerializeField] private float globalCooldown = 10f;
     [SerializeField] private int encountersBeforeChase = 2;
     [SerializeField] private float initialEncounterGracePeriod = 12f;
@@ -72,6 +74,12 @@ public class EncounterManager : MonoBehaviour
     {
         if (!preChaseEnabled || villain == null || player == null || state == VillainAI.AIState.Chasing)
         {
+            return false;
+        }
+
+        if (requireGameActive && gameManager != null && gameManager.IsGameEnded)
+        {
+            SetRejected("game already ended");
             return false;
         }
 
@@ -170,6 +178,12 @@ public class EncounterManager : MonoBehaviour
         if (lastContext.IsInitialRoom)
         {
             reason = "player in initial room";
+            return false;
+        }
+
+        if (!villain.enabled)
+        {
+            reason = "villain disabled";
             return false;
         }
 
@@ -364,9 +378,10 @@ public class EncounterManager : MonoBehaviour
 
         string active = activeEncounter != null ? activeEncounter.EncounterId : "None";
         string pendingBack = pendingBackEncounter != null ? "Yes" : "No";
+        string gameActive = gameManager == null ? "Unknown" : (!gameManager.IsGameEnded).ToString();
         float graceRemaining = Mathf.Max(0f, initialEncounterGracePeriod - (Time.time - runtimeStartedAt));
         string contextCell = lastContext.IsValid ? lastContext.CurrentCell.ToString() : "Invalid";
-        string overlay = $"EncounterMgr\\nCell: {contextCell}\\nInitialRoom: {lastContext.IsInitialRoom}\\nSafeZone: {lastContext.IsSafeZone}\\nGraceRemaining: {graceRemaining:F1}s\\nHallAheadCells: {lastContext.StraightCellsAhead}\\nCornerAhead: {lastContext.IsCornerAhead}\\nPendingBack: {pendingBack}\\nActive: {active}\\nLastRejected: {lastRejectedReason}";
+        string overlay = $"EncounterMgr\\nCell: {contextCell}\\nInitialRoom: {lastContext.IsInitialRoom}\\nSafeZone: {lastContext.IsSafeZone}\\nGameActive: {gameActive}\\nGraceRemaining: {graceRemaining:F1}s\\nHallAheadCells: {lastContext.StraightCellsAhead}\\nCornerAhead: {lastContext.IsCornerAhead}\\nPendingBack: {pendingBack}\\nActive: {active}\\nLastRejected: {lastRejectedReason}";
         GUI.Label(new Rect(24f, 24f, 520f, 220f), overlay);
     }
 
