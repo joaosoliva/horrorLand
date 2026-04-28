@@ -35,6 +35,7 @@ public class DoorTrigger : MonoBehaviour
 
 	public bool IsOpen => isOpen;
 	public bool IsLocked => isLocked;
+	public bool HasPlayerExitedRoom => playerHasExitedRoom;
 
 	void Start()
 	{

@@ -16,11 +16,13 @@ public class GameManager : MonoBehaviour
 	public RunGameState runGameState;
 	public EndingSystem endingSystem;
 	public EndingProgressRecorder endingProgressRecorder;
-    
+	public MazeContextQuery mazeContextQuery;
+	public EncounterManager preChaseEncounterManager;
+
 	[Header("Win Settings")]
 	public int notesRequiredToWin = 6;
 	public float winDelay = 2f;
-    
+
 	[Header("Lose Settings")]
 	public float loseDistance = 2f;
 	public float loseDelay = 1f;
@@ -30,40 +32,45 @@ public class GameManager : MonoBehaviour
 	public float caughtAnticipationDelay = 0f;
 	public float caughtCameraShakeDuration = 0.28f;
 	public float caughtCameraShakeAmount = 0.14f;
-    
+	public float captureGracePeriod = 12f;
+	public bool blockCaptureInInitialRoom = true;
+	public bool enableCaptureDebugLogs = false;
+
 	[Header("UI References")]
 	public Canvas gameOverCanvas;
 	public TextMeshProUGUI gameOverText;
 	public TextMeshProUGUI resultText;
 	public TextMeshProUGUI restartHintText;
 	public TextMeshProUGUI notesProgressText;
-    
+
 	[Header("Game Over Visuals")]
 	public Image backgroundOverlay;
 	public Color winBackgroundColor = new Color(0f, 0.5f, 0f, 0.8f);
 	public Color loseBackgroundColor = new Color(0.5f, 0f, 0f, 0.8f);
 	public AudioClip winSound;
 	public AudioClip loseSound;
-    
+
 	[Header("Pause Settings")]
 	public bool pauseOnGameOver = true;
-    
+
 	private bool gameEnded = false;
 	private bool exitDoorActivated = false;
 	private AudioSource audioSource;
 	private CanvasGroup canvasGroup;
 	private float originalTimeScale;
 	private float noEscapeEnteredAt = -999f;
+	private float gameStartTime;
+	public bool IsGameEnded => gameEnded;
 
 	void Start()
 	{
 		// Set up references
 		if (noteSystem == null)
 			noteSystem = FindObjectOfType<NoteSystem>();
-            
+
 		if (villainAI == null)
 			villainAI = FindObjectOfType<VillainAI>();
-			
+
 		if (mazeGenerator == null)
 			mazeGenerator = FindObjectOfType<MazeGenerator>();
 		if (jumpscareSystem == null)
@@ -74,29 +81,35 @@ public class GameManager : MonoBehaviour
 
 		if (endingSystem == null)
 			endingSystem = FindObjectOfType<EndingSystem>();
-            
+
+		if (mazeContextQuery == null)
+			mazeContextQuery = FindObjectOfType<MazeContextQuery>();
+		if (preChaseEncounterManager == null)
+			preChaseEncounterManager = FindObjectOfType<EncounterManager>();
+
 		if (player == null)
 		{
 			GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
 			if (playerObj != null)
 				player = playerObj.transform;
 		}
-        
+
 		// Set up audio
 		audioSource = GetComponent<AudioSource>();
 		if (audioSource == null)
 			audioSource = gameObject.AddComponent<AudioSource>();
-        
+
 		// Keep global requirement aligned with NoteSystem hybrid progression.
 		if (noteSystem != null)
 			notesRequiredToWin = noteSystem.GetRequiredNotesToFinish();
 
 		// Initialize UI
 		InitializeUI();
-        
+
 		// Store original time scale
 		originalTimeScale = Time.timeScale;
-        
+		gameStartTime = Time.time;
+
 		Debug.Log("Game Manager initialized");
 	}
 
@@ -108,11 +121,11 @@ public class GameManager : MonoBehaviour
 			canvasGroup = gameOverCanvas.GetComponent<CanvasGroup>();
 			if (canvasGroup == null)
 				canvasGroup = gameOverCanvas.gameObject.AddComponent<CanvasGroup>();
-            
+
 			canvasGroup.alpha = 0f;
 			gameOverCanvas.gameObject.SetActive(false);
 		}
-        
+
 		// Update progress text
 		UpdateProgressText();
 	}
@@ -128,13 +141,13 @@ public class GameManager : MonoBehaviour
 			}
 			return;
 		}
-        
+
 		// Check win conditions
 		CheckWinConditions();
-        
+
 		// Check lose condition
 		CheckLoseCondition();
-        
+
 		// Update progress UI
 		if (Time.frameCount % 30 == 0) // Update every 30 frames for performance
 			UpdateProgressText();
@@ -143,7 +156,7 @@ public class GameManager : MonoBehaviour
 	void CheckWinConditions()
 	{
 		if (noteSystem == null || mazeGenerator == null) return;
-        
+
 		// Win Condition 1: Collect required notes
 		int collectedNotes = noteSystem.GetCollectedNotesCount();
 		if (collectedNotes >= notesRequiredToWin)
@@ -151,7 +164,7 @@ public class GameManager : MonoBehaviour
 			WinGame(ResolveEndingMessage("[FINAL #02] Agora tudo faz sentido."));
 			return;
 		}
-        
+
 		// Win Condition 2: Interact with the maze exit door
 		if (exitDoorActivated)
 		{
@@ -171,7 +184,47 @@ public class GameManager : MonoBehaviour
 	{
 		if (villainAI == null || player == null) return;
 		if (SafeSpaceZone.IsPlayerProtectedGlobal(player)) return;
-        
+		if (Time.time - gameStartTime < captureGracePeriod)
+		{
+			if (enableCaptureDebugLogs)
+			{
+				Debug.Log($"GameOver blocked: initial grace period active ({captureGracePeriod - (Time.time - gameStartTime):F1}s remaining).");
+			}
+			return;
+		}
+		if (blockCaptureInInitialRoom && mazeContextQuery != null && mazeContextQuery.IsInitialRoom(player.position))
+		{
+			if (enableCaptureDebugLogs)
+			{
+				Debug.Log("GameOver blocked: monster catch invalid in initial room.");
+			}
+			return;
+		}
+		if (mazeContextQuery != null && !mazeContextQuery.CanTriggerEncounter(player, Time.time - gameStartTime, captureGracePeriod, out string encounterGateReason))
+		{
+			if (enableCaptureDebugLogs)
+			{
+				Debug.Log("GameOver blocked: " + encounterGateReason + ".");
+			}
+			return;
+		}
+		if (preChaseEncounterManager != null && preChaseEncounterManager.IsBackEncounterPending)
+		{
+			if (enableCaptureDebugLogs)
+			{
+				Debug.Log("GameOver blocked: behind-back encounter is pending.");
+			}
+			return;
+		}
+		if (preChaseEncounterManager != null && preChaseEncounterManager.IsBackEncounterCatchGraceActive(Time.time))
+		{
+			if (enableCaptureDebugLogs)
+			{
+				Debug.Log("GameOver blocked: behind-back reveal grace active.");
+			}
+			return;
+		}
+
 		float distanceToVillain = Vector3.Distance(player.position, villainAI.transform.position);
 		bool inNoEscapeDistance = distanceToVillain <= pointOfNoEscapeDistance && villainAI.IsChasing;
 		if (inNoEscapeDistance)
@@ -190,7 +243,7 @@ public class GameManager : MonoBehaviour
 		{
 			noEscapeEnteredAt = -999f;
 		}
-        
+
 		// Lose Condition: Close distance AND villain can see player (line of sight)
 		if (distanceToVillain <= loseDistance && VillainCanSeePlayer())
 		{
@@ -201,7 +254,7 @@ public class GameManager : MonoBehaviour
 	bool VillainCanSeePlayer()
 	{
 		if (villainAI == null || player == null) return false;
-		
+
 		// Use the villain's existing line of sight check
 		return villainAI.CanSeePlayer();
 	}
@@ -229,10 +282,10 @@ public class GameManager : MonoBehaviour
 	void WinGame(string message)
 	{
 		if (gameEnded) return;
-        
+
 		gameEnded = true;
 		Debug.Log("YOU WIN! " + message);
-        
+
 		StartCoroutine(WinGameRoutine(message));
 	}
 
@@ -240,11 +293,11 @@ public class GameManager : MonoBehaviour
 	{
 		// Wait a moment before showing win screen (use unscaled time)
 		yield return new WaitForSecondsRealtime(winDelay);
-        
+
 		// Play win sound
 		if (winSound != null && audioSource != null)
 			audioSource.PlayOneShot(winSound);
-        
+
 		// Show win screen
 		ShowGameOverScreen("VITÓRIA", message, true);
 	}
@@ -252,10 +305,10 @@ public class GameManager : MonoBehaviour
 	void LoseGame()
 	{
 		if (gameEnded) return;
-        
+
 		gameEnded = true;
 		Debug.Log("VOCÊ PERDEU!");
-        
+
 		StartCoroutine(LoseGameRoutine());
 	}
 
@@ -265,11 +318,11 @@ public class GameManager : MonoBehaviour
 
 		// Wait a moment before showing lose screen (use unscaled time)
 		yield return new WaitForSecondsRealtime(loseDelay);
-        
+
 		// Play lose sound
 		if (loseSound != null && audioSource != null)
 			audioSource.PlayOneShot(loseSound);
-        
+
 		// Show lose screen
 		ShowGameOverScreen("GAME OVER", "Você foi pego pelo vilão", false);
 	}
@@ -322,38 +375,38 @@ public class GameManager : MonoBehaviour
 		{
 			Time.timeScale = 0f;
 		}
-        
+
 		// Show cursor
 		Cursor.lockState = CursorLockMode.None;
 		Cursor.visible = true;
-        
+
 		// Set up UI
 		if (gameOverCanvas != null)
 		{
 			gameOverCanvas.gameObject.SetActive(true);
-            
+
 			// Set texts
 			if (gameOverText != null)
 				gameOverText.text = title;
-                
+
 			if (resultText != null)
 				resultText.text = message;
-			
+
 			// Set restart hint text
 			if (restartHintText != null)
 				restartHintText.text = "Pressione ESPAÇO para reiniciar";
-            
+
 			// Set background color
 			if (backgroundOverlay != null)
 				backgroundOverlay.color = isWin ? winBackgroundColor : loseBackgroundColor;
-            
+
 			// Start fade in (using unscaled time)
 			StartCoroutine(FadeInCanvas());
 		}
-        
+
 		// Disable player controls if needed
 		DisablePlayerControls();
-        
+
 		// Stop villain AI
 		if (villainAI != null)
 			villainAI.enabled = false;
@@ -362,10 +415,10 @@ public class GameManager : MonoBehaviour
 	IEnumerator FadeInCanvas()
 	{
 		if (canvasGroup == null) yield break;
-        
+
 		float fadeTime = 1f;
 		float elapsed = 0f;
-        
+
 		while (elapsed < fadeTime)
 		{
 			// Use unscaled delta time so the fade works even when game is paused
@@ -373,7 +426,7 @@ public class GameManager : MonoBehaviour
 			elapsed += Time.unscaledDeltaTime;
 			yield return null;
 		}
-        
+
 		canvasGroup.alpha = 1f;
 	}
 
@@ -388,7 +441,7 @@ public class GameManager : MonoBehaviour
 				component.enabled = false;
 			}
 		}
-        
+
 		// Disable character controller if exists
 		CharacterController characterController = player.GetComponent<CharacterController>();
 		if (characterController != null)
@@ -405,23 +458,23 @@ public class GameManager : MonoBehaviour
 	}
 
 	// ========== GAME FLOW METHODS ==========
-    
+
 	void RestartGame()
 	{
 		Debug.Log("Restarting game...");
-        
+
 		// Resume time scale first
 		Time.timeScale = originalTimeScale;
-        
+
 		// Reload the current scene for a proper restart
 		string currentSceneName = SceneManager.GetActiveScene().name;
 		SceneManager.LoadScene(currentSceneName);
 	}
-    
+
 	void QuitGame()
 	{
 		Debug.Log("Quitting game...");
-        
+
         #if UNITY_EDITOR
 		UnityEditor.EditorApplication.isPlaying = false;
         #else
@@ -430,22 +483,17 @@ public class GameManager : MonoBehaviour
 	}
 
 	// ========== PUBLIC METHODS ==========
-    
-	public bool IsGameEnded()
-	{
-		return gameEnded;
-	}
-    
+
 	public void ForceWin()
 	{
 		WinGame("Developer forced win!");
 	}
-    
+
 	public void ForceLose()
 	{
 		LoseGame();
 	}
-    
+
 	public void SetNotesRequired(int notes)
 	{
 		notesRequiredToWin = notes;
@@ -453,14 +501,14 @@ public class GameManager : MonoBehaviour
 	}
 
 	// ========== DEBUG METHODS ==========
-    
+
 	[ContextMenu("Test Win")]
 	public void TestWin()
 	{
 		if (!gameEnded)
 			WinGame("Test win triggered!");
 	}
-    
+
 	[ContextMenu("Test Lose")]
 	public void TestLose()
 	{
@@ -476,7 +524,7 @@ public class GameManager : MonoBehaviour
 			Gizmos.color = Color.red;
 			Gizmos.DrawWireSphere(villainAI.transform.position, loseDistance);
 		}
-		
+
 		// Draw exit position if maze generator exists
 		if (mazeGenerator != null && enableDebugGizmos)
 		{
@@ -486,7 +534,7 @@ public class GameManager : MonoBehaviour
 			Gizmos.DrawIcon(exitPos + Vector3.up * 2f, "ExitIcon.png", true);
 		}
 	}
-    
+
 	[Header("Debug")]
 	public bool enableDebugGizmos = true;
 }

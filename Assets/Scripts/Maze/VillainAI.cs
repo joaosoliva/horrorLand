@@ -9,6 +9,7 @@ public class VillainAI : MonoBehaviour
 	public MazeGenerator mazeGenerator;
 	public ChaseSystem chaseSystem;
 	public flashlight playerFlashlight;
+	public EncounterManager preChaseEncounterManager;
 
 	public enum AIState
 	{
@@ -178,6 +179,7 @@ public class VillainAI : MonoBehaviour
 	private float motionNoiseSeed;
 	private bool panicSprintActive = false;
 	private float panicSprintStartedAt = -999f;
+	private int externalControlLocks = 0;
 
 	public bool IsInPointOfNoEscape { get; private set; }
 	public float CurrentAggressionLevel { get; private set; }
@@ -436,6 +438,11 @@ public class VillainAI : MonoBehaviour
 			currentAwarenessBoost = 0f;
 		}
 
+		if (IsExternallyControlled)
+		{
+			return;
+		}
+
 		HandleMovement();
 	}
 
@@ -455,6 +462,12 @@ public class VillainAI : MonoBehaviour
 				if (playerObj != null)
 					player = playerObj.transform;
 				yield return new WaitForSeconds(1f);
+				continue;
+			}
+
+			if (IsExternallyControlled)
+			{
+				yield return new WaitForSeconds(0.05f);
 				continue;
 			}
 
@@ -776,6 +789,10 @@ public class VillainAI : MonoBehaviour
 	{
 		bool canSeePlayer = CanSeePlayer();
 		bool playerCanSeeVillain = CanPlayerSeeVillain();
+		if (preChaseEncounterManager != null && preChaseEncounterManager.TryHandlePreChaseTick(currentState, distanceToPlayer, canSeePlayer, playerCanSeeVillain))
+		{
+			return;
+		}
 		UpdateFirstEncounterSighting(playerCanSeeVillain, distanceToPlayer);
 
 		HandleAmbientReveal(playerCanSeeVillain, canSeePlayer, distanceToPlayer);
@@ -860,6 +877,10 @@ public class VillainAI : MonoBehaviour
 	{
 		bool canSeePlayer = CanSeePlayer();
 		bool playerCanSeeVillain = CanPlayerSeeVillain();
+		if (preChaseEncounterManager != null && preChaseEncounterManager.TryHandlePreChaseTick(currentState, distanceToPlayer, canSeePlayer, playerCanSeeVillain))
+		{
+			return;
+		}
 		UpdateFirstEncounterSighting(playerCanSeeVillain, distanceToPlayer);
 		HandleAmbientReveal(playerCanSeeVillain, canSeePlayer, distanceToPlayer);
 
@@ -1453,10 +1474,18 @@ public class VillainAI : MonoBehaviour
 
 		if (previousState != AIState.Chasing && newState == AIState.Chasing)
 		{
+			if (preChaseEncounterManager != null)
+			{
+				preChaseEncounterManager.SetPreChaseEnabled(false);
+			}
 			HorrorEvents.RaiseChaseStarted();
 		}
 		else if (previousState == AIState.Chasing && newState != AIState.Chasing)
 		{
+			if (preChaseEncounterManager != null)
+			{
+				preChaseEncounterManager.SetPreChaseEnabled(true);
+			}
 			HorrorEvents.RaiseChaseEnded();
 		}
 
@@ -1541,6 +1570,54 @@ public class VillainAI : MonoBehaviour
 		}
 
 		return HasLineOfSight(player.position, transform.position, transform);
+	}
+
+	public bool IsVillainVisibleToPlayer()
+	{
+		return CanPlayerSeeVillain();
+	}
+
+	public bool HasLineOfSightBetween(Vector3 from, Vector3 to)
+	{
+		return HasLineOfSight(from, to);
+	}
+
+	public bool HasLineOfSightToTransform(Vector3 from, Vector3 to, Transform target)
+	{
+		return HasLineOfSight(from, to, target);
+	}
+
+	public void TeleportToPosition(Vector3 worldPosition, bool facePlayer)
+	{
+		transform.position = new Vector3(worldPosition.x, 0f, worldPosition.z);
+		if (facePlayer && player != null)
+		{
+			Vector3 forward = player.position - transform.position;
+			forward.y = 0f;
+			if (forward.sqrMagnitude > 0.001f)
+			{
+				transform.rotation = Quaternion.LookRotation(forward.normalized);
+			}
+		}
+		currentPath.Clear();
+		currentPathIndex = 0;
+	}
+
+	public void PushExternalControl()
+	{
+		externalControlLocks++;
+	}
+
+	public void PopExternalControl()
+	{
+		externalControlLocks = Mathf.Max(0, externalControlLocks - 1);
+	}
+
+	public bool IsExternallyControlled => externalControlLocks > 0;
+
+	public void ForceDisappearFromPlayer(string reason)
+	{
+		TryRetreatToHiddenPosition(reason);
 	}
 
 	void TryRetreatToHiddenPosition(string reason)
