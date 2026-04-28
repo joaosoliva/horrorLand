@@ -464,12 +464,7 @@ public class GameManager : MonoBehaviour
 	}
 
 	// ========== PUBLIC METHODS ==========
-    
-	public bool IsGameEnded()
-	{
-		return gameEnded;
-	}
-    
+
 	public void ForceWin()
 	{
 		WinGame("Developer forced win!");
