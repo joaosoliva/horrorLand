@@ -5,12 +5,27 @@ public class MazeContextQuery : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private MazeGenerator mazeGenerator;
+    [SerializeField] private Collider initialRoomVolume;
+    [SerializeField] private Transform initialRoomRoot;
 
     [Header("Sampling")]
     [SerializeField] private int forwardProbeCells = 10;
     [SerializeField] private int longHallMinCells = 6;
     [SerializeField] private int cornerLookAheadCells = 2;
     [SerializeField] private bool debugLogs;
+
+    private bool hasInitialRoomBounds;
+    private Bounds initialRoomBounds;
+
+    void Awake()
+    {
+        CacheInitialRoomBounds();
+    }
+
+    void OnValidate()
+    {
+        CacheInitialRoomBounds();
+    }
 
     public bool TryBuildContext(Transform player, out MazeContextSnapshot snapshot)
     {
@@ -191,25 +206,17 @@ public class MazeContextQuery : MonoBehaviour
 
     public bool IsInitialRoom(Vector3 playerPosition)
     {
-        GameObject startRoom = GameObject.Find("StartRoom");
-        if (startRoom == null)
+        if (initialRoomVolume != null)
+        {
+            return initialRoomVolume.bounds.Contains(playerPosition);
+        }
+
+        if (!hasInitialRoomBounds)
         {
             return false;
         }
 
-        Bounds bounds = new Bounds(startRoom.transform.position, Vector3.zero);
-        Renderer[] renderers = startRoom.GetComponentsInChildren<Renderer>();
-        if (renderers.Length == 0)
-        {
-            return false;
-        }
-
-        for (int i = 0; i < renderers.Length; i++)
-        {
-            bounds.Encapsulate(renderers[i].bounds);
-        }
-
-        return bounds.Contains(playerPosition);
+        return initialRoomBounds.Contains(playerPosition);
     }
 
     public bool CanTriggerEncounter(Transform player, float runtime, float gracePeriod, out string reason)
@@ -323,6 +330,28 @@ public class MazeContextQuery : MonoBehaviour
         }
 
         return planar.z >= 0f ? Vector2Int.up : Vector2Int.down;
+    }
+
+    private void CacheInitialRoomBounds()
+    {
+        hasInitialRoomBounds = false;
+        if (initialRoomRoot == null)
+        {
+            return;
+        }
+
+        Renderer[] renderers = initialRoomRoot.GetComponentsInChildren<Renderer>();
+        if (renderers == null || renderers.Length == 0)
+        {
+            return;
+        }
+
+        initialRoomBounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+        {
+            initialRoomBounds.Encapsulate(renderers[i].bounds);
+        }
+        hasInitialRoomBounds = true;
     }
 }
 

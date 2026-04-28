@@ -24,6 +24,7 @@ public class EncounterManager : MonoBehaviour
     [SerializeField] private float backEncounterTurnAngleThreshold = 140f;
     [SerializeField] private float backEncounterMaxPendingTime = 10f;
     [SerializeField] private float backEncounterMinDelay = 0.75f;
+    [SerializeField] private bool drawDebugOverlay;
 
     private float nextAllowedEncounterTime = -999f;
     private float runtimeStartedAt;
@@ -33,6 +34,7 @@ public class EncounterManager : MonoBehaviour
     private int completedEncounterCount;
     private float playerVisibleSince = -1f;
     private MazeContextSnapshot lastContext = MazeContextSnapshot.Invalid;
+    private string lastRejectedReason = "None";
 
     private BehindBackEncounter pendingBackEncounter;
     private Vector3 pendingBackInitialForward;
@@ -42,6 +44,7 @@ public class EncounterManager : MonoBehaviour
     public Transform Player => player;
     public JumpscareSystem JumpscareSystem => jumpscareSystem;
     public MazeContextSnapshot CurrentContext => lastContext;
+    public string LastRejectedReason => lastRejectedReason;
 
     void Awake()
     {
@@ -76,13 +79,13 @@ public class EncounterManager : MonoBehaviour
         if (!hasContext)
         {
             lastContext = MazeContextSnapshot.Invalid;
-            LogDebug("Encounter blocked: maze context unavailable.");
+            SetRejected("maze context unavailable");
             return false;
         }
 
         if (!IsGloballyEligible(out string blockReason))
         {
-            LogDebug($"Encounter blocked: {blockReason}.");
+            SetRejected(blockReason);
             CancelPendingBackEncounter(blockReason);
             return false;
         }
@@ -122,6 +125,7 @@ public class EncounterManager : MonoBehaviour
 
         if (Time.time < nextAllowedEncounterTime)
         {
+            SetRejected($"global cooldown {(nextAllowedEncounterTime - Time.time):F1}s");
             return false;
         }
 
@@ -178,6 +182,7 @@ public class EncounterManager : MonoBehaviour
         if (selected == null)
         {
             LogDebug("Encounter selection yielded no valid candidates.");
+            SetRejected("no valid encounter candidates");
             return false;
         }
 
@@ -188,6 +193,7 @@ public class EncounterManager : MonoBehaviour
         }
 
         runningEncounter = StartCoroutine(RunEncounterRoutine(selected, context));
+        lastRejectedReason = "None";
         return true;
     }
 
@@ -287,6 +293,7 @@ public class EncounterManager : MonoBehaviour
         pendingBackInitialForward.y = 0f;
         pendingBackInitialForward.Normalize();
         LogDebug("BackEncounter pending: waiting for player turn.");
+        lastRejectedReason = "BackEncounter pending";
     }
 
     private void CancelPendingBackEncounter(string reason)
@@ -334,5 +341,26 @@ public class EncounterManager : MonoBehaviour
         {
             Debug.Log($"[EncounterManager] {message}");
         }
+    }
+
+    private void SetRejected(string reason)
+    {
+        lastRejectedReason = reason;
+        LogDebug($"Encounter blocked: {reason}.");
+    }
+
+    void OnGUI()
+    {
+        if (!drawDebugOverlay)
+        {
+            return;
+        }
+
+        string active = activeEncounter != null ? activeEncounter.EncounterId : "None";
+        string pendingBack = pendingBackEncounter != null ? "Yes" : "No";
+        float graceRemaining = Mathf.Max(0f, initialEncounterGracePeriod - (Time.time - runtimeStartedAt));
+        string contextCell = lastContext.IsValid ? lastContext.CurrentCell.ToString() : "Invalid";
+        string overlay = $"EncounterMgr\\nCell: {contextCell}\\nInitialRoom: {lastContext.IsInitialRoom}\\nSafeZone: {lastContext.IsSafeZone}\\nGraceRemaining: {graceRemaining:F1}s\\nHallAheadCells: {lastContext.StraightCellsAhead}\\nCornerAhead: {lastContext.IsCornerAhead}\\nPendingBack: {pendingBack}\\nActive: {active}\\nLastRejected: {lastRejectedReason}";
+        GUI.Label(new Rect(24f, 24f, 520f, 220f), overlay);
     }
 }

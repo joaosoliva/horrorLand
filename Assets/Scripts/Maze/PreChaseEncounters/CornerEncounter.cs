@@ -27,7 +27,8 @@ public class CornerEncounter : EncounterBase
         }
 
         string dir = context.MazeContext.CornerTurnDirection == Vector2Int.right ? "right" : "left";
-        Log($"Corner accepted: {dir} turn detected {Mathf.Max(1, context.MazeContext.CornerCell == context.MazeContext.CurrentCell ? 0 : 1)} cells ahead.");
+        int cellsAhead = Mathf.Abs(context.MazeContext.CornerCell.x - context.MazeContext.CurrentCell.x) + Mathf.Abs(context.MazeContext.CornerCell.y - context.MazeContext.CurrentCell.y);
+        Log($"Corner accepted: {dir} turn detected {Mathf.Max(1, cellsAhead)} cells ahead.");
         return true;
     }
 
