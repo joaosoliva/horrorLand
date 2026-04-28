@@ -41,6 +41,7 @@ public class EncounterManager : MonoBehaviour
     private BehindBackEncounter pendingBackEncounter;
     private Vector3 pendingBackInitialForward;
     private float pendingBackStartedAt;
+    private string lastCandidateSummary = "None";
 
     public VillainAI Villain => villain;
     public Transform Player => player;
@@ -227,6 +228,7 @@ public class EncounterManager : MonoBehaviour
 
         if (validCandidates.Count == 0)
         {
+            lastCandidateSummary = "None";
             return null;
         }
 
@@ -241,9 +243,11 @@ public class EncounterManager : MonoBehaviour
 
         if (nonRepeatedCandidates.Count > 0)
         {
+            lastCandidateSummary = BuildCandidateSummary(validCandidates, nonRepeatedCandidates);
             return nonRepeatedCandidates[Random.Range(0, nonRepeatedCandidates.Count)];
         }
 
+        lastCandidateSummary = BuildCandidateSummary(validCandidates, nonRepeatedCandidates);
         return urgent ? validCandidates[Random.Range(0, validCandidates.Count)] : null;
     }
 
@@ -381,8 +385,9 @@ public class EncounterManager : MonoBehaviour
         string gameActive = gameManager == null ? "Unknown" : (!gameManager.IsGameEnded).ToString();
         float graceRemaining = Mathf.Max(0f, initialEncounterGracePeriod - (Time.time - runtimeStartedAt));
         string contextCell = lastContext.IsValid ? lastContext.CurrentCell.ToString() : "Invalid";
-        string overlay = $"EncounterMgr\\nCell: {contextCell}\\nInitialRoom: {lastContext.IsInitialRoom}\\nSafeZone: {lastContext.IsSafeZone}\\nGameActive: {gameActive}\\nGraceRemaining: {graceRemaining:F1}s\\nHallAheadCells: {lastContext.StraightCellsAhead}\\nCornerAhead: {lastContext.IsCornerAhead}\\nPendingBack: {pendingBack}\\nActive: {active}\\nLastRejected: {lastRejectedReason}";
-        GUI.Label(new Rect(24f, 24f, 520f, 220f), overlay);
+        string cornerDir = lastContext.IsCornerAhead ? lastContext.CornerTurnDirection.ToString() : "None";
+        string overlay = $"EncounterMgr\\nCell: {contextCell}\\nInitialRoom: {lastContext.IsInitialRoom}\\nSafeZone: {lastContext.IsSafeZone}\\nGameActive: {gameActive}\\nGraceRemaining: {graceRemaining:F1}s\\nHallAheadCells: {lastContext.StraightCellsAhead}\\nCornerAhead: {lastContext.IsCornerAhead}\\nCornerDir: {cornerDir}\\nPendingBack: {pendingBack}\\nActive: {active}\\nCandidates: {lastCandidateSummary}\\nLastRejected: {lastRejectedReason}";
+        GUI.Label(new Rect(24f, 24f, 680f, 260f), overlay);
     }
 
     void OnDrawGizmosSelected()
@@ -400,5 +405,30 @@ public class EncounterManager : MonoBehaviour
             Gizmos.color = Color.cyan;
             Gizmos.DrawWireSphere(lastContext.SuggestedCornerRevealPoint + Vector3.up * 0.2f, 0.4f);
         }
+    }
+
+    private static string BuildCandidateSummary(List<EncounterBase> validCandidates, List<EncounterBase> nonRepeatedCandidates)
+    {
+        if (validCandidates == null || validCandidates.Count == 0)
+        {
+            return "None";
+        }
+
+        string all = string.Empty;
+        for (int i = 0; i < validCandidates.Count; i++)
+        {
+            all += validCandidates[i].EncounterId;
+            if (i < validCandidates.Count - 1)
+            {
+                all += ",";
+            }
+        }
+
+        if (nonRepeatedCandidates == null || nonRepeatedCandidates.Count == 0)
+        {
+            return all + " (repeat-only)";
+        }
+
+        return all;
     }
 }
