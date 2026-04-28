@@ -17,5 +17,7 @@ namespace HorrorLand.MenuSystem
         public const string MouseSensitivity = "Menu.MouseSensitivity";
         public const string InvertMouse = "Menu.InvertMouse";
         public const string MouseSmoothing = "Menu.MouseSmoothing";
+        public const string TutorialCompleted = "Menu.TutorialCompleted";
+        public const string ForceTutorialReplay = "Menu.ForceTutorialReplay";
     }
 }

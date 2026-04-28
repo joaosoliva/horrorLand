@@ -21,6 +21,8 @@ public class SC_FPSController : MonoBehaviour
 
     [HideInInspector]
     public bool canMove = true;
+    public bool allowSprinting = true;
+    public bool IsSprinting { get; private set; }
 
     private float currentLookSpeed;
     private float mouseYMultiplier;
@@ -38,7 +40,8 @@ public class SC_FPSController : MonoBehaviour
     {
         Vector3 forward = transform.TransformDirection(Vector3.forward);
         Vector3 right = transform.TransformDirection(Vector3.right);
-        bool isRunning = Input.GetKey(KeyCode.LeftShift);
+        bool isRunning = allowSprinting && Input.GetKey(KeyCode.LeftShift);
+        IsSprinting = isRunning && canMove && (Mathf.Abs(Input.GetAxis("Vertical")) > 0.01f || Mathf.Abs(Input.GetAxis("Horizontal")) > 0.01f);
         float curSpeedX = canMove ? (isRunning ? runningSpeed : walkingSpeed) * Input.GetAxis("Vertical") : 0;
         float curSpeedY = canMove ? (isRunning ? runningSpeed : walkingSpeed) * Input.GetAxis("Horizontal") : 0;
         float movementDirectionY = moveDirection.y;

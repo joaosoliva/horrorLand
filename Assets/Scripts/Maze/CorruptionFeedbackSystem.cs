@@ -80,6 +80,12 @@ public class CorruptionFeedbackSystem : MonoBehaviour
 		corruption01 = Mathf.Clamp01(normalizedCorruption);
 	}
 
+	public void TriggerTutorialCorruptionBurst(float normalizedCorruption = 0.75f)
+	{
+		corruption01 = Mathf.Max(corruption01, Mathf.Clamp01(normalizedCorruption));
+		burstUntilTime = Time.time + intenseBurstDuration;
+	}
+
 	void HandleCorruptionEventTriggered(string eventId, float normalizedCorruption)
 	{
 		if (eventId != intenseGlitchEventId)
@@ -87,7 +93,6 @@ public class CorruptionFeedbackSystem : MonoBehaviour
 			return;
 		}
 
-		corruption01 = Mathf.Max(corruption01, Mathf.Clamp01(normalizedCorruption));
-		burstUntilTime = Time.time + intenseBurstDuration;
+		TriggerTutorialCorruptionBurst(normalizedCorruption);
 	}
 }

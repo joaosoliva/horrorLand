@@ -6,16 +6,39 @@ namespace HorrorLand.MenuSystem
     public class MenuSceneLoader : MonoBehaviour
     {
         [SerializeField] private string gameplaySceneName = "SampleScene";
+        [SerializeField] private string introSceneName = "IntroScene";
 
         public void LoadConfiguredScene()
         {
-            if (string.IsNullOrWhiteSpace(gameplaySceneName))
+            bool tutorialCompleted = PlayerPrefs.GetInt(MenuPrefsKeys.TutorialCompleted, 0) == 1;
+            bool forcedReplay = PlayerPrefs.GetInt(MenuPrefsKeys.ForceTutorialReplay, 0) == 1;
+
+            string target = (tutorialCompleted && !forcedReplay) ? gameplaySceneName : introSceneName;
+            if (forcedReplay)
             {
-                Debug.LogWarning("Gameplay scene name is empty.");
+                PlayerPrefs.SetInt(MenuPrefsKeys.ForceTutorialReplay, 0);
+                PlayerPrefs.Save();
+            }
+
+            LoadSceneByName(target);
+        }
+
+        public void LoadTutorialReplay()
+        {
+            PlayerPrefs.SetInt(MenuPrefsKeys.ForceTutorialReplay, 1);
+            PlayerPrefs.Save();
+            LoadSceneByName(introSceneName);
+        }
+
+        private void LoadSceneByName(string sceneName)
+        {
+            if (string.IsNullOrWhiteSpace(sceneName))
+            {
+                Debug.LogWarning("Scene name is empty.");
                 return;
             }
 
-            SceneManager.LoadScene(gameplaySceneName);
+            SceneManager.LoadScene(sceneName);
         }
     }
 }

@@ -31,6 +31,8 @@ public class CorruptionSystem : MonoBehaviour
 	[Header("Event Table (rolls on corruption gain)")]
 	public List<CorruptionEventEntry> eventTable = new List<CorruptionEventEntry>();
 	public bool debugLogs = false;
+	[Range(0f, 1f)] public float highCorruptionThresholdNormalized = 0.65f;
+	private bool wasHighCorruption;
 
 	private readonly Dictionary<string, float> eventCooldownById = new Dictionary<string, float>();
 
@@ -123,7 +125,14 @@ public class CorruptionSystem : MonoBehaviour
 
 	void BroadcastCorruption()
 	{
-		HorrorEvents.RaiseCorruptionChanged(currentCorruption, NormalizedCorruption);
+		float normalized = NormalizedCorruption;
+		HorrorEvents.RaiseCorruptionChanged(currentCorruption, normalized);
+		bool isHigh = normalized >= highCorruptionThresholdNormalized;
+		if (isHigh && !wasHighCorruption)
+		{
+			HorrorEvents.RaiseCorruptionHigh();
+		}
+		wasHighCorruption = isHigh;
 	}
 
 	void RollEventTable()

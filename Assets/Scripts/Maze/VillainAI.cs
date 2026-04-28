@@ -213,11 +213,13 @@ public class VillainAI : MonoBehaviour
 	void OnEnable()
 	{
 		HorrorEvents.OnSoundboardPlayed += HandleSoundboardPlayed;
+		HorrorEvents.OnNoiseCreated += HandleNoiseCreated;
 	}
 
 	void OnDisable()
 	{
 		HorrorEvents.OnSoundboardPlayed -= HandleSoundboardPlayed;
+		HorrorEvents.OnNoiseCreated -= HandleNoiseCreated;
 	}
 
 	IEnumerator InitializeAI()
@@ -980,6 +982,30 @@ public class VillainAI : MonoBehaviour
 		}
 
 		return false;
+	}
+
+	void HandleNoiseCreated(float loudness, string sourceTag)
+	{
+		if (sourceTag != null && sourceTag.StartsWith("Soundboard:"))
+		{
+			return;
+		}
+
+		if (!isInitialized || player == null || IsChasing)
+		{
+			return;
+		}
+
+		float distanceToNoise = Vector3.Distance(transform.position, player.position);
+		float effectiveHearingRange = Mathf.Max(0.01f, hearingRange * Mathf.Lerp(0.5f, 1.1f, Mathf.Clamp01(loudness)));
+		if (distanceToNoise > effectiveHearingRange)
+		{
+			return;
+		}
+
+		lastKnownPlayerPosition = player.position;
+		lastDetectionTime = Time.time;
+		BeginSearch(lastKnownPlayerPosition, $"Investigating noise: {sourceTag}");
 	}
 
 	void HandleSoundboardPlayed(string soundTag, float loudness)

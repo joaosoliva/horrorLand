@@ -34,7 +34,7 @@ public class PlaySound : MonoBehaviour
 
 	private static readonly KeyCode[] DefaultKeys =
 	{
-		KeyCode.Alpha1,
+		KeyCode.Q,
 		KeyCode.Alpha2,
 		KeyCode.Alpha3,
 		KeyCode.Alpha4

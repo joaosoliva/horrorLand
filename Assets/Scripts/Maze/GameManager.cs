@@ -60,6 +60,7 @@ public class GameManager : MonoBehaviour
 	private float originalTimeScale;
 	private float noEscapeEnteredAt = -999f;
 	private float gameStartTime;
+	private RuntimeStatsTracker telemetry;
 	public bool IsGameEnded => gameEnded;
 
 	void Start()
@@ -78,6 +79,9 @@ public class GameManager : MonoBehaviour
 
 		if (runGameState == null)
 			runGameState = FindObjectOfType<RunGameState>();
+
+		if (telemetry == null)
+			telemetry = FindObjectOfType<RuntimeStatsTracker>();
 
 		if (endingSystem == null)
 			endingSystem = FindObjectOfType<EndingSystem>();
@@ -308,6 +312,8 @@ public class GameManager : MonoBehaviour
 
 		gameEnded = true;
 		Debug.Log("VOCÊ PERDEU!");
+		string deathCause = ResolveDeathCause();
+		HorrorEvents.RaisePlayerDeath(deathCause);
 
 		StartCoroutine(LoseGameRoutine());
 	}
@@ -324,7 +330,41 @@ public class GameManager : MonoBehaviour
 			audioSource.PlayOneShot(loseSound);
 
 		// Show lose screen
-		ShowGameOverScreen("GAME OVER", "Você foi pego pelo vilão", false);
+		string tip = BuildDeathTip();
+		ShowGameOverScreen("GAME OVER", tip, false);
+	}
+
+
+	string ResolveDeathCause()
+	{
+		SanitySystem sanity = FindObjectOfType<SanitySystem>();
+		CorruptionSystem corruption = FindObjectOfType<CorruptionSystem>();
+		if (sanity != null && sanity.NormalizedSanity <= 0.2f)
+		{
+			return "LowSanity";
+		}
+		if (corruption != null && corruption.NormalizedCorruption >= 0.7f)
+		{
+			return "HighCorruption";
+		}
+		if (telemetry != null && telemetry.LongestSprintDuration >= 2.5f)
+		{
+			return "SprintNoise";
+		}
+		return "Captured";
+	}
+
+	string BuildDeathTip()
+	{
+		SanitySystem sanity = FindObjectOfType<SanitySystem>();
+		CorruptionSystem corruption = FindObjectOfType<CorruptionSystem>();
+		float sanityNorm = sanity != null ? sanity.NormalizedSanity : 1f;
+		float corruptionNorm = corruption != null ? corruption.NormalizedCorruption : 0f;
+		if (telemetry != null)
+		{
+			return telemetry.BuildDeathTip(sanityNorm, corruptionNorm);
+		}
+		return "Use sound and light together to survive.";
 	}
 
 	IEnumerator PlayCaughtSequence()

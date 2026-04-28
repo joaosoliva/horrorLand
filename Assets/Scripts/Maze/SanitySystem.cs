@@ -44,6 +44,8 @@ public class SanitySystem : MonoBehaviour
 	private bool chaseActive;
 	private EnemyDistanceBand currentBand = EnemyDistanceBand.Far;
 	private EnemyDistanceBand previousBand = EnemyDistanceBand.Far;
+	private bool wasLowSanity;
+	private bool wasCriticalSanity;
 
 	void Start()
 	{
@@ -202,6 +204,21 @@ public class SanitySystem : MonoBehaviour
 
 	void BroadcastSanity()
 	{
-		HorrorEvents.RaiseSanityChanged(currentSanity, NormalizedSanity, Stress01);
+		float normalized = NormalizedSanity;
+		HorrorEvents.RaiseSanityChanged(currentSanity, normalized, Stress01);
+
+		bool isLow = normalized <= lowSanityThresholdNormalized;
+		bool isCritical = normalized <= criticalSanityThresholdNormalized;
+		if (isLow && !wasLowSanity)
+		{
+			HorrorEvents.RaiseSanityLow();
+		}
+		if (isCritical && !wasCriticalSanity)
+		{
+			HorrorEvents.RaiseSanityCritical();
+		}
+
+		wasLowSanity = isLow;
+		wasCriticalSanity = isCritical;
 	}
 }

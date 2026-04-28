@@ -6,16 +6,20 @@ public class MazeExitDoor : MonoBehaviour
 	[Header("Interaction")]
 	public KeyCode interactKey = KeyCode.E;
 	public string interactionText = "Press E to escape";
+	public string blockedBySanityText = "You cannot focus. Restore sanity.";
+	public float minimumSanityNormalizedToExit = 0.5f;
 	public Vector3 textOffset = new Vector3(0f, 2f, -0.8f);
 
 	private bool playerInRange;
 	private GameManager gameManager;
+	private SanitySystem sanitySystem;
 	private TextMeshPro interactionTextMesh;
 	private GameObject interactionTextObject;
 
 	void Start()
 	{
 		gameManager = FindObjectOfType<GameManager>();
+		sanitySystem = FindObjectOfType<SanitySystem>();
 		CreateInteractionText();
 	}
 
@@ -28,7 +32,15 @@ public class MazeExitDoor : MonoBehaviour
 
 		if (Input.GetKeyDown(interactKey))
 		{
+			if (sanitySystem != null && sanitySystem.NormalizedSanity < minimumSanityNormalizedToExit)
+			{
+				HorrorEvents.RaiseExitInteractionFailed(blockedBySanityText);
+				GameplayHintController.PushGlobalHint(blockedBySanityText, 2.5f, HintPriority.High);
+				return;
+			}
+
 			gameManager.ActivateExitDoor();
+			HorrorEvents.RaiseExitUnlocked();
 			HideInteractionText();
 		}
 	}

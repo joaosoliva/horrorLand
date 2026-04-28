@@ -12,6 +12,7 @@ namespace HorrorLand.MenuSystem
         [SerializeField] private Button startGameButton;
         [SerializeField] private Button unlocksButton;
         [SerializeField] private Button optionsButton;
+        [SerializeField] private Button recoveredTapeButton;
 
         [Header("Dependencies")]
         [SerializeField] private MenuSceneLoader sceneLoader;
@@ -24,6 +25,7 @@ namespace HorrorLand.MenuSystem
             startGameButton.onClick.AddListener(HandleStartGameClicked);
             unlocksButton.onClick.AddListener(HandleUnlocksClicked);
             optionsButton.onClick.AddListener(HandleOptionsClicked);
+            recoveredTapeButton?.onClick.AddListener(HandleRecoveredTapeClicked);
         }
 
         private void OnDestroy()
@@ -31,6 +33,7 @@ namespace HorrorLand.MenuSystem
             startGameButton.onClick.RemoveListener(HandleStartGameClicked);
             unlocksButton.onClick.RemoveListener(HandleUnlocksClicked);
             optionsButton.onClick.RemoveListener(HandleOptionsClicked);
+            recoveredTapeButton?.onClick.RemoveListener(HandleRecoveredTapeClicked);
         }
 
         public void Initialize(bool randomScaresEnabled)
@@ -65,6 +68,12 @@ namespace HorrorLand.MenuSystem
         {
             randomScareController?.TryTriggerScareFromInteraction();
             optionsMenuController.Open();
+        }
+
+        private void HandleRecoveredTapeClicked()
+        {
+            randomScareController?.TryTriggerScareFromInteraction();
+            sceneLoader.LoadTutorialReplay();
         }
     }
 }

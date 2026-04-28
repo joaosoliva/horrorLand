@@ -7,6 +7,7 @@ public class SafeSpaceZone : MonoBehaviour
 	[Header("References")]
 	public Transform player;
 	public SanitySystem sanitySystem;
+	public CorruptionSystem corruptionSystem;
 	public SpatialMapController mapController;
 	public Light safeAreaLight;
 
@@ -16,6 +17,7 @@ public class SafeSpaceZone : MonoBehaviour
 	public float holdDuration = 1f;
 	public float activeDuration = 12f;
 	public float sanityRestorePerSecond = 5f;
+	public float corruptionStabilizePerSecond = 2.5f;
 	public bool canOnlyActivateOnce = true;
 
 	[Header("Prompts (Code-driven)")]
@@ -36,6 +38,7 @@ public class SafeSpaceZone : MonoBehaviour
 	private SphereCollider triggerSphere;
 	private GUIStyle promptStyle;
 	private float nextPlayerSearchTime = -999f;
+	private bool previousPlayerInside;
 
 	public bool IsActive => isActive;
 	public bool IsPlayerProtected => isActive && isPlayerInside;
@@ -92,6 +95,10 @@ public class SafeSpaceZone : MonoBehaviour
 			{
 				sanitySystem.AddExternalSanity(sanityRestorePerSecond * Time.deltaTime, "SafeSpace");
 			}
+			if (corruptionSystem != null && isPlayerInside && corruptionStabilizePerSecond > 0f)
+			{
+				corruptionSystem.ReduceCorruption(corruptionStabilizePerSecond * Time.deltaTime, "LightStabilize");
+			}
 
 			if (Time.time >= activeUntilTime)
 			{
@@ -145,6 +152,11 @@ public class SafeSpaceZone : MonoBehaviour
 			sanitySystem = FindObjectOfType<SanitySystem>();
 		}
 
+		if (force || corruptionSystem == null)
+		{
+			corruptionSystem = FindObjectOfType<CorruptionSystem>();
+		}
+
 		if (force || mapController == null)
 		{
 			mapController = FindObjectOfType<SpatialMapController>();
@@ -181,6 +193,7 @@ public class SafeSpaceZone : MonoBehaviour
 	void ActivateSafeSpace()
 	{
 		isActive = true;
+		HorrorEvents.RaiseLightSpotUsed();
 		activeUntilTime = Time.time + activeDuration;
 		holdProgress = 0f;
 
@@ -198,6 +211,7 @@ public class SafeSpaceZone : MonoBehaviour
 	void DeactivateSafeSpace()
 	{
 		isActive = false;
+		HorrorEvents.RaiseLightSpotExpired();
 		if (mapController != null)
 		{
 			mapController.SetMapPromptEmphasis(false);
@@ -242,10 +256,17 @@ public class SafeSpaceZone : MonoBehaviour
 		float radius = Mathf.Max(0.1f, activeRadius);
 		isPlayerInside = sqrDistance <= radius * radius;
 
+		if (isPlayerInside && !previousPlayerInside)
+		{
+			HorrorEvents.RaiseLightSpotEntered();
+		}
+
 		if (!isPlayerInside && !isActive)
 		{
 			holdProgress = 0f;
 		}
+
+		previousPlayerInside = isPlayerInside;
 	}
 
 	void OnGUI()
