@@ -51,12 +51,14 @@ public readonly struct EncounterContext
     public readonly float DistanceToPlayer;
     public readonly bool VillainSeesPlayer;
     public readonly bool PlayerSeesVillain;
+    public readonly MazeContextSnapshot MazeContext;
 
-    public EncounterContext(VillainAI.AIState state, float distanceToPlayer, bool villainSeesPlayer, bool playerSeesVillain)
+    public EncounterContext(VillainAI.AIState state, float distanceToPlayer, bool villainSeesPlayer, bool playerSeesVillain, MazeContextSnapshot mazeContext)
     {
         State = state;
         DistanceToPlayer = distanceToPlayer;
         VillainSeesPlayer = villainSeesPlayer;
         PlayerSeesVillain = playerSeesVillain;
+        MazeContext = mazeContext;
     }
 }

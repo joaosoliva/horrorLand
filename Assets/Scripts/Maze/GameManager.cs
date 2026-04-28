@@ -16,6 +16,7 @@ public class GameManager : MonoBehaviour
 	public RunGameState runGameState;
 	public EndingSystem endingSystem;
 	public EndingProgressRecorder endingProgressRecorder;
+	public MazeContextQuery mazeContextQuery;
     
 	[Header("Win Settings")]
 	public int notesRequiredToWin = 6;
@@ -30,6 +31,9 @@ public class GameManager : MonoBehaviour
 	public float caughtAnticipationDelay = 0f;
 	public float caughtCameraShakeDuration = 0.28f;
 	public float caughtCameraShakeAmount = 0.14f;
+	public float captureGracePeriod = 12f;
+	public bool blockCaptureInInitialRoom = true;
+	public bool enableCaptureDebugLogs = false;
     
 	[Header("UI References")]
 	public Canvas gameOverCanvas;
@@ -54,6 +58,7 @@ public class GameManager : MonoBehaviour
 	private CanvasGroup canvasGroup;
 	private float originalTimeScale;
 	private float noEscapeEnteredAt = -999f;
+	private float gameStartTime;
 
 	void Start()
 	{
@@ -74,6 +79,9 @@ public class GameManager : MonoBehaviour
 
 		if (endingSystem == null)
 			endingSystem = FindObjectOfType<EndingSystem>();
+
+		if (mazeContextQuery == null)
+			mazeContextQuery = FindObjectOfType<MazeContextQuery>();
             
 		if (player == null)
 		{
@@ -96,6 +104,7 @@ public class GameManager : MonoBehaviour
         
 		// Store original time scale
 		originalTimeScale = Time.timeScale;
+		gameStartTime = Time.time;
         
 		Debug.Log("Game Manager initialized");
 	}
@@ -171,6 +180,22 @@ public class GameManager : MonoBehaviour
 	{
 		if (villainAI == null || player == null) return;
 		if (SafeSpaceZone.IsPlayerProtectedGlobal(player)) return;
+		if (Time.time - gameStartTime < captureGracePeriod)
+		{
+			if (enableCaptureDebugLogs)
+			{
+				Debug.Log($"GameOver blocked: initial grace period active ({captureGracePeriod - (Time.time - gameStartTime):F1}s remaining).");
+			}
+			return;
+		}
+		if (blockCaptureInInitialRoom && mazeContextQuery != null && mazeContextQuery.IsInitialRoom(player.position))
+		{
+			if (enableCaptureDebugLogs)
+			{
+				Debug.Log("GameOver blocked: monster catch invalid in initial room.");
+			}
+			return;
+		}
         
 		float distanceToVillain = Vector3.Distance(player.position, villainAI.transform.position);
 		bool inNoEscapeDistance = distanceToVillain <= pointOfNoEscapeDistance && villainAI.IsChasing;

@@ -4,12 +4,11 @@ using UnityEngine;
 public class LongHallEncounter : EncounterBase
 {
     [Header("Long-Hall Tuning")]
-    [SerializeField] private float minHallLength = 11f;
-    [SerializeField] private float spawnAheadPadding = 2f;
+    [SerializeField] private int minHallCells = 6;
     [SerializeField] private float sprintSpeed = 18f;
     [SerializeField] private float jumpscareTriggerDistance = 2.8f;
     [SerializeField] private float maxSprintDuration = 1.8f;
-    [SerializeField] private LayerMask obstacleMask = ~0;
+    [SerializeField] private bool debugLogs;
 
     protected override bool CanTrigger(EncounterContext context)
     {
@@ -18,16 +17,30 @@ public class LongHallEncounter : EncounterBase
             return false;
         }
 
-        return TryFindHallSpawnPoint(out _);
+        if (!context.MazeContext.IsValid)
+        {
+            Log("LongHall rejected: maze context invalid.");
+            return false;
+        }
+
+        if (!context.MazeContext.IsLongHallAhead || context.MazeContext.StraightCellsAhead < minHallCells)
+        {
+            Log($"LongHall rejected: only {context.MazeContext.StraightCellsAhead} cells ahead, required {minHallCells}.");
+            return false;
+        }
+
+        Log($"LongHall accepted: {context.MazeContext.StraightCellsAhead} valid forward cells.");
+        return true;
     }
 
     protected override IEnumerator Execute(EncounterContext context)
     {
-        if (Player == null || Villain == null || !TryFindHallSpawnPoint(out Vector3 spawnPoint))
+        if (Player == null || Villain == null)
         {
             yield break;
         }
 
+        Vector3 spawnPoint = context.MazeContext.SuggestedHallSpawnPoint;
         Villain.PushExternalControl();
         Villain.TeleportToPosition(spawnPoint, true);
 
@@ -65,28 +78,6 @@ public class LongHallEncounter : EncounterBase
         }
     }
 
-    private bool TryFindHallSpawnPoint(out Vector3 spawnPoint)
-    {
-        Vector3 start = Player.position + Vector3.up;
-        Vector3 forward = Player.forward;
-        forward.y = 0f;
-        forward.Normalize();
-
-        if (Physics.Raycast(start, forward, out RaycastHit hit, minHallLength + spawnAheadPadding, obstacleMask, QueryTriggerInteraction.Ignore))
-        {
-            float clearDistance = hit.distance;
-            if (clearDistance >= minHallLength)
-            {
-                spawnPoint = Player.position + forward * Mathf.Max(3f, clearDistance - spawnAheadPadding);
-                spawnPoint.y = 0f;
-                return true;
-            }
-        }
-
-        spawnPoint = Vector3.zero;
-        return false;
-    }
-
     private void TriggerAndVanish()
     {
         if (Manager != null && Manager.JumpscareSystem != null && !Manager.JumpscareSystem.IsJumpscareActive())
@@ -95,5 +86,13 @@ public class LongHallEncounter : EncounterBase
         }
 
         Villain.ForceDisappearFromPlayer("Long-hall encounter completed");
+    }
+
+    private void Log(string message)
+    {
+        if (debugLogs)
+        {
+            Debug.Log($"[LongHallEncounter] {message}");
+        }
     }
 }

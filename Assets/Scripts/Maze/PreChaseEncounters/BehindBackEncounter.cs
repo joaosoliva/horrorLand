@@ -15,6 +15,11 @@ public class BehindBackEncounter : EncounterBase
             return false;
         }
 
+        if (!context.MazeContext.IsValid || context.MazeContext.IsInitialRoom || context.MazeContext.IsSafeZone)
+        {
+            return false;
+        }
+
         Vector3 spawnPoint = ComputeSpawnPoint();
         return !Villain.HasLineOfSightBetween(Player.position, spawnPoint);
     }

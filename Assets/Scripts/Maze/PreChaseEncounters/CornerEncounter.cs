@@ -4,10 +4,8 @@ using UnityEngine;
 public class CornerEncounter : EncounterBase
 {
     [Header("Corner Encounter Tuning")]
-    [SerializeField] private float cornerProbeDistance = 2.2f;
-    [SerializeField] private float cornerSideOffset = 2.5f;
     [SerializeField] private float maxWaitForTurn = 1.5f;
-    [SerializeField] private LayerMask obstacleMask = ~0;
+    [SerializeField] private bool debugLogs;
 
     protected override bool CanTrigger(EncounterContext context)
     {
@@ -16,16 +14,31 @@ public class CornerEncounter : EncounterBase
             return false;
         }
 
-        return TryFindCornerPosition(out _);
+        if (!context.MazeContext.IsValid)
+        {
+            Log("Corner rejected: maze context invalid.");
+            return false;
+        }
+
+        if (!context.MazeContext.IsCornerAhead)
+        {
+            Log("Corner rejected: no connected perpendicular corridor.");
+            return false;
+        }
+
+        string dir = context.MazeContext.CornerTurnDirection == Vector2Int.right ? "right" : "left";
+        Log($"Corner accepted: {dir} turn detected {Mathf.Max(1, context.MazeContext.CornerCell == context.MazeContext.CurrentCell ? 0 : 1)} cells ahead.");
+        return true;
     }
 
     protected override IEnumerator Execute(EncounterContext context)
     {
-        if (Player == null || Villain == null || !TryFindCornerPosition(out Vector3 cornerSpot))
+        if (Player == null || Villain == null)
         {
             yield break;
         }
 
+        Vector3 cornerSpot = context.MazeContext.SuggestedCornerRevealPoint;
         Villain.PushExternalControl();
         Villain.TeleportToPosition(cornerSpot, true);
 
@@ -54,40 +67,6 @@ public class CornerEncounter : EncounterBase
         }
     }
 
-    private bool TryFindCornerPosition(out Vector3 cornerPosition)
-    {
-        Vector3 origin = Player.position + Vector3.up;
-        Vector3 forward = Player.forward;
-        forward.y = 0f;
-        forward.Normalize();
-
-        bool frontBlocked = Physics.Raycast(origin, forward, cornerProbeDistance, obstacleMask, QueryTriggerInteraction.Ignore);
-        if (!frontBlocked)
-        {
-            cornerPosition = Vector3.zero;
-            return false;
-        }
-
-        Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
-        Vector3 left = -right;
-
-        Vector3[] sideDirs = Random.value < 0.5f ? new[] { left, right } : new[] { right, left };
-        for (int i = 0; i < sideDirs.Length; i++)
-        {
-            Vector3 probe = Player.position + sideDirs[i] * cornerSideOffset;
-            probe.y = 0f;
-            bool hiddenFromPlayer = !Villain.HasLineOfSightBetween(Player.position, probe);
-            if (hiddenFromPlayer)
-            {
-                cornerPosition = probe;
-                return true;
-            }
-        }
-
-        cornerPosition = Vector3.zero;
-        return false;
-    }
-
     private void TriggerAndVanish()
     {
         if (Manager != null && Manager.JumpscareSystem != null && !Manager.JumpscareSystem.IsJumpscareActive())
@@ -96,5 +75,13 @@ public class CornerEncounter : EncounterBase
         }
 
         Villain.ForceDisappearFromPlayer("Corner encounter completed");
+    }
+
+    private void Log(string message)
+    {
+        if (debugLogs)
+        {
+            Debug.Log($"[CornerEncounter] {message}");
+        }
     }
 }
