@@ -52,7 +52,9 @@ public class MazeContextQuery : MonoBehaviour
         int straightAhead = isCurrentCellWalkable ? CountStraightAhead(currentCell, forwardDir, forwardProbeCells) : 0;
         bool intersectionNearby = isCurrentCellWalkable && IsIntersectionNearby(currentCell);
         bool atCorner = isCurrentCellWalkable && IsAtCorner(currentCell);
-        bool cornerAhead = isCurrentCellWalkable && TryGetCornerAhead(currentCell, forwardDir, cornerLookAheadCells, out Vector2Int cornerCell, out Vector2Int cornerTurnDir);
+        Vector2Int cornerCell = Vector2Int.zero;
+        Vector2Int cornerTurnDir = Vector2Int.zero;
+        bool cornerAhead = isCurrentCellWalkable && TryGetCornerAhead(currentCell, forwardDir, cornerLookAheadCells, out cornerCell, out cornerTurnDir);
         bool inLongHall = isCurrentCellWalkable && IsPlayerInLongHall(currentCell, longHallMinCells);
         bool longHallAhead = isCurrentCellWalkable && straightAhead >= longHallMinCells;
         if (!cornerAhead)
