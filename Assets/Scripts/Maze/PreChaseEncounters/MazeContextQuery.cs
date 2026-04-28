@@ -21,11 +21,13 @@ public class MazeContextQuery : MonoBehaviour
 
     void Awake()
     {
+        AutoWireProceduralReferences();
         CacheInitialRoomBounds();
     }
 
     void OnValidate()
     {
+        AutoWireProceduralReferences();
         CacheInitialRoomBounds();
     }
 
@@ -226,6 +228,11 @@ public class MazeContextQuery : MonoBehaviour
 
     public bool CanTriggerEncounter(Transform player, float runtime, float gracePeriod, out string reason)
     {
+        if (startRoomDoorTrigger == null)
+        {
+            AutoWireProceduralReferences();
+        }
+
         reason = string.Empty;
         if (player == null)
         {
@@ -363,6 +370,19 @@ public class MazeContextQuery : MonoBehaviour
             initialRoomBounds.Encapsulate(renderers[i].bounds);
         }
         hasInitialRoomBounds = true;
+    }
+
+    private void AutoWireProceduralReferences()
+    {
+        if (mazeGenerator == null)
+        {
+            return;
+        }
+
+        if (startRoomDoorTrigger == null)
+        {
+            startRoomDoorTrigger = mazeGenerator.StartRoomDoorTrigger;
+        }
     }
 }
 

@@ -48,8 +48,10 @@ public class MazeGenerator : MonoBehaviour
 	public Color exitDoorColor = new Color(0.7f, 0.1f, 0.1f);
 	
 	private Vector2Int exitPosition;
+	private DoorTrigger startRoomDoorTrigger;
 	
 	private float doorHeight = 6f;
+	public DoorTrigger StartRoomDoorTrigger => startRoomDoorTrigger;
 
 	void Start()
 	{
@@ -505,6 +507,7 @@ public class MazeGenerator : MonoBehaviour
 		trigger.doorWidth = doorWidth;
 		trigger.doorHeight = doorHeight;
 		trigger.facingDirection = facingDirection;
+		startRoomDoorTrigger = trigger;
 
 		ProceduralScareDoor scareDoor = doorRoot.AddComponent<ProceduralScareDoor>();
 		scareDoor.zoneId = "start_room";
