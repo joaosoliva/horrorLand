@@ -216,15 +216,21 @@ public class EncounterManager : MonoBehaviour
             return null;
         }
 
+        List<EncounterBase> nonRepeatedCandidates = new List<EncounterBase>();
         for (int i = 0; i < validCandidates.Count; i++)
         {
             if (validCandidates[i].EncounterId != lastEncounterId)
             {
-                return validCandidates[i];
+                nonRepeatedCandidates.Add(validCandidates[i]);
             }
         }
 
-        return urgent ? validCandidates[0] : null;
+        if (nonRepeatedCandidates.Count > 0)
+        {
+            return nonRepeatedCandidates[Random.Range(0, nonRepeatedCandidates.Count)];
+        }
+
+        return urgent ? validCandidates[Random.Range(0, validCandidates.Count)] : null;
     }
 
     private IEnumerator RunEncounterRoutine(EncounterBase encounter, EncounterContext context)
@@ -362,5 +368,22 @@ public class EncounterManager : MonoBehaviour
         string contextCell = lastContext.IsValid ? lastContext.CurrentCell.ToString() : "Invalid";
         string overlay = $"EncounterMgr\\nCell: {contextCell}\\nInitialRoom: {lastContext.IsInitialRoom}\\nSafeZone: {lastContext.IsSafeZone}\\nGraceRemaining: {graceRemaining:F1}s\\nHallAheadCells: {lastContext.StraightCellsAhead}\\nCornerAhead: {lastContext.IsCornerAhead}\\nPendingBack: {pendingBack}\\nActive: {active}\\nLastRejected: {lastRejectedReason}";
         GUI.Label(new Rect(24f, 24f, 520f, 220f), overlay);
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        if (!drawDebugOverlay || !lastContext.IsValid)
+        {
+            return;
+        }
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(lastContext.SuggestedHallSpawnPoint + Vector3.up * 0.2f, 0.4f);
+
+        if (lastContext.IsCornerAhead)
+        {
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawWireSphere(lastContext.SuggestedCornerRevealPoint + Vector3.up * 0.2f, 0.4f);
+        }
     }
 }

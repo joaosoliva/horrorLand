@@ -17,9 +17,9 @@ public class LongHallEncounter : EncounterBase
             return false;
         }
 
-        if (!context.MazeContext.IsValid)
+        if (!context.MazeContext.IsValid || !context.MazeContext.IsCurrentCellWalkable)
         {
-            Log("LongHall rejected: maze context invalid.");
+            Log("LongHall rejected: maze context invalid or player not on walkable cell.");
             return false;
         }
 

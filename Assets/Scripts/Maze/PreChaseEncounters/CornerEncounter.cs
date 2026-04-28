@@ -14,9 +14,9 @@ public class CornerEncounter : EncounterBase
             return false;
         }
 
-        if (!context.MazeContext.IsValid)
+        if (!context.MazeContext.IsValid || !context.MazeContext.IsCurrentCellWalkable)
         {
-            Log("Corner rejected: maze context invalid.");
+            Log("Corner rejected: maze context invalid or player not on walkable cell.");
             return false;
         }
 

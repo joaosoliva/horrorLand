@@ -15,7 +15,7 @@ public class BehindBackEncounter : EncounterBase
             return false;
         }
 
-        if (!context.MazeContext.IsValid || context.MazeContext.IsInitialRoom || context.MazeContext.IsSafeZone)
+        if (!context.MazeContext.IsValid || !context.MazeContext.IsCurrentCellWalkable || context.MazeContext.IsInitialRoom || context.MazeContext.IsSafeZone)
         {
             return false;
         }

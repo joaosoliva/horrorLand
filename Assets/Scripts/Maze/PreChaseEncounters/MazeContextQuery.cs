@@ -36,10 +36,7 @@ public class MazeContextQuery : MonoBehaviour
         }
 
         Vector2Int currentCell = GetCurrentCell(player.position);
-        if (!IsWalkable(currentCell))
-        {
-            return false;
-        }
+        bool isCurrentCellWalkable = IsWalkable(currentCell);
 
         Vector2Int forwardDir = GetCardinalFromForward(player.forward);
         if (forwardDir == Vector2Int.zero)
@@ -47,21 +44,27 @@ public class MazeContextQuery : MonoBehaviour
             forwardDir = Vector2Int.up;
         }
 
-        List<Vector2Int> forwardCells = GetForwardCells(currentCell, forwardDir, forwardProbeCells);
-        int straightAhead = CountStraightAhead(currentCell, forwardDir, forwardProbeCells);
-        bool intersectionNearby = IsIntersectionNearby(currentCell);
-        bool atCorner = IsAtCorner(currentCell);
-        bool cornerAhead = TryGetCornerAhead(currentCell, forwardDir, cornerLookAheadCells, out Vector2Int cornerCell, out Vector2Int cornerTurnDir);
-        bool inLongHall = IsPlayerInLongHall(currentCell, longHallMinCells);
-        bool longHallAhead = straightAhead >= longHallMinCells;
+        List<Vector2Int> forwardCells = isCurrentCellWalkable ? GetForwardCells(currentCell, forwardDir, forwardProbeCells) : new List<Vector2Int>();
+        int straightAhead = isCurrentCellWalkable ? CountStraightAhead(currentCell, forwardDir, forwardProbeCells) : 0;
+        bool intersectionNearby = isCurrentCellWalkable && IsIntersectionNearby(currentCell);
+        bool atCorner = isCurrentCellWalkable && IsAtCorner(currentCell);
+        bool cornerAhead = isCurrentCellWalkable && TryGetCornerAhead(currentCell, forwardDir, cornerLookAheadCells, out Vector2Int cornerCell, out Vector2Int cornerTurnDir);
+        bool inLongHall = isCurrentCellWalkable && IsPlayerInLongHall(currentCell, longHallMinCells);
+        bool longHallAhead = isCurrentCellWalkable && straightAhead >= longHallMinCells;
+        if (!cornerAhead)
+        {
+            cornerCell = Vector2Int.zero;
+            cornerTurnDir = Vector2Int.zero;
+        }
         bool inInitialRoom = IsInitialRoom(player.position);
         bool inSafeZone = SafeSpaceZone.IsPlayerProtectedGlobal(player);
 
-        Vector3 hallSpawnPoint = CellToWorld(currentCell + forwardDir * Mathf.Max(3, straightAhead - 1));
+        Vector3 hallSpawnPoint = isCurrentCellWalkable ? CellToWorld(currentCell + forwardDir * Mathf.Max(3, straightAhead - 1)) : player.position;
         Vector3 cornerRevealPoint = cornerAhead ? CellToWorld(cornerCell + cornerTurnDir) : Vector3.zero;
 
         snapshot = new MazeContextSnapshot(
             true,
+            isCurrentCellWalkable,
             currentCell,
             forwardDir,
             forwardCells,
@@ -357,9 +360,10 @@ public class MazeContextQuery : MonoBehaviour
 
 public readonly struct MazeContextSnapshot
 {
-    public static readonly MazeContextSnapshot Invalid = new MazeContextSnapshot(false, Vector2Int.zero, Vector2Int.zero, null, 0, false, false, false, false, Vector2Int.zero, Vector2Int.zero, false, false, false, Vector3.zero, Vector3.zero);
+    public static readonly MazeContextSnapshot Invalid = new MazeContextSnapshot(false, false, Vector2Int.zero, Vector2Int.zero, null, 0, false, false, false, false, Vector2Int.zero, Vector2Int.zero, false, false, false, Vector3.zero, Vector3.zero);
 
     public readonly bool IsValid;
+    public readonly bool IsCurrentCellWalkable;
     public readonly Vector2Int CurrentCell;
     public readonly Vector2Int ForwardDirection;
     public readonly IReadOnlyList<Vector2Int> ForwardCells;
@@ -378,6 +382,7 @@ public readonly struct MazeContextSnapshot
 
     public MazeContextSnapshot(
         bool isValid,
+        bool isCurrentCellWalkable,
         Vector2Int currentCell,
         Vector2Int forwardDirection,
         IReadOnlyList<Vector2Int> forwardCells,
@@ -395,6 +400,7 @@ public readonly struct MazeContextSnapshot
         Vector3 suggestedCornerRevealPoint)
     {
         IsValid = isValid;
+        IsCurrentCellWalkable = isCurrentCellWalkable;
         CurrentCell = currentCell;
         ForwardDirection = forwardDirection;
         ForwardCells = forwardCells;
