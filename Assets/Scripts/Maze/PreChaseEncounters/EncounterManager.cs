@@ -431,4 +431,31 @@ public class EncounterManager : MonoBehaviour
 
         return all;
     }
+
+    [ContextMenu("Phase 7/Checklist: Log Encounter Runtime Status")]
+    private void LogEncounterRuntimeStatus()
+    {
+        string header = "[EncounterChecklist]";
+        if (player == null || villain == null || mazeContextQuery == null)
+        {
+            Debug.LogWarning($"{header} Missing core references. player={(player != null)}, villain={(villain != null)}, mazeContextQuery={(mazeContextQuery != null)}");
+            return;
+        }
+
+        float runtime = Time.time - runtimeStartedAt;
+        bool contextReady = mazeContextQuery.TryBuildContext(player, out MazeContextSnapshot context);
+        string reason = contextReady ? string.Empty : "Context unavailable";
+        bool canTrigger = contextReady && mazeContextQuery.CanTriggerEncounter(player, runtime, initialEncounterGracePeriod, out reason);
+        string pending = pendingBackEncounter != null ? "Yes" : "No";
+        string active = activeEncounter != null ? activeEncounter.EncounterId : "None";
+        string state = villain.CurrentState.ToString();
+        string visibility = villain.IsVillainVisibleToPlayer().ToString();
+        string safeZone = contextReady ? context.IsSafeZone.ToString() : "Unknown";
+        string initialRoom = contextReady ? context.IsInitialRoom.ToString() : "Unknown";
+        string hallCells = contextReady ? context.StraightCellsAhead.ToString() : "Unknown";
+        string corner = contextReady ? context.IsCornerAhead.ToString() : "Unknown";
+        string cornerDir = contextReady && context.IsCornerAhead ? context.CornerTurnDirection.ToString() : "None";
+
+        Debug.Log($"{header} Runtime={runtime:F1}s | AIState={state} | VisibleToPlayer={visibility} | InitialRoom={initialRoom} | SafeZone={safeZone} | HallCells={hallCells} | CornerAhead={corner} ({cornerDir}) | PendingBack={pending} | ActiveEncounter={active} | CanTriggerNow={canTrigger} | Reason={(canTrigger ? "Eligible" : reason)}");
+    }
 }
