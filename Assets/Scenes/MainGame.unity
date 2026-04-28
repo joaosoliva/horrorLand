@@ -1710,6 +1710,7 @@ MonoBehaviour:
   mazeGenerator: {fileID: 2113078750}
   chaseSystem: {fileID: 716215839}
   playerFlashlight: {fileID: 1877671497}
+  preChaseEncounterManager: {fileID: 1265309446}
   currentState: 0
   detectionRadius: 20
   chaseRadius: 40
@@ -9280,6 +9281,54 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 543252516}
   m_CullTransparentMesh: 1
+--- !u!1 &548458593
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 548458595}
+  - component: {fileID: 548458594}
+  m_Layer: 0
+  m_Name: CornerEncounter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &548458594
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 548458593}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed587935636e09a4fb5cea734a19ef93, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CornerEncounter
+  encounterId: CornerEncounter
+  localCooldown: 12
+  maxWaitForTurn: 1.5
+  debugLogs: 0
+--- !u!4 &548458595
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 548458593}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1265309447}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &562017686
 GameObject:
   m_ObjectHideFlags: 0
@@ -13215,6 +13264,59 @@ Transform:
   - {fileID: 1953589800}
   - {fileID: 562163714}
   m_Father: {fileID: 2089221898}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &763644969
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 763644971}
+  - component: {fileID: 763644970}
+  m_Layer: 0
+  m_Name: MazeContextQuery
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &763644970
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 763644969}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4488c0778087c1643b1cdb6ea79dc7df, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MazeContextQuery
+  mazeGenerator: {fileID: 2113078750}
+  initialRoomVolume: {fileID: 0}
+  initialRoomRoot: {fileID: 0}
+  startRoomDoorTrigger: {fileID: 0}
+  forwardProbeCells: 10
+  longHallMinCells: 6
+  cornerLookAheadCells: 2
+  debugLogs: 0
+  requireLeavingStartRoomToEnableEncounters: 1
+--- !u!4 &763644971
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 763644969}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1265309447}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &765565558
 GameObject:
@@ -17873,6 +17975,55 @@ Transform:
   - {fileID: 1678318483}
   m_Father: {fileID: 2089221898}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &991912276
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 991912278}
+  - component: {fileID: 991912277}
+  m_Layer: 0
+  m_Name: BehindEncounter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &991912277
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 991912276}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 707a4de3070b62a4d9f29bb6cd1d2f1c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BehindBackEncounter
+  encounterId: BehindEncounter
+  localCooldown: 12
+  spawnDistance: 5.5
+  sideOffset: 1.5
+  maxWaitForLook: 2.5
+--- !u!4 &991912278
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 991912276}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1265309447}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &993840922
 GameObject:
   m_ObjectHideFlags: 0
@@ -18693,6 +18844,57 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: -20, y: -20}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &1053079499
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1053079501}
+  - component: {fileID: 1053079500}
+  m_Layer: 0
+  m_Name: LongHallEncounter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1053079500
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1053079499}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32597d2e4c14b61408a608edc419597e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LongHallEncounter
+  encounterId: LongHallEncounter
+  localCooldown: 12
+  minHallCells: 6
+  sprintSpeed: 18
+  jumpscareTriggerDistance: 2.8
+  maxSprintDuration: 1.8
+  debugLogs: 0
+--- !u!4 &1053079501
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1053079499}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1265309447}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1053414589
 GameObject:
   m_ObjectHideFlags: 0
@@ -19907,8 +20109,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fca373526c8154344b93fd67195fe06a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  graphicsDrop: {fileID: 1715721128}
-  resoDrop: {fileID: 282246305}
+  graphicsDrop: {fileID: 0}
+  resoDrop: {fileID: 0}
   volumeSlider: {fileID: 956018728}
   chromaticToggle: {fileID: 767358414}
   vignetteToggle: {fileID: 1566174616}
@@ -21515,6 +21717,75 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!1 &1265309445
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1265309447}
+  - component: {fileID: 1265309446}
+  m_Layer: 0
+  m_Name: PrechaseEncounterManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1265309446
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1265309445}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ee3df145837c0e645a0d9e1471d83b9d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EncounterManager
+  villain: {fileID: 92354975}
+  player: {fileID: 1956618892}
+  chaseSystem: {fileID: 716215839}
+  jumpscareSystem: {fileID: 1559133037}
+  mazeContextQuery: {fileID: 763644970}
+  gameManager: {fileID: 1403009940}
+  encounters:
+  - {fileID: 1053079500}
+  - {fileID: 548458594}
+  - {fileID: 991912277}
+  preChaseEnabled: 1
+  requireGameActive: 1
+  globalCooldown: 10
+  encountersBeforeChase: 2
+  initialEncounterGracePeriod: 12
+  visibleReactionGrace: 0.2
+  enableEncounterDebugLogs: 1
+  backEncounterTurnAngleThreshold: 140
+  backEncounterMaxPendingTime: 10
+  backEncounterMinDelay: 0.75
+  drawDebugOverlay: 1
+--- !u!4 &1265309447
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1265309445}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1053079501}
+  - {fileID: 548458595}
+  - {fileID: 991912278}
+  - {fileID: 763644971}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1268310782
 GameObject:
   m_ObjectHideFlags: 0
@@ -23165,6 +23436,8 @@ MonoBehaviour:
   jumpscareSystem: {fileID: 1559133037}
   runGameState: {fileID: 1403009943}
   endingSystem: {fileID: 1403009942}
+  endingProgressRecorder: {fileID: 0}
+  mazeContextQuery: {fileID: 0}
   notesRequiredToWin: 6
   winDelay: 1
   loseDistance: 7
@@ -23175,6 +23448,9 @@ MonoBehaviour:
   caughtAnticipationDelay: 0.2
   caughtCameraShakeDuration: 0.28
   caughtCameraShakeAmount: 0.14
+  captureGracePeriod: 12
+  blockCaptureInInitialRoom: 1
+  enableCaptureDebugLogs: 0
   gameOverCanvas: {fileID: 6733773}
   gameOverText: {fileID: 1175538000}
   resultText: {fileID: 516777288}
@@ -36437,3 +36713,4 @@ SceneRoots:
   - {fileID: 1445890825}
   - {fileID: 842290173}
   - {fileID: 1500700004}
+  - {fileID: 1265309447}
