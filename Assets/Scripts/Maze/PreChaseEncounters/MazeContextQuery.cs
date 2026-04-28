@@ -7,12 +7,14 @@ public class MazeContextQuery : MonoBehaviour
     [SerializeField] private MazeGenerator mazeGenerator;
     [SerializeField] private Collider initialRoomVolume;
     [SerializeField] private Transform initialRoomRoot;
+    [SerializeField] private DoorTrigger startRoomDoorTrigger;
 
     [Header("Sampling")]
     [SerializeField] private int forwardProbeCells = 10;
     [SerializeField] private int longHallMinCells = 6;
     [SerializeField] private int cornerLookAheadCells = 2;
     [SerializeField] private bool debugLogs;
+    [SerializeField] private bool requireLeavingStartRoomToEnableEncounters = true;
 
     private bool hasInitialRoomBounds;
     private Bounds initialRoomBounds;
@@ -246,6 +248,12 @@ public class MazeContextQuery : MonoBehaviour
         if (SafeSpaceZone.IsPlayerProtectedGlobal(player))
         {
             reason = "Player in safe zone";
+            return false;
+        }
+
+        if (requireLeavingStartRoomToEnableEncounters && startRoomDoorTrigger != null && !startRoomDoorTrigger.HasPlayerExitedRoom)
+        {
+            reason = "Start room exit gate not cleared";
             return false;
         }
 

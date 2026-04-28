@@ -196,6 +196,14 @@ public class GameManager : MonoBehaviour
 			}
 			return;
 		}
+		if (mazeContextQuery != null && !mazeContextQuery.CanTriggerEncounter(player, Time.time - gameStartTime, captureGracePeriod, out string encounterGateReason))
+		{
+			if (enableCaptureDebugLogs)
+			{
+				Debug.Log("GameOver blocked: " + encounterGateReason + ".");
+			}
+			return;
+		}
         
 		float distanceToVillain = Vector3.Distance(player.position, villainAI.transform.position);
 		bool inNoEscapeDistance = distanceToVillain <= pointOfNoEscapeDistance && villainAI.IsChasing;
