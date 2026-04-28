@@ -23,13 +23,16 @@ public class LongHallEncounter : EncounterBase
             return false;
         }
 
-        if (!context.MazeContext.IsLongHallAhead || context.MazeContext.StraightCellsAhead < minHallCells)
+        int forwardCells = context.MazeContext.StraightCellsAhead;
+        int segmentCells = context.MazeContext.StraightSegmentLength;
+        bool hallValid = context.MazeContext.IsLongHallAhead && (forwardCells >= minHallCells || segmentCells >= minHallCells);
+        if (!hallValid)
         {
-            Log($"LongHall rejected: only {context.MazeContext.StraightCellsAhead} cells ahead, required {minHallCells}.");
+            Log($"LongHall rejected: forward={forwardCells}, segment={segmentCells}, required {minHallCells}.");
             return false;
         }
 
-        Log($"LongHall accepted: {context.MazeContext.StraightCellsAhead} valid forward cells.");
+        Log($"LongHall accepted: forward={forwardCells}, segment={segmentCells}.");
         return true;
     }
 

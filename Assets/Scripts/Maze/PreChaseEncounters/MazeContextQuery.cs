@@ -12,7 +12,7 @@ public class MazeContextQuery : MonoBehaviour
     [Header("Sampling")]
     [SerializeField] private int forwardProbeCells = 10;
     [SerializeField] private int longHallMinCells = 6;
-    [SerializeField] private int cornerLookAheadCells = 2;
+    [SerializeField] private int cornerLookAheadCells = 3;
     [SerializeField] private bool debugLogs;
     [SerializeField] private bool requireLeavingStartRoomToEnableEncounters = true;
 
@@ -56,7 +56,10 @@ public class MazeContextQuery : MonoBehaviour
         Vector2Int cornerTurnDir = Vector2Int.zero;
         bool cornerAhead = isCurrentCellWalkable && TryGetCornerAhead(currentCell, forwardDir, cornerLookAheadCells, out cornerCell, out cornerTurnDir);
         bool inLongHall = isCurrentCellWalkable && IsPlayerInLongHall(currentCell, longHallMinCells);
-        bool longHallAhead = isCurrentCellWalkable && straightAhead >= longHallMinCells;
+        int straightBehind = isCurrentCellWalkable ? CountStraightAhead(currentCell, -forwardDir, forwardProbeCells) : 0;
+        int straightSegmentLength = isCurrentCellWalkable ? 1 + straightAhead + straightBehind : 0;
+        int straightSegmentHash = isCurrentCellWalkable ? BuildStraightSegmentHash(currentCell, forwardDir, straightAhead, straightBehind) : 0;
+        bool longHallAhead = isCurrentCellWalkable && (straightAhead >= longHallMinCells || straightSegmentLength >= longHallMinCells);
         if (!cornerAhead)
         {
             cornerCell = Vector2Int.zero;
@@ -75,6 +78,9 @@ public class MazeContextQuery : MonoBehaviour
             forwardDir,
             forwardCells,
             straightAhead,
+            straightBehind,
+            straightSegmentLength,
+            straightSegmentHash,
             longHallAhead,
             inLongHall,
             atCorner,
@@ -148,8 +154,11 @@ public class MazeContextQuery : MonoBehaviour
 
             Vector2Int right = new Vector2Int(forwardDir.y, -forwardDir.x);
             Vector2Int left = -right;
-            bool rightTurn = IsWalkable(cursor + right) && !IsWalkable(cursor + forwardDir);
-            bool leftTurn = IsWalkable(cursor + left) && !IsWalkable(cursor + forwardDir);
+            bool forwardOpen = IsWalkable(cursor + forwardDir);
+            bool rightOpen = IsWalkable(cursor + right);
+            bool leftOpen = IsWalkable(cursor + left);
+            bool rightTurn = rightOpen && (!forwardOpen || GetExitCount(cursor) >= 3);
+            bool leftTurn = leftOpen && (!forwardOpen || GetExitCount(cursor) >= 3);
             if (rightTurn)
             {
                 cornerCell = cursor;
@@ -309,6 +318,23 @@ public class MazeContextQuery : MonoBehaviour
         return count;
     }
 
+    private static int BuildStraightSegmentHash(Vector2Int currentCell, Vector2Int forwardDir, int straightAhead, int straightBehind)
+    {
+        Vector2Int start = currentCell + (-forwardDir * straightBehind);
+        Vector2Int end = currentCell + (forwardDir * straightAhead);
+        int axis = Mathf.Abs(forwardDir.x) > 0 ? 1 : 2;
+        unchecked
+        {
+            int hash = 17;
+            hash = hash * 31 + axis;
+            hash = hash * 31 + start.x;
+            hash = hash * 31 + start.y;
+            hash = hash * 31 + end.x;
+            hash = hash * 31 + end.y;
+            return hash;
+        }
+    }
+
     private int GetExitCount(Vector2Int cell)
     {
         int exits = 0;
@@ -390,7 +416,7 @@ public class MazeContextQuery : MonoBehaviour
 
 public readonly struct MazeContextSnapshot
 {
-    public static readonly MazeContextSnapshot Invalid = new MazeContextSnapshot(false, false, Vector2Int.zero, Vector2Int.zero, null, 0, false, false, false, false, Vector2Int.zero, Vector2Int.zero, false, false, false, Vector3.zero, Vector3.zero);
+    public static readonly MazeContextSnapshot Invalid = new MazeContextSnapshot(false, false, Vector2Int.zero, Vector2Int.zero, null, 0, 0, 0, 0, false, false, false, false, Vector2Int.zero, Vector2Int.zero, false, false, false, Vector3.zero, Vector3.zero);
 
     public readonly bool IsValid;
     public readonly bool IsCurrentCellWalkable;
@@ -398,6 +424,9 @@ public readonly struct MazeContextSnapshot
     public readonly Vector2Int ForwardDirection;
     public readonly IReadOnlyList<Vector2Int> ForwardCells;
     public readonly int StraightCellsAhead;
+    public readonly int StraightCellsBehind;
+    public readonly int StraightSegmentLength;
+    public readonly int StraightSegmentHash;
     public readonly bool IsLongHallAhead;
     public readonly bool IsPlayerInLongHall;
     public readonly bool IsAtCorner;
@@ -417,6 +446,9 @@ public readonly struct MazeContextSnapshot
         Vector2Int forwardDirection,
         IReadOnlyList<Vector2Int> forwardCells,
         int straightCellsAhead,
+        int straightCellsBehind,
+        int straightSegmentLength,
+        int straightSegmentHash,
         bool isLongHallAhead,
         bool isPlayerInLongHall,
         bool isAtCorner,
@@ -435,6 +467,9 @@ public readonly struct MazeContextSnapshot
         ForwardDirection = forwardDirection;
         ForwardCells = forwardCells;
         StraightCellsAhead = straightCellsAhead;
+        StraightCellsBehind = straightCellsBehind;
+        StraightSegmentLength = straightSegmentLength;
+        StraightSegmentHash = straightSegmentHash;
         IsLongHallAhead = isLongHallAhead;
         IsPlayerInLongHall = isPlayerInLongHall;
         IsAtCorner = isAtCorner;

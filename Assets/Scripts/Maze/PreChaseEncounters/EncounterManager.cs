@@ -26,6 +26,9 @@ public class EncounterManager : MonoBehaviour
     [SerializeField] private float backEncounterTurnAngleThreshold = 140f;
     [SerializeField] private float backEncounterMaxPendingTime = 10f;
     [SerializeField] private float backEncounterMinDelay = 0.75f;
+    [SerializeField] private float backEncounterMaxPendingTravelMeters = 3f;
+    [SerializeField] private float backEncounterPostRevealCatchGrace = 0.9f;
+    [SerializeField] private bool cancelBackEncounterOnSegmentChange = true;
     [SerializeField] private bool drawDebugOverlay;
 
     private float nextAllowedEncounterTime = -999f;
@@ -39,8 +42,14 @@ public class EncounterManager : MonoBehaviour
     private string lastRejectedReason = "None";
 
     private BehindBackEncounter pendingBackEncounter;
-    private Vector3 pendingBackInitialForward;
+    private Vector2Int pendingBackTravelDirection;
+    private int pendingBackSegmentHash;
+    private Vector3 pendingBackStartPosition;
     private float pendingBackStartedAt;
+    private float lastBackEncounterTriggeredAt = -999f;
+    private Vector3 lastPlayerPosition;
+    private bool hasLastPlayerPosition;
+    private Vector2Int lastTravelDirection;
     private string lastCandidateSummary = "None";
 
     public VillainAI Villain => villain;
@@ -48,6 +57,8 @@ public class EncounterManager : MonoBehaviour
     public JumpscareSystem JumpscareSystem => jumpscareSystem;
     public MazeContextSnapshot CurrentContext => lastContext;
     public string LastRejectedReason => lastRejectedReason;
+    public bool IsBackEncounterPending => pendingBackEncounter != null;
+    public bool IsBackEncounterCatchGraceActive(float currentTime) => currentTime - lastBackEncounterTriggeredAt < backEncounterPostRevealCatchGrace;
 
     void Awake()
     {
@@ -98,6 +109,8 @@ public class EncounterManager : MonoBehaviour
             CancelPendingBackEncounter(blockReason);
             return false;
         }
+
+        UpdateTravelDirection();
 
         if (runningEncounter != null)
         {
@@ -215,11 +228,18 @@ public class EncounterManager : MonoBehaviour
     private EncounterBase SelectEncounter(EncounterContext context, bool urgent)
     {
         List<EncounterBase> validCandidates = new List<EncounterBase>();
+        List<string> rejectedCandidateIds = new List<string>();
         for (int i = 0; i < encounters.Count; i++)
         {
             EncounterBase candidate = encounters[i];
-            if (candidate == null || !candidate.CanRun(context))
+            if (candidate == null)
             {
+                continue;
+            }
+
+            if (!candidate.CanRun(context))
+            {
+                rejectedCandidateIds.Add(candidate.EncounterId);
                 continue;
             }
 
@@ -228,7 +248,7 @@ public class EncounterManager : MonoBehaviour
 
         if (validCandidates.Count == 0)
         {
-            lastCandidateSummary = "None";
+            lastCandidateSummary = rejectedCandidateIds.Count > 0 ? $"None (rejected: {string.Join(",", rejectedCandidateIds)})" : "None";
             return null;
         }
 
@@ -293,16 +313,49 @@ public class EncounterManager : MonoBehaviour
             return true;
         }
 
+        if (cancelBackEncounterOnSegmentChange && pendingBackSegmentHash != 0 && lastContext.StraightSegmentHash != pendingBackSegmentHash)
+        {
+            CancelPendingBackEncounter("player changed corridor segment");
+            return false;
+        }
+
+        if (lastContext.IsIntersectionNearby || lastContext.IsCornerAhead)
+        {
+            CancelPendingBackEncounter("player moved into corner/intersection context");
+            return false;
+        }
+
+        float pendingTravel = Vector3.Distance(new Vector3(player.position.x, 0f, player.position.z), new Vector3(pendingBackStartPosition.x, 0f, pendingBackStartPosition.z));
+        if (pendingTravel > backEncounterMaxPendingTravelMeters)
+        {
+            CancelPendingBackEncounter("player moved too far before looking back");
+            return false;
+        }
+
+        Vector2Int travelDir = pendingBackTravelDirection;
+        if (travelDir == Vector2Int.zero)
+        {
+            travelDir = lastTravelDirection != Vector2Int.zero ? lastTravelDirection : lastContext.ForwardDirection;
+        }
+
+        Vector3 travelForward = new Vector3(travelDir.x, 0f, travelDir.y);
+        if (travelForward.sqrMagnitude < 0.001f)
+        {
+            return true;
+        }
+        travelForward.Normalize();
+
         Vector3 currentForward = player.forward;
         currentForward.y = 0f;
         currentForward.Normalize();
-        float angleDelta = Vector3.Angle(pendingBackInitialForward, currentForward);
+        float angleDelta = Vector3.Angle(travelForward, currentForward);
         if (angleDelta < backEncounterTurnAngleThreshold)
         {
             return true;
         }
 
-        LogDebug($"BackEncounter triggered: player turned {angleDelta:F1} degrees.");
+        lastBackEncounterTriggeredAt = Time.time;
+        LogDebug($"BackEncounter triggered: player looked {angleDelta:F1} degrees away from travel direction.");
         EncounterContext context = new EncounterContext(state, distanceToPlayer, villainSeesPlayer, playerSeesVillain, lastContext);
         runningEncounter = StartCoroutine(RunEncounterRoutine(pendingBackEncounter, context));
         pendingBackEncounter = null;
@@ -313,9 +366,9 @@ public class EncounterManager : MonoBehaviour
     {
         pendingBackEncounter = encounter;
         pendingBackStartedAt = Time.time;
-        pendingBackInitialForward = player.forward;
-        pendingBackInitialForward.y = 0f;
-        pendingBackInitialForward.Normalize();
+        pendingBackTravelDirection = lastTravelDirection != Vector2Int.zero ? lastTravelDirection : lastContext.ForwardDirection;
+        pendingBackSegmentHash = lastContext.StraightSegmentHash;
+        pendingBackStartPosition = player.position;
         LogDebug("BackEncounter pending: waiting for player turn.");
         lastRejectedReason = "BackEncounter pending";
     }
@@ -329,6 +382,42 @@ public class EncounterManager : MonoBehaviour
 
         LogDebug($"BackEncounter cancelled: {reason}.");
         pendingBackEncounter = null;
+        pendingBackTravelDirection = Vector2Int.zero;
+        pendingBackSegmentHash = 0;
+    }
+
+    private void UpdateTravelDirection()
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+        Vector3 current = player.position;
+        if (!hasLastPlayerPosition)
+        {
+            hasLastPlayerPosition = true;
+            lastPlayerPosition = current;
+            return;
+        }
+
+        Vector3 delta = current - lastPlayerPosition;
+        delta.y = 0f;
+        if (delta.sqrMagnitude < 0.0036f)
+        {
+            return;
+        }
+
+        if (Mathf.Abs(delta.x) >= Mathf.Abs(delta.z))
+        {
+            lastTravelDirection = delta.x >= 0f ? Vector2Int.right : Vector2Int.left;
+        }
+        else
+        {
+            lastTravelDirection = delta.z >= 0f ? Vector2Int.up : Vector2Int.down;
+        }
+
+        lastPlayerPosition = current;
     }
 
     private void HandleVisibleFailSafe()
@@ -386,7 +475,7 @@ public class EncounterManager : MonoBehaviour
         float graceRemaining = Mathf.Max(0f, initialEncounterGracePeriod - (Time.time - runtimeStartedAt));
         string contextCell = lastContext.IsValid ? lastContext.CurrentCell.ToString() : "Invalid";
         string cornerDir = lastContext.IsCornerAhead ? lastContext.CornerTurnDirection.ToString() : "None";
-        string overlay = $"EncounterMgr\\nCell: {contextCell}\\nInitialRoom: {lastContext.IsInitialRoom}\\nSafeZone: {lastContext.IsSafeZone}\\nGameActive: {gameActive}\\nGraceRemaining: {graceRemaining:F1}s\\nHallAheadCells: {lastContext.StraightCellsAhead}\\nCornerAhead: {lastContext.IsCornerAhead}\\nCornerDir: {cornerDir}\\nPendingBack: {pendingBack}\\nActive: {active}\\nCandidates: {lastCandidateSummary}\\nLastRejected: {lastRejectedReason}";
+        string overlay = $"EncounterMgr\\nCell: {contextCell}\\nInitialRoom: {lastContext.IsInitialRoom}\\nSafeZone: {lastContext.IsSafeZone}\\nGameActive: {gameActive}\\nGraceRemaining: {graceRemaining:F1}s\\nHallAheadCells: {lastContext.StraightCellsAhead}\\nHallSegmentCells: {lastContext.StraightSegmentLength}\\nCornerAhead: {lastContext.IsCornerAhead}\\nCornerDir: {cornerDir}\\nPendingBack: {pendingBack}\\nActive: {active}\\nCandidates: {lastCandidateSummary}\\nLastRejected: {lastRejectedReason}";
         GUI.Label(new Rect(24f, 24f, 680f, 260f), overlay);
     }
 
@@ -453,9 +542,10 @@ public class EncounterManager : MonoBehaviour
         string safeZone = contextReady ? context.IsSafeZone.ToString() : "Unknown";
         string initialRoom = contextReady ? context.IsInitialRoom.ToString() : "Unknown";
         string hallCells = contextReady ? context.StraightCellsAhead.ToString() : "Unknown";
+        string hallSegment = contextReady ? context.StraightSegmentLength.ToString() : "Unknown";
         string corner = contextReady ? context.IsCornerAhead.ToString() : "Unknown";
         string cornerDir = contextReady && context.IsCornerAhead ? context.CornerTurnDirection.ToString() : "None";
 
-        Debug.Log($"{header} Runtime={runtime:F1}s | AIState={state} | VisibleToPlayer={visibility} | InitialRoom={initialRoom} | SafeZone={safeZone} | HallCells={hallCells} | CornerAhead={corner} ({cornerDir}) | PendingBack={pending} | ActiveEncounter={active} | CanTriggerNow={canTrigger} | Reason={(canTrigger ? "Eligible" : reason)}");
+        Debug.Log($"{header} Runtime={runtime:F1}s | AIState={state} | VisibleToPlayer={visibility} | InitialRoom={initialRoom} | SafeZone={safeZone} | HallCells={hallCells} | HallSegment={hallSegment} | CornerAhead={corner} ({cornerDir}) | PendingBack={pending} | ActiveEncounter={active} | CanTriggerNow={canTrigger} | Reason={(canTrigger ? "Eligible" : reason)}");
     }
 }
