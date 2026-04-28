@@ -47,6 +47,11 @@ public class IntroTapeController : MonoBehaviour
     public SafeSpaceZone tutorialLightSpot;
     public VillainAI villainAI;
     public MazeExitDoor exitDoor;
+    public GuidedIntroMazeGenerator layoutGenerator;
+
+    [Header("Encounter Suppression")]
+    public EncounterManager encounterManager;
+    public bool disablePreChaseEncountersDuringTutorial = true;
 
     [Header("Objectives")]
     public List<TutorialObjective> objectiveDefinitions = new List<TutorialObjective>();
@@ -64,6 +69,13 @@ public class IntroTapeController : MonoBehaviour
     void Start()
     {
         ResolveReferences();
+
+        if (layoutGenerator != null)
+        {
+            TutorialLayoutContext generated = layoutGenerator.GenerateLayout();
+            ApplyGeneratedLayout(generated);
+        }
+
         ValidateSceneWiring();
         BuildObjectivesIfMissing();
         CacheObjectiveLookup();
@@ -171,6 +183,16 @@ public class IntroTapeController : MonoBehaviour
         {
             soundboardPickup = FindObjectOfType<SoundboardPickup>();
         }
+
+        if (layoutGenerator == null)
+        {
+            layoutGenerator = FindObjectOfType<GuidedIntroMazeGenerator>();
+        }
+
+        if (encounterManager == null)
+        {
+            encounterManager = FindObjectOfType<EncounterManager>();
+        }
     }
 
     void ValidateSceneWiring()
@@ -247,6 +269,12 @@ public class IntroTapeController : MonoBehaviour
 
         ConfigureStepGates(nextStep);
 
+        if (disablePreChaseEncountersDuringTutorial && encounterManager != null)
+        {
+            bool allow = nextStep == TutorialStep.IntroduceMonster || nextStep == TutorialStep.HideFromMonster || nextStep == TutorialStep.TeachSprintRisk;
+            encounterManager.SetPreChaseEnabled(allow);
+        }
+
         if (nextStep == TutorialStep.IntroduceMonster && villainAI != null)
         {
             villainAI.ForceChase();
@@ -259,6 +287,10 @@ public class IntroTapeController : MonoBehaviour
             PlayerPrefs.Save();
             HorrorEvents.RaiseTutorialCompleted();
             RuntimeStatsTracker.Instance?.PrintGameplayTrainingReport();
+            if (disablePreChaseEncountersDuringTutorial && encounterManager != null)
+            {
+                encounterManager.SetPreChaseEnabled(true);
+            }
             if (!string.IsNullOrWhiteSpace(mainMazeSceneName))
             {
                 SceneManager.LoadScene(mainMazeSceneName);
@@ -403,6 +435,58 @@ public class IntroTapeController : MonoBehaviour
                 return;
             }
         }
+    }
+
+
+    public void ApplyGeneratedLayout(TutorialLayoutContext context)
+    {
+        if (context == null)
+        {
+            return;
+        }
+
+        if (context.soundboardPickup != null)
+        {
+            soundboardPickup = context.soundboardPickup;
+        }
+
+        if (context.soundboardGate != null)
+        {
+            soundboardDoorGate = context.soundboardGate;
+        }
+
+        if (context.lightGate != null)
+        {
+            lightDoorGate = context.lightGate;
+        }
+
+        if (context.chaseGate != null)
+        {
+            chaseGate = context.chaseGate;
+        }
+
+        if (context.firstLightSpot != null)
+        {
+            tutorialLightSpot = context.firstLightSpot;
+        }
+
+
+        if (context.tutorialExitGate != null)
+        {
+            tutorialExitGate = context.tutorialExitGate;
+        }
+
+        if (context.mainMazeConnector != null)
+        {
+            mainMazeSceneName = string.IsNullOrWhiteSpace(mainMazeSceneName) ? "SampleScene" : mainMazeSceneName;
+        }
+
+        if (context.monsterSpawnPoint != null && villainAI != null)
+        {
+            villainAI.transform.position = context.monsterSpawnPoint.position;
+        }
+
+        LogStep("Applied generated tutorial layout context.");
     }
 
     void LogStep(string message)

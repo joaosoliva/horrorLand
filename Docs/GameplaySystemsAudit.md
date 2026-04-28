@@ -107,3 +107,13 @@ _Last updated: 2026-04-28_
 1. Scene wiring remains the top practical risk (missing references can degrade onboarding quality).
 2. Tutorial flow now event-driven but still depends on authored scene gates and spatial layout.
 3. Validation currently manual/log-based; no automated playmode checks yet.
+
+
+## System: Procedural tutorial generator
+- **Exists:** Yes.
+- **File path(s):** `Assets/Scripts/Maze/GuidedIntroMazeGenerator.cs`, `Assets/Scripts/Maze/TutorialLayoutContext.cs`
+- **Current behavior:** Generates deterministic guided intro segments with gates, pickups, light spots, monster reveal markers, sprint trigger, exit gate, and connector context.
+- **Dependencies:** `IntroTapeController`, `SoundboardPickup`, `SafeSpaceZone`, `VillainAI`, `HorrorEvents`.
+- **Scene wiring required:** Optional prefab references; can run with primitive fallbacks.
+- **Missing features:** Full navmesh bake automation and authored art kit integration.
+- **Recommended follow-up:** Add prefab palette/Theme profiles and runtime navmesh update if needed.

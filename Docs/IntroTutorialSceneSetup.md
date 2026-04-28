@@ -1,6 +1,7 @@
 # Intro Tutorial Scene Setup
 
 ## Required objects
+- `GuidedIntroMazeGenerator` object in intro scene.
 - `IntroTapeController` object in intro scene.
 - `GameplayHintController` object.
 - `RuntimeStatsTracker` object.
@@ -41,3 +42,9 @@
 - Exit remains blocked until final step.
 - Completing intro sets TutorialCompleted and routes to main maze.
 - Recovered Tape replay works and does not wipe existing progress.
+
+
+## Procedural generation notes
+- If no prefabs are assigned, `GuidedIntroMazeGenerator` creates primitive fallback geometry and triggers.
+- Use `useFixedTutorialSeed = true` and `fixedTutorialSeed = 1998` for deterministic first-run layout.
+- Keep `allowReplayRandomization = false` by default to avoid breaking tutorial beat reliability.
