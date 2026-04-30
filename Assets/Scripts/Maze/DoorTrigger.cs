@@ -188,6 +188,21 @@ public class DoorTrigger : MonoBehaviour
 		OnDoorClosedLocked?.Invoke();
 	}
 
+
+	public void SetLockedState(bool locked)
+	{
+		isLocked = locked;
+		if (isLocked)
+		{
+			HideInteractionText();
+		}
+		else if (!isOpen && playerInsideTrigger)
+		{
+			ShowInteractionText();
+		}
+		UpdateInteractionText();
+	}
+
 	public void ForceCloseAndLock(float delaySeconds = 0f)
 	{
 		if (isLocked)

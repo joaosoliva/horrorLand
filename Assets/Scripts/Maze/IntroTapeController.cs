@@ -40,8 +40,11 @@ public class IntroTapeController : MonoBehaviour
 
     [Header("Gate References")]
     public GameObject soundboardDoorGate;
+    public GameObject soundboardUseDoor;
+    public GameObject corruptionDoor;
     public GameObject lightDoorGate;
     public GameObject chaseGate;
+    public GameObject sprintDoor;
     public GameObject tutorialExitGate;
     public SoundboardPickup soundboardPickup;
     public SafeSpaceZone tutorialLightSpot;
@@ -326,12 +329,44 @@ public class IntroTapeController : MonoBehaviour
 
     void ConfigureStepGates(TutorialStep step)
     {
-        SetGateActive(soundboardDoorGate, step == TutorialStep.StartDarkRoom || step == TutorialStep.CollectSoundboard || step == TutorialStep.UseSoundboard);
-        SetGateActive(lightDoorGate, step == TutorialStep.StartDarkRoom || step == TutorialStep.CollectSoundboard || step == TutorialStep.UseSoundboard || step == TutorialStep.ShowCorruption);
-        SetGateActive(chaseGate, step != TutorialStep.IntroduceMonster && step != TutorialStep.HideFromMonster && step != TutorialStep.TeachSprintRisk && step != TutorialStep.ExitToMainMaze && step != TutorialStep.Completed);
+        SetDoorLocked(soundboardDoorGate, step == TutorialStep.StartDarkRoom || step == TutorialStep.CollectSoundboard);
+        SetDoorLocked(soundboardUseDoor, step == TutorialStep.UseSoundboard);
+        SetDoorLocked(corruptionDoor, step == TutorialStep.ShowCorruption);
+        SetDoorLocked(lightDoorGate, step == TutorialStep.UseLightSpot);
+        SetDoorLocked(chaseGate, step == TutorialStep.HideFromMonster);
+        SetDoorLocked(sprintDoor, step == TutorialStep.TeachSprintRisk);
+        SetDoorLocked(tutorialExitGate, step != TutorialStep.ExitToMainMaze && step != TutorialStep.Completed);
+    }
 
-        bool blockExit = step != TutorialStep.ExitToMainMaze && step != TutorialStep.Completed;
-        SetGateActive(tutorialExitGate, blockExit);
+    void SetDoorLocked(GameObject doorObj, bool locked)
+    {
+        if (doorObj == null)
+        {
+            return;
+        }
+
+        TutorialStageDoor stageDoor = doorObj.GetComponent<TutorialStageDoor>();
+        if (stageDoor != null)
+        {
+            if (!locked)
+            {
+                stageDoor.Unlock(currentStep.ToString());
+            }
+            else if (stageDoor.IsUnlocked)
+            {
+                stageDoor.SetLocked(true);
+            }
+            return;
+        }
+
+        DoorTrigger trigger = doorObj.GetComponent<DoorTrigger>();
+        if (trigger != null)
+        {
+            trigger.SetLockedState(locked);
+            return;
+        }
+
+        doorObj.SetActive(locked);
     }
 
     void SetGateActive(GameObject gate, bool active)
@@ -455,6 +490,16 @@ public class IntroTapeController : MonoBehaviour
             soundboardDoorGate = context.soundboardGate;
         }
 
+        if (context.soundboardUseDoor != null)
+        {
+            soundboardUseDoor = context.soundboardUseDoor;
+        }
+
+        if (context.corruptionDoor != null)
+        {
+            corruptionDoor = context.corruptionDoor;
+        }
+
         if (context.lightGate != null)
         {
             lightDoorGate = context.lightGate;
@@ -470,6 +515,11 @@ public class IntroTapeController : MonoBehaviour
             tutorialLightSpot = context.firstLightSpot;
         }
 
+
+        if (context.sprintDoor != null)
+        {
+            sprintDoor = context.sprintDoor;
+        }
 
         if (context.tutorialExitGate != null)
         {
