@@ -350,7 +350,10 @@ public class IntroTapeController : MonoBehaviour
         {
             if (!locked)
             {
-                stageDoor.Unlock(currentStep.ToString());
+                string unlockReason = currentStep.ToString();
+                Debug.Log("Tutorial door unlocked by event: " + unlockReason + ".");
+                stageDoor.Unlock(unlockReason);
+                Debug.Log("Door now interactable: " + doorObj.name + ".");
             }
             else if (stageDoor.IsUnlocked)
             {

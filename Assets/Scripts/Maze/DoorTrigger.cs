@@ -18,6 +18,7 @@ public class DoorTrigger : MonoBehaviour
 	public Vector3 textOffset = new Vector3(0, 2f, -0.5f);
 	public string openText = "Press E to open door";
 	public string lockedText = "Door locked";
+	public bool showLockedPrompt = false;
     
 	private bool isOpen = false;
 	private bool isLocked = false;
@@ -88,7 +89,14 @@ public class DoorTrigger : MonoBehaviour
 
 	void Update()
 	{
-		if (isLocked) return;
+		if (isLocked)
+		{
+			if (Input.GetKeyDown(KeyCode.E) && playerInsideTrigger)
+			{
+				Debug.Log("Door interaction blocked: door locked.");
+			}
+			return;
+		}
 
 		// Player can open door when inside trigger zone (inside room) and pressing E
 		if (Input.GetKeyDown(KeyCode.E) && !isOpen && playerInsideTrigger)
@@ -103,7 +111,18 @@ public class DoorTrigger : MonoBehaviour
 
 		if (isLocked)
 		{
-			interactionText.text = lockedText;
+			if (showLockedPrompt)
+			{
+				interactionText.text = lockedText;
+			}
+			else
+			{
+				interactionText.text = "";
+				if (interactionTextObject != null && interactionTextObject.activeSelf)
+				{
+					Debug.Log("Door prompt suppressed: door locked.");
+				}
+			}
 		}
 		else if (!isOpen && playerInsideTrigger)
 		{
