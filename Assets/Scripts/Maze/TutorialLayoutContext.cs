@@ -25,8 +25,11 @@ public class TutorialLayoutContext
     public Transform playerSpawnPoint;
     public SoundboardPickup soundboardPickup;
     public GameObject soundboardGate;
+    public GameObject soundboardUseDoor;
+    public GameObject corruptionDoor;
     public GameObject lightGate;
     public GameObject chaseGate;
+    public GameObject sprintDoor;
     public GameObject corruptionDemoTrigger;
     public SafeSpaceZone firstLightSpot;
     public Transform monsterRevealPoint;
@@ -44,8 +47,11 @@ public class TutorialLayoutContext
         return playerSpawnPoint != null &&
             soundboardPickup != null &&
             soundboardGate != null &&
+            soundboardUseDoor != null &&
+            corruptionDoor != null &&
             lightGate != null &&
             chaseGate != null &&
+            sprintDoor != null &&
             firstLightSpot != null &&
             hideLightSpot != null &&
             monsterRevealPoint != null &&
