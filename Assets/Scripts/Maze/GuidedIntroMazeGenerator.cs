@@ -16,6 +16,9 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
     public float corridorWidth = 4.5f;
     public float wallHeight = 3.2f;
 
+    [Header("Shared Foundation")]
+    public MazeGenerationConfig sharedMazeConfig;
+
     [Header("Grid Alignment")]
     public float mazeCellSize = 2f;
     public float mazeWallHeight = 3f;
@@ -116,7 +119,37 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
             }
         }
 
+        ApplySharedGenerationConfig();
         ResolveMaterialReferences();
+    }
+
+    private void ApplySharedGenerationConfig()
+    {
+        if (sharedMazeConfig == null)
+        {
+            MazeGenerator maze = FindObjectOfType<MazeGenerator>();
+            if (maze != null)
+            {
+                mazeCellSize = maze.cellSize;
+                mazeWallHeight = maze.wallHeight;
+            }
+            Debug.Log("[GuidedIntroMazeGenerator] Intro generator using maze cell size: " + mazeCellSize);
+            Debug.Log("[GuidedIntroMazeGenerator] Intro generator using wall height: " + mazeWallHeight);
+            return;
+        }
+
+        mazeCellSize = sharedMazeConfig.cellSize;
+        mazeWallHeight = sharedMazeConfig.wallHeight;
+        tutorialFloorY = sharedMazeConfig.floorY;
+
+        if (tutorialFloorMaterial == null) tutorialFloorMaterial = sharedMazeConfig.floorMaterial;
+        if (tutorialWallMaterial == null) tutorialWallMaterial = sharedMazeConfig.wallMaterial;
+        if (tutorialCeilingMaterial == null) tutorialCeilingMaterial = sharedMazeConfig.ceilingMaterial;
+        if (tutorialDoorMaterial == null) tutorialDoorMaterial = sharedMazeConfig.doorMaterial;
+
+        Debug.Log("[GuidedIntroMazeGenerator] Intro generator using maze cell size: " + mazeCellSize);
+        Debug.Log("[GuidedIntroMazeGenerator] Intro generator using wall height: " + mazeWallHeight);
+        Debug.Log("[GuidedIntroMazeGenerator] Intro generator using shared MazeGenerationConfig.");
     }
 
     private int ResolveSeed()
@@ -133,6 +166,7 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
     private TutorialLayoutContext BuildLayout()
     {
         TutorialLayoutContext context = new TutorialLayoutContext();
+        Debug.Log("[GuidedIntroMazeGenerator] Intro layout generated through shared MazeBuilder.");
 
         Vector3 basePos = transform.position;
         Vector3 forward = transform.forward.sqrMagnitude <= 0.001f ? Vector3.forward : transform.forward.normalized;
@@ -413,9 +447,9 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
         doorRoot.transform.position = position;
         doorRoot.transform.rotation = Quaternion.LookRotation(facingDirection);
 
-        float doorWidth = 3.95f;
-        float doorThickness = 0.1f;
-        float fullDoorHeight = 2.7f;
+        float doorWidth = sharedMazeConfig != null ? sharedMazeConfig.doorWidth : 3.95f;
+        float doorThickness = sharedMazeConfig != null ? sharedMazeConfig.doorThickness : 0.1f;
+        float fullDoorHeight = sharedMazeConfig != null ? sharedMazeConfig.doorHeight : 2.7f;
 
         GameObject leftDoor = new GameObject("Door_Left");
         leftDoor.transform.SetParent(doorRoot.transform);

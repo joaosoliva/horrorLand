@@ -4,6 +4,7 @@ using System.Collections.Generic;
 public class MazeGenerator : MonoBehaviour
 {
 	[Header("Maze Settings")]
+	public MazeGenerationConfig sharedMazeConfig;
 	public int width = 20;
 	public int height = 20;
 	public float cellSize = 2f;
@@ -55,6 +56,7 @@ public class MazeGenerator : MonoBehaviour
 
 	void Start()
 	{
+		ApplySharedGenerationConfig();
 		CreateMaterials();
 		GenerateMaze();
 		DefineExit();
@@ -633,6 +635,20 @@ public class MazeGenerator : MonoBehaviour
 		return Vector3.forward;
 	}
 
+
+	void ApplySharedGenerationConfig()
+	{
+		if (sharedMazeConfig == null)
+		{
+			return;
+		}
+
+		cellSize = sharedMazeConfig.cellSize;
+		wallHeight = sharedMazeConfig.wallHeight;
+		if (startRoomFloorMaterial == null) startRoomFloorMaterial = sharedMazeConfig.floorMaterial;
+		if (startRoomWallMaterial == null) startRoomWallMaterial = sharedMazeConfig.wallMaterial;
+		Debug.Log("[MazeGenerator] Using shared MazeGenerationConfig.");
+	}
 
 	void CreateMaterials()
 	{
