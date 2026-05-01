@@ -214,13 +214,13 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
         context.mainMazeConnector = CreateMarker(root.transform, "MainMazeConnector", connectorPos + Vector3.up * 1.8f);
         BuildTutorialMainMazeConnector(root.transform, basePos, right, forward);
 
-        context.soundboardGate = CreateTutorialDoor(root.transform, "Door_SoundboardPickupExit", GridToBoundaryWorld(new Vector2Int(6,2), Vector2Int.right, basePos, right, forward), right);
-        context.soundboardUseDoor = CreateTutorialDoor(root.transform, "Door_SoundboardUseExit", GridToBoundaryWorld(new Vector2Int(7,1), Vector2Int.right, basePos, right, forward), right);
-        context.corruptionDoor = CreateTutorialDoor(root.transform, "Door_CorruptionExit", GridToBoundaryWorld(new Vector2Int(12,1), Vector2Int.right, basePos, right, forward), right);
-        context.lightGate = CreateTutorialDoor(root.transform, "Door_LightSpotExit", GridToBoundaryWorld(new Vector2Int(16,1), Vector2Int.right, basePos, right, forward), right);
-        context.chaseGate = CreateTutorialDoor(root.transform, "Door_HideChamberExit", GridToBoundaryWorld(new Vector2Int(28,2), Vector2Int.right, basePos, right, forward), right);
-        context.sprintDoor = CreateTutorialDoor(root.transform, "Door_SprintExit", GridToBoundaryWorld(new Vector2Int(34,2), Vector2Int.right, basePos, right, forward), right);
-        context.tutorialExitGate = CreateTutorialDoor(root.transform, "Door_TutorialFinalExit", GridToBoundaryWorld(new Vector2Int(36,2), Vector2Int.right, basePos, right, forward), right);
+        context.soundboardGate = CreateDoorBetweenCells(root.transform, "Door_SoundboardPickupExit", new Vector2Int(6, 2), new Vector2Int(7, 2));
+        context.soundboardUseDoor = CreateDoorBetweenCells(root.transform, "Door_SoundboardUseExit", new Vector2Int(7, 1), new Vector2Int(8, 1));
+        context.corruptionDoor = CreateDoorBetweenCells(root.transform, "Door_CorruptionExit", new Vector2Int(12, 1), new Vector2Int(13, 1));
+        context.lightGate = CreateDoorBetweenCells(root.transform, "Door_LightSpotExit", new Vector2Int(16, 1), new Vector2Int(17, 1));
+        context.chaseGate = CreateDoorBetweenCells(root.transform, "Door_HideChamberExit", new Vector2Int(28, 2), new Vector2Int(29, 2));
+        context.sprintDoor = CreateDoorBetweenCells(root.transform, "Door_SprintExit", new Vector2Int(34, 2), new Vector2Int(35, 2));
+        context.tutorialExitGate = CreateDoorBetweenCells(root.transform, "Door_TutorialFinalExit", new Vector2Int(36, 2), new Vector2Int(37, 2));
         context.corruptionDemoTrigger = CreateTrigger(root.transform, "CorruptionDemoTrigger", corruptionPos, new Vector3(mazeCellSize * 1.5f, 2.5f, mazeCellSize * 2f), TutorialZoneType.CorruptionDemoZone, context);
         context.sprintRiskTrigger = CreateTrigger(root.transform, "SprintRiskTrigger", sprintPos, new Vector3(mazeCellSize * 1.5f, 2.5f, mazeCellSize * 2f), TutorialZoneType.SprintDemoZone, context);
 
@@ -438,6 +438,56 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
         marker.transform.position = position;
         generatedObjects.Add(marker);
         return marker.transform;
+    }
+
+    private GameObject CreateDoorBetweenCells(Transform root, string doorName, Vector2Int cellA, Vector2Int cellB)
+    {
+        Vector3 boundary = MazeGridUtility.BoundaryCenterBetweenCells(cellA, cellB, mazeCellSize, tutorialFloorY);
+        Quaternion rot = MazeGridUtility.DoorRotationForBoundary(cellA, cellB);
+
+        Vector3 dir = (new Vector3(cellB.x - cellA.x, 0f, cellB.y - cellA.y)).normalized;
+        string boundaryLabel = Mathf.Abs(dir.x) > Mathf.Abs(dir.z) ? "East/West" : "North/South";
+
+        GameObject door = CreateTutorialDoor(root, doorName, boundary, rot * Vector3.forward);
+
+        Debug.Log($"[GuidedIntroMazeGenerator] Created tutorial door between cell ({cellA.x},{cellA.y}) and ({cellB.x},{cellB.y}).");
+        Debug.Log("[GuidedIntroMazeGenerator] Door boundary: " + boundaryLabel + ".");
+        Debug.Log("[GuidedIntroMazeGenerator] Door position: " + boundary);
+        Debug.Log("[GuidedIntroMazeGenerator] Door rotation: " + rot.eulerAngles);
+
+        ValidateDoorBlocksPassage(door, cellA, cellB);
+        return door;
+    }
+
+    private void ValidateDoorBlocksPassage(GameObject door, Vector2Int cellA, Vector2Int cellB)
+    {
+        if (door == null)
+        {
+            Debug.LogError("[GuidedIntroMazeGenerator] Door validation failed: missing door instance.");
+            return;
+        }
+
+        BoxCollider triggerCollider = door.GetComponent<BoxCollider>();
+        if (triggerCollider == null)
+        {
+            Debug.LogError("[GuidedIntroMazeGenerator] Door validation failed: missing blocking trigger collider.");
+            return;
+        }
+
+        if (triggerCollider.size.x <= 0.01f || triggerCollider.size.y <= 0.01f)
+        {
+            Debug.LogError("[GuidedIntroMazeGenerator] Door validation failed: invalid collider dimensions.");
+            return;
+        }
+
+        float centerOffset = Vector3.Distance(door.transform.position, MazeGridUtility.BoundaryCenterBetweenCells(cellA, cellB, mazeCellSize, tutorialFloorY));
+        if (centerOffset > mazeCellSize * 0.35f)
+        {
+            Debug.LogError("[GuidedIntroMazeGenerator] Door validation failed: not centered on shared wall boundary.");
+            return;
+        }
+
+        Debug.Log("[GuidedIntroMazeGenerator] Door validation passed: blocks passage.");
     }
 
     private GameObject CreateTutorialDoor(Transform root, string name, Vector3 position, Vector3 facingDirection)
