@@ -80,6 +80,7 @@ public class IntroTapeController : MonoBehaviour
         }
 
         ValidateSceneWiring();
+        ValidateTutorialInteractionRules();
         BuildObjectivesIfMissing();
         CacheObjectiveLookup();
 
@@ -196,6 +197,21 @@ public class IntroTapeController : MonoBehaviour
         {
             encounterManager = FindObjectOfType<EncounterManager>();
         }
+    }
+
+    void ValidateTutorialInteractionRules()
+    {
+        GameObject[] doors = { soundboardDoorGate, soundboardUseDoor, corruptionDoor, lightDoorGate, chaseGate, sprintDoor, tutorialExitGate };
+        for (int i = 0; i < doors.Length; i++)
+        {
+            if (doors[i] == null) continue;
+            DoorTrigger trigger = doors[i].GetComponent<DoorTrigger>();
+            if (trigger != null && trigger.showLockedPrompt)
+            {
+                Debug.LogWarning("[IntroTapeController] Tutorial interaction validation: locked prompt is enabled on " + doors[i].name + ".");
+            }
+        }
+        Debug.Log("[IntroTapeController] Tutorial interaction validation: locked-door prompt rules inspected.");
     }
 
     void ValidateSceneWiring()

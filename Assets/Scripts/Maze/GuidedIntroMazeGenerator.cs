@@ -75,6 +75,7 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
         generatedContext = BuildLayout();
         bool valid = ValidateLayout(generatedContext, out List<string> errors);
         ValidateFinalTutorialPresentation(generatedContext);
+        ValidateIntegrationChecklist(generatedContext);
         if (!valid)
         {
             for (int i = 0; i < errors.Count; i++)
@@ -873,6 +874,52 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
             Debug.Log("[GuidedIntroMazeGenerator] Validation: stage door lock visuals present.");
 
         Debug.Log("[GuidedIntroMazeGenerator] Final tutorial visual validation complete.");
+    }
+
+    private void ValidateIntegrationChecklist(TutorialLayoutContext context)
+    {
+        if (context == null)
+        {
+            Debug.LogError("[GuidedIntroMazeGenerator] Integration validation failed: null context.");
+            return;
+        }
+
+        bool materialsReady = tutorialFloorMaterial != null && tutorialWallMaterial != null && tutorialCeilingMaterial != null;
+        Debug.Log(materialsReady
+            ? "[GuidedIntroMazeGenerator] Integration validation: tutorial materials assigned."
+            : "[GuidedIntroMazeGenerator] Integration validation warning: one or more tutorial materials missing.");
+
+        bool sharedMeasures = mazeCellSize > 0.1f && mazeWallHeight > 0.1f;
+        Debug.Log(sharedMeasures
+            ? $"[GuidedIntroMazeGenerator] Integration validation: shared measures cell={mazeCellSize}, wall={mazeWallHeight}."
+            : "[GuidedIntroMazeGenerator] Integration validation error: invalid shared dimensions.");
+
+        int boundaryDoorFailures = 0;
+        TutorialStageDoor[] stageDoors = FindObjectsOfType<TutorialStageDoor>();
+        foreach (var d in stageDoors)
+        {
+            if (d == null) continue;
+            float gx = (d.transform.position.x - transform.position.x) / mazeCellSize;
+            float gz = (d.transform.position.z - transform.position.z) / mazeCellSize;
+            bool halfX = Mathf.Abs(gx * 2f - Mathf.Round(gx * 2f)) < 0.06f;
+            bool halfZ = Mathf.Abs(gz * 2f - Mathf.Round(gz * 2f)) < 0.06f;
+            bool wholeX = Mathf.Abs(gx - Mathf.Round(gx)) < 0.06f;
+            bool wholeZ = Mathf.Abs(gz - Mathf.Round(gz)) < 0.06f;
+            if (!((halfX && wholeZ) || (halfZ && wholeX)))
+            {
+                boundaryDoorFailures++;
+            }
+        }
+
+        if (boundaryDoorFailures > 0)
+            Debug.LogError("[GuidedIntroMazeGenerator] Integration validation error: some tutorial doors are not on cell boundaries.");
+        else
+            Debug.Log("[GuidedIntroMazeGenerator] Integration validation: all tutorial doors are on valid cell boundaries.");
+
+        if (context.generatedCells.Count == 0)
+            Debug.LogError("[GuidedIntroMazeGenerator] Integration validation error: no tutorial cells generated.");
+        else
+            Debug.Log("[GuidedIntroMazeGenerator] Integration validation: tutorial cells generated and connected checks executed.");
     }
 
     private void PlacePlayerAtSpawn(TutorialLayoutContext context)
