@@ -85,6 +85,7 @@ public class MazeGenerator : MonoBehaviour
 		if (useTutorialBlueprint)
 		{
 			CompareMainMazeAndTutorialUnits();
+			CreateBlueprintStageDoors();
 		}
 		CreateExitDoor();
 		
@@ -540,6 +541,83 @@ public class MazeGenerator : MonoBehaviour
 		doorTrigger.isTrigger = true;
 		doorTrigger.size = new Vector3(1f, height, 0.5f); // Slightly larger for easy interaction
 		doorTrigger.center = new Vector3(0, 0, 0.25f);
+	}
+
+	void CreateBlueprintStageDoors()
+	{
+		if (activeBlueprint == null || activeBlueprint.edges == null)
+		{
+			return;
+		}
+
+		for (int i = 0; i < activeBlueprint.edges.Count; i++)
+		{
+			var edge = activeBlueprint.edges[i];
+			if (!edge.requiresDoor)
+			{
+				continue;
+			}
+
+			Vector3 a = new Vector3(edge.a.x * cellSize + cellSize * 0.5f, 0f, edge.a.y * cellSize + cellSize * 0.5f);
+			Vector3 b = new Vector3(edge.b.x * cellSize + cellSize * 0.5f, 0f, edge.b.y * cellSize + cellSize * 0.5f);
+			Vector3 pos = (a + b) * 0.5f;
+			Vector3 dir = (b - a).normalized;
+
+			GameObject door = CreateDoubleDoorForBlueprint(transform, edge.doorId, pos, dir);
+			Debug.Log($"[MazeGenerator] DoorId={edge.doorId} adjacent A=({edge.a.x},{edge.a.y}) B=({edge.b.x},{edge.b.y}) position={pos} rotation={door.transform.eulerAngles}");
+		}
+	}
+
+	GameObject CreateDoubleDoorForBlueprint(Transform parent, string doorId, Vector3 position, Vector3 facingDirection)
+	{
+		GameObject doorRoot = new GameObject(doorId);
+		doorRoot.transform.parent = parent;
+		doorRoot.transform.position = position;
+		doorRoot.transform.rotation = Quaternion.LookRotation(facingDirection);
+
+		float doorWidth = sharedMazeConfig != null ? sharedMazeConfig.doorWidth : 3.95f;
+		float doorThickness = sharedMazeConfig != null ? sharedMazeConfig.doorThickness : 0.1f;
+		float fullDoorHeight = sharedMazeConfig != null ? sharedMazeConfig.doorHeight : doorHeight;
+
+		GameObject leftDoor = new GameObject("Door_Left");
+		leftDoor.transform.parent = doorRoot.transform;
+		leftDoor.transform.localPosition = new Vector3(-doorWidth / 2f, fullDoorHeight / 2f, 0f);
+		GameObject leftDoorVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+		leftDoorVisual.name = "LeftDoor_Visual";
+		leftDoorVisual.transform.parent = leftDoor.transform;
+		leftDoorVisual.transform.localScale = new Vector3(doorWidth / 2f, fullDoorHeight, doorThickness);
+		leftDoorVisual.transform.localPosition = new Vector3(doorWidth / 4f, 0f, -doorThickness / 2f);
+		if (sharedMazeConfig != null && sharedMazeConfig.doorMaterial != null) leftDoorVisual.GetComponent<Renderer>().material = sharedMazeConfig.doorMaterial;
+		DestroyImmediate(leftDoorVisual.GetComponent<BoxCollider>());
+
+		GameObject rightDoor = new GameObject("Door_Right");
+		rightDoor.transform.parent = doorRoot.transform;
+		rightDoor.transform.localPosition = new Vector3(doorWidth / 2f, fullDoorHeight / 2f, 0f);
+		GameObject rightDoorVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+		rightDoorVisual.name = "RightDoor_Visual";
+		rightDoorVisual.transform.parent = rightDoor.transform;
+		rightDoorVisual.transform.localScale = new Vector3(doorWidth / 2f, fullDoorHeight, doorThickness);
+		rightDoorVisual.transform.localPosition = new Vector3(-doorWidth / 4f, 0f, -doorThickness / 2f);
+		if (sharedMazeConfig != null && sharedMazeConfig.doorMaterial != null) rightDoorVisual.GetComponent<Renderer>().material = sharedMazeConfig.doorMaterial;
+		DestroyImmediate(rightDoorVisual.GetComponent<BoxCollider>());
+
+		BoxCollider triggerCollider = doorRoot.AddComponent<BoxCollider>();
+		triggerCollider.isTrigger = true;
+		triggerCollider.size = new Vector3(doorWidth, fullDoorHeight, 4f);
+		triggerCollider.center = new Vector3(0f, fullDoorHeight / 2f, -2f);
+
+		DoorTrigger trigger = doorRoot.AddComponent<DoorTrigger>();
+		trigger.doorWidth = doorWidth;
+		trigger.doorHeight = fullDoorHeight;
+		trigger.facingDirection = facingDirection;
+		trigger.SetLockedState(true);
+
+		TutorialStageDoor stageDoor = doorRoot.AddComponent<TutorialStageDoor>();
+		stageDoor.doorId = doorId;
+		stageDoor.doorTrigger = trigger;
+		stageDoor.startsLocked = true;
+
+		return doorRoot;
 	}
 
 	void CreateExitDoor()
