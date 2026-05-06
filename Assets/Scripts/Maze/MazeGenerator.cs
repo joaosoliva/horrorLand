@@ -82,6 +82,10 @@ public class MazeGenerator : MonoBehaviour
 			Debug.Log($"Maze value at ({entryCell.x + 1}, {entryCell.y}) AFTER carve: {maze[entryCell.x + 1, entryCell.y]}");
     
 		BuildMazeGeometry();
+		if (useTutorialBlueprint)
+		{
+			CompareMainMazeAndTutorialUnits();
+		}
 		CreateExitDoor();
 		
 		// CHECK IF WALL EXISTS AFTER BUILDING
@@ -660,6 +664,26 @@ public class MazeGenerator : MonoBehaviour
 		Debug.Log("[MazeGenerator] Using shared MazeGenerationConfig.");
 	}
 
+	void CompareMainMazeAndTutorialUnits()
+	{
+		float mainCellSize = sharedMazeConfig != null ? sharedMazeConfig.cellSize : cellSize;
+		float tutorialCellSize = cellSize;
+		float mainWallHeight = sharedMazeConfig != null ? sharedMazeConfig.wallHeight : wallHeight;
+		float tutorialWallHeight = wallHeight;
+
+		float mainRoom20 = 20f * mainCellSize;
+		float tutorialRoom20 = 20f * tutorialCellSize;
+
+		bool cellMatch = Mathf.Abs(mainCellSize - tutorialCellSize) < 0.001f;
+		bool wallMatch = Mathf.Abs(mainWallHeight - tutorialWallHeight) < 0.001f;
+		bool roomMatch = Mathf.Abs(mainRoom20 - tutorialRoom20) < 0.001f;
+
+		Debug.Log($"[MazeGenerator] CompareMainMazeAndTutorialUnits main cell size={mainCellSize}, tutorial cell size={tutorialCellSize}");
+		Debug.Log($"[MazeGenerator] CompareMainMazeAndTutorialUnits main wall height={mainWallHeight}, tutorial wall height={tutorialWallHeight}");
+		Debug.Log($"[MazeGenerator] CompareMainMazeAndTutorialUnits main 20x20 bounds={mainRoom20}, tutorial 20x20 bounds={tutorialRoom20}");
+		Debug.Log($"[MazeGenerator] CompareMainMazeAndTutorialUnits pass={(cellMatch && wallMatch && roomMatch)}");
+	}
+
 	void CreateMaterials()
 	{
 		wallMaterial = new Material(Shader.Find("Standard"));
@@ -678,6 +702,8 @@ public class MazeGenerator : MonoBehaviour
 	void GenerateTutorialTopologyOnly()
 	{
 		activeBlueprint = TutorialMazeBlueprintFactory.CreateDefaultTutorialBlueprint();
+		width = activeBlueprint.width;
+		height = activeBlueprint.height;
 		maze = new int[activeBlueprint.width, activeBlueprint.height];
 		for (int x = 0; x < activeBlueprint.width; x++)
 			for (int y = 0; y < activeBlueprint.height; y++)
