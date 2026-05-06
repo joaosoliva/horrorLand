@@ -22,6 +22,9 @@ public class MazeGenerator : MonoBehaviour
 	public GameObject playerPrefab;
 
 	private int[,] maze;
+	[Header("Layout Mode")]
+	public bool useTutorialBlueprint = false;
+	private MazeBlueprintData activeBlueprint;
 	private Material wallMaterial;
 	private Material floorMaterial;
 	private Vector2Int startPosition;
@@ -58,7 +61,14 @@ public class MazeGenerator : MonoBehaviour
 	{
 		ApplySharedGenerationConfig();
 		CreateMaterials();
-		GenerateMaze();
+		if (useTutorialBlueprint)
+		{
+			GenerateTutorialTopologyOnly();
+		}
+		else
+		{
+			GenerateMaze();
+		}
 		DefineExit();
     
 		Vector2Int entryCell = FindMazeEntrance();
@@ -663,6 +673,30 @@ public class MazeGenerator : MonoBehaviour
 		if (floorTexture != null) floorMaterial.mainTexture = floorTexture;
 		floorMaterial.SetFloat("_Metallic", 0f);
 		floorMaterial.SetFloat("_Glossiness", 0.2f);
+	}
+
+	void GenerateTutorialTopologyOnly()
+	{
+		activeBlueprint = TutorialMazeBlueprintFactory.CreateDefaultTutorialBlueprint();
+		maze = new int[activeBlueprint.width, activeBlueprint.height];
+		for (int x = 0; x < activeBlueprint.width; x++)
+			for (int y = 0; y < activeBlueprint.height; y++)
+				maze[x, y] = 1;
+
+		for (int i = 0; i < activeBlueprint.cells.Count; i++)
+		{
+			var c = activeBlueprint.cells[i].cell;
+			if (c.x >= 0 && c.x < activeBlueprint.width && c.y >= 0 && c.y < activeBlueprint.height)
+				maze[c.x, c.y] = 0;
+		}
+
+		for (int i = 0; i < activeBlueprint.edges.Count; i++)
+		{
+			var e = activeBlueprint.edges[i];
+			Debug.Log($"[MazeGenerator] Tutorial edge {i}: ({e.a.x},{e.a.y}) -> ({e.b.x},{e.b.y}), door={e.requiresDoor}, id={e.doorId}");
+		}
+
+		Debug.Log($"[MazeGenerator] Tutorial blueprint topology generated. Cells={activeBlueprint.cells.Count}, Edges={activeBlueprint.edges.Count}");
 	}
 
 	void GenerateMaze()
