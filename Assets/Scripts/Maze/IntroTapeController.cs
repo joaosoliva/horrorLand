@@ -85,7 +85,8 @@ public class IntroTapeController : MonoBehaviour
         CacheObjectiveLookup();
 
         HorrorEvents.RaiseTutorialStarted();
-        EnterStep(TutorialStep.StartDarkRoom, "Tutorial started");
+        EnterStep(TutorialStep.CollectSoundboard, "Tutorial started");
+        Debug.Log("Tutorial first active step: CollectSoundboard.");
     }
 
     void OnEnable()
@@ -287,6 +288,11 @@ public class IntroTapeController : MonoBehaviour
         }
 
         ConfigureStepGates(nextStep);
+
+        if (nextStep == TutorialStep.CollectSoundboard)
+        {
+            Debug.Log("SoundboardPickupArea marked as initial tutorial safe zone.");
+        }
 
         if (disablePreChaseEncountersDuringTutorial && encounterManager != null)
         {

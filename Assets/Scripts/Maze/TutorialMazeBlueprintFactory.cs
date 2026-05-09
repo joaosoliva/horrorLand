@@ -8,7 +8,6 @@ public static class TutorialMazeBlueprintFactory
         bp.width = 48;
         bp.height = 12;
 
-        AddRect(bp, 0, 0, 2, 2, "TutorialStage_Start");
         AddRect(bp, 4, 0, 6, 3, "TutorialStage_SoundboardPickup");
         AddRect(bp, 7, 1, 7, 2, "TutorialStage_SoundboardUse");
         AddRect(bp, 8, 1, 12, 1, "TutorialStage_CorruptionDemo");
