@@ -130,6 +130,7 @@ public class VillainAI : MonoBehaviour
 	private int currentPathIndex = 0;
 	private float lastRepathTime = 0f;
 	private bool isInitialized = false;
+	private bool introScriptedNoMazeMode = false;
 	private float lastStateChangeTime = 0f;
 	private bool isMovingToNextSearchPoint = false;
 	
@@ -231,10 +232,21 @@ public class VillainAI : MonoBehaviour
 			mazeGenerator = FindObjectOfType<MazeGenerator>();
 			if (mazeGenerator == null)
 			{
+				GuidedIntroMazeGenerator introGenerator = FindObjectOfType<GuidedIntroMazeGenerator>();
+				if (introGenerator != null)
+				{
+					introScriptedNoMazeMode = true;
+					isInitialized = true;
+					Debug.LogWarning("Villain AI running in scripted intro mode without maze provider.");
+					Debug.LogWarning("Villain AI disabled catch: no valid maze provider during intro.");
+					yield break;
+				}
 				Debug.LogError("MazeGenerator not found! VillainAI will not work properly.");
 				yield break;
 			}
 		}
+
+		Debug.Log("Villain AI using maze provider: MainMazeGenerator.");
 
 		yield return new WaitForSeconds(0.5f);
 
@@ -435,6 +447,10 @@ public class VillainAI : MonoBehaviour
 	void Update()
 	{
 		if (!isInitialized) return;
+		if (introScriptedNoMazeMode)
+		{
+			return;
+		}
 		if (Time.time >= awarenessBoostUntilTime)
 		{
 			currentAwarenessBoost = 0f;
