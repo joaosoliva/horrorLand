@@ -29,6 +29,8 @@ public class DoorTrigger : MonoBehaviour
 	private Transform rightDoor;
 	private Quaternion leftDoorClosedRot;
 	private Quaternion rightDoorClosedRot;
+	private Quaternion leftDoorOpenRot;
+	private Quaternion rightDoorOpenRot;
 	private GameObject interactionTextObject;
 	private TextMeshPro interactionText;
 	public event Action OnDoorOpened;
@@ -53,6 +55,10 @@ public class DoorTrigger : MonoBehaviour
 		{
 			rightDoorClosedRot = rightDoor.localRotation;
 		}
+
+		leftDoorOpenRot = leftDoorClosedRot * Quaternion.Euler(0, -openAngle, 0);
+		rightDoorOpenRot = rightDoorClosedRot * Quaternion.Euler(0, openAngle, 0);
+		Debug.Log($"Door closed pose configured: id={gameObject.name} leftClosed={leftDoorClosedRot.eulerAngles} rightClosed={rightDoorClosedRot.eulerAngles} leftOpen={leftDoorOpenRot.eulerAngles} rightOpen={rightDoorOpenRot.eulerAngles}");
 
 		// Create interaction text programmatically
 		CreateInteractionText();
@@ -163,20 +169,18 @@ public class DoorTrigger : MonoBehaviour
 		while (t < 1 && leftDoor != null && rightDoor != null)
 		{
 			// Left door swings out to the left (negative Y rotation around its hinge)
-			leftDoor.localRotation = Quaternion.Lerp(leftDoorClosedRot, 
-				Quaternion.Euler(0, -openAngle, 0), t);
+			leftDoor.localRotation = Quaternion.Lerp(leftDoorClosedRot, leftDoorOpenRot, t);
             
 			// Right door swings out to the right (positive Y rotation around its hinge)
-			rightDoor.localRotation = Quaternion.Lerp(rightDoorClosedRot, 
-				Quaternion.Euler(0, openAngle, 0), t);
+			rightDoor.localRotation = Quaternion.Lerp(rightDoorClosedRot, rightDoorOpenRot, t);
             
 			t += Time.deltaTime * animationSpeed;
 			yield return null;
 		}
 
 		// Ensure final rotation
-		if (leftDoor != null) leftDoor.localRotation = Quaternion.Euler(0, -openAngle, 0);
-		if (rightDoor != null) rightDoor.localRotation = Quaternion.Euler(0, openAngle, 0);
+		if (leftDoor != null) leftDoor.localRotation = leftDoorOpenRot;
+		if (rightDoor != null) rightDoor.localRotation = rightDoorOpenRot;
 		OnDoorOpened?.Invoke();
 	}
 
