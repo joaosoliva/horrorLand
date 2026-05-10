@@ -19,6 +19,10 @@ public class DoorTrigger : MonoBehaviour
 	public string openText = "Press E to open door";
 	public string lockedText = "Door locked";
 	public bool showLockedPrompt = false;
+
+	[Header("Debug")]
+	public bool debugTriggerDirection = false;
+	public float debugDirectionRayLength = 1.5f;
     
 	private bool isOpen = false;
 	private bool isLocked = false;
@@ -61,6 +65,32 @@ public class DoorTrigger : MonoBehaviour
 		leftDoorOpenRot = Quaternion.Euler(0f, -openAngle, 0f);
 		rightDoorOpenRot = Quaternion.Euler(0f, openAngle, 0f);
 	}
+
+	Vector3 GetDoorTraversalForward()
+	{
+		Vector3 source = facingDirection.sqrMagnitude > 0.0001f ? facingDirection : transform.forward;
+		Vector3 planar = Vector3.ProjectOnPlane(source, Vector3.up);
+		if (planar.sqrMagnitude < 0.0001f)
+		{
+			planar = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+		}
+		if (planar.sqrMagnitude < 0.0001f)
+		{
+			planar = Vector3.forward;
+		}
+		return planar.normalized;
+	}
+
+	void ValidateTraversalDirectionContract()
+	{
+		Vector3 traversalForward = GetDoorTraversalForward();
+		Vector3 rootForward = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
+		float agreement = Vector3.Dot(traversalForward, rootForward);
+		if (agreement < 0.98f)
+		{
+			Debug.LogWarning($"[DoorTrigger] Traversal forward mismatch on {name}. facingDirection={facingDirection} rootForward={transform.forward} dot={agreement:0.###}");
+		}
+	}
 	void Start()
 	{
 		// Find the door hinge objects (not the visuals)
@@ -74,6 +104,7 @@ public class DoorTrigger : MonoBehaviour
 
 		EnsureNeutralHingeClosedState();
 		ConfigureDoorRotationsFromNeutral();
+		ValidateTraversalDirectionContract();
 		Debug.Log($"Door closed pose configured: id={gameObject.name} leftClosed={leftDoorClosedRot.eulerAngles} rightClosed={rightDoorClosedRot.eulerAngles} leftOpen={leftDoorOpenRot.eulerAngles} rightOpen={rightDoorOpenRot.eulerAngles}");
 		Debug.Log($"[DoorRuntimeTrace] id={gameObject.name} parent={(transform.parent != null ? transform.parent.name : "none")} rootWorldRot={transform.rotation.eulerAngles} rootLocalRot={transform.localRotation.eulerAngles} parentWorldRot={(transform.parent != null ? transform.parent.rotation.eulerAngles.ToString() : "none")} leftLocalRot={(leftDoor != null ? leftDoor.localRotation.eulerAngles.ToString() : "missing")} rightLocalRot={(rightDoor != null ? rightDoor.localRotation.eulerAngles.ToString() : "missing")} leftWorldRot={(leftDoor != null ? leftDoor.rotation.eulerAngles.ToString() : "missing")} rightWorldRot={(rightDoor != null ? rightDoor.rotation.eulerAngles.ToString() : "missing")} facingDirection={facingDirection} transformForward={transform.forward} parentLossyScale={(transform.parent != null ? transform.parent.lossyScale.ToString() : "none")}");
 
@@ -305,13 +336,14 @@ public class DoorTrigger : MonoBehaviour
 
 			// Check if player is exiting through the doors (moving in the facing direction)
 			Vector3 toPlayer = (other.transform.position - transform.position).normalized;
-			float dotProduct = Vector3.Dot(toPlayer, transform.forward);
+			Vector3 traversalForward = GetDoorTraversalForward();
+			float dotProduct = Vector3.Dot(toPlayer, traversalForward);
 
 			// If player is moving in the door's facing direction (exiting room) and doors are open
 			if (dotProduct > 0.1f && isOpen && !playerHasExitedRoom && !isLocked)
 			{
 				playerHasExitedRoom = true;
-				Debug.Log("Player exited through doors - closing behind them");
+				Debug.Log($"Player exited through doors - closing behind them. dot={dotProduct:0.###} traversalForward={traversalForward}");
 				StartCoroutine(CloseDoors());
 			}
 		}
@@ -329,6 +361,18 @@ public class DoorTrigger : MonoBehaviour
 			// Also show text position
 			Gizmos.color = Color.cyan;
 			Gizmos.DrawWireSphere(transform.position + textOffset, 0.2f);
+
+			if (debugTriggerDirection)
+			{
+				Vector3 origin = transform.position + Vector3.up * 1.2f;
+				Vector3 traversalForward = GetDoorTraversalForward();
+
+				Gizmos.color = Color.green;
+				Gizmos.DrawRay(origin, traversalForward * debugDirectionRayLength);
+
+				Gizmos.color = Color.blue;
+				Gizmos.DrawRay(origin, Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized * debugDirectionRayLength);
+			}
 		}
 	}
 
