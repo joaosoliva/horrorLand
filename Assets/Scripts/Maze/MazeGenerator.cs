@@ -762,7 +762,7 @@ public class MazeGenerator : MonoBehaviour
 		DoorTrigger trigger = doorRoot.AddComponent<DoorTrigger>();
 		trigger.doorWidth = doorWidth;
 		trigger.doorHeight = doorHeight;
-		trigger.facingDirection = safeFacingDirection;
+		trigger.facingDirection = facingDirection;
 		startRoomDoorTrigger = trigger;
 
 		ProceduralScareDoor scareDoor = doorRoot.AddComponent<ProceduralScareDoor>();
