@@ -82,6 +82,7 @@ public class MazeGenerator : MonoBehaviour
 		public string boundaryAxis;
 		public Vector3 normalDirection;
 		public Vector3 tangentDirection;
+		public Vector3 connectionDirection;
 	}
 
 	void Start()
@@ -754,7 +755,7 @@ public class MazeGenerator : MonoBehaviour
 		DoorTrigger trigger = doorRoot.AddComponent<DoorTrigger>();
 		trigger.doorWidth = doorWidth;
 		trigger.doorHeight = doorHeight;
-		trigger.facingDirection = facingDirection;
+		trigger.facingDirection = safeFacingDirection;
 		startRoomDoorTrigger = trigger;
 
 		ProceduralScareDoor scareDoor = doorRoot.AddComponent<ProceduralScareDoor>();
@@ -809,7 +810,7 @@ public class MazeGenerator : MonoBehaviour
 			if (debugDoorOrientation)
 			{
 				debugDoorPoses.Add(pose);
-				Debug.Log($"[DoorOrientationDebug] door={request.doorId} cellA={request.cellA} cellB={request.cellB} position={pose.position} normal={pose.normalDirection} tangent={pose.tangentDirection} rotationY={pose.rotation.eulerAngles.y:0.##}");
+				Debug.Log($"[DoorOrientationDebug] door={request.doorId} cellA={request.cellA} cellB={request.cellB} position={pose.position} normal={pose.normalDirection} tangent={pose.tangentDirection} rotationY={pose.rotation.eulerAngles.y:0.##} connection={pose.connectionDirection}");
 			}
 			Vector2Int delta = request.cellB - request.cellA;
 			string boundaryDirection = Mathf.Abs(delta.x) > Mathf.Abs(delta.y) ? "East/West" : "North/South";
@@ -1057,22 +1058,81 @@ public class MazeGenerator : MonoBehaviour
 		DoorBoundaryWorldPose pose = new DoorBoundaryWorldPose();
 		Vector3 a = MazeGridUtility.GridToWorldCenter(cellA, cellSize, 0f);
 		Vector3 b = MazeGridUtility.GridToWorldCenter(cellB, cellSize, 0f);
-		Vector3 delta = b - a;
+		Vector2Int cellDelta = cellB - cellA;
 
 		pose.position = (a + b) * 0.5f;
-		pose.boundaryAxis = Mathf.Abs(cellB.x - cellA.x) > Mathf.Abs(cellB.y - cellA.y) ? "EastWest" : "NorthSouth";
-		pose.normalDirection = pose.boundaryAxis == "EastWest" ? Vector3.right : Vector3.forward;
-		pose.tangentDirection = Vector3.Cross(Vector3.up, pose.normalDirection).normalized;
-		pose.rotation = Quaternion.LookRotation(pose.normalDirection);
+		pose.boundaryAxis = Mathf.Abs(cellDelta.x) > Mathf.Abs(cellDelta.y) ? "EastWest" : "NorthSouth";
+
+		Vector3 connectionDirection = new Vector3(cellDelta.x, 0f, cellDelta.y);
+		if (connectionDirection.sqrMagnitude < 0.0001f)
+		{
+			Debug.LogError($"[MazeGenerator] Invalid door connection direction for boundary ({cellA.x},{cellA.y}) -> ({cellB.x},{cellB.y}). Falling back to Vector3.forward.");
+			connectionDirection = Vector3.forward;
+		}
+
+		pose.connectionDirection = connectionDirection.normalized;
+		pose.normalDirection = pose.connectionDirection;
+
+		Vector3 tangent = Vector3.Cross(Vector3.up, pose.normalDirection);
+		if (tangent.sqrMagnitude < 0.0001f)
+		{
+			Debug.LogError($"[MazeGenerator] Invalid tangent for door boundary ({cellA.x},{cellA.y}) -> ({cellB.x},{cellB.y}). Falling back to Vector3.right.");
+			tangent = Vector3.right;
+		}
+
+		pose.tangentDirection = tangent.normalized;
+		pose.rotation = Quaternion.LookRotation(pose.normalDirection, Vector3.up);
 		return pose;
+	}
+
+
+	bool IsMirroredTransform(Transform t)
+	{
+		if (t == null)
+		{
+			return false;
+		}
+
+		Vector3 ls = t.lossyScale;
+		return (ls.x * ls.y * ls.z) < 0f;
+	}
+
+	void ValidateDoorSpawnTransform(Transform parent, string doorId)
+	{
+		if (parent == null)
+		{
+			Debug.LogError($"[MazeGenerator] Door parent is null for {doorId}.");
+			return;
+		}
+
+		if (IsMirroredTransform(parent))
+		{
+			Debug.LogError($"[MazeGenerator] Mirrored parent transform detected for {doorId}. parent={parent.name} lossyScale={parent.lossyScale}");
+		}
+
+		if (IsMirroredTransform(transform))
+		{
+			Debug.LogError($"[MazeGenerator] MazeGenerator root has mirrored transform. root={name} lossyScale={transform.lossyScale}");
+		}
 	}
 
 	GameObject CreateDoubleDoorForBlueprint(Transform parent, string doorId, Vector3 position, Vector3 facingDirection, string boundaryAxis)
 	{
+		ValidateDoorSpawnTransform(parent, doorId);
+
+		Vector3 safeFacingDirection = facingDirection;
+		if (safeFacingDirection.sqrMagnitude < 0.0001f)
+		{
+			Debug.LogError($"[MazeGenerator] Invalid facing direction for {doorId}. Falling back to Vector3.forward.");
+			safeFacingDirection = Vector3.forward;
+		}
+
+		safeFacingDirection.Normalize();
+
 		GameObject doorRoot = new GameObject(doorId);
 		doorRoot.transform.parent = parent;
 		doorRoot.transform.position = position;
-		doorRoot.transform.rotation = Quaternion.LookRotation(facingDirection);
+		doorRoot.transform.rotation = Quaternion.LookRotation(safeFacingDirection, Vector3.up);
 
 		float doorWidth = sharedMazeConfig != null ? sharedMazeConfig.doorWidth : 3.95f;
 		float doorThickness = sharedMazeConfig != null ? sharedMazeConfig.doorThickness : 0.1f;
@@ -1121,7 +1181,7 @@ public class MazeGenerator : MonoBehaviour
 		DoorTrigger trigger = doorRoot.AddComponent<DoorTrigger>();
 		trigger.doorWidth = doorWidth;
 		trigger.doorHeight = fullDoorHeight;
-		trigger.facingDirection = facingDirection;
+		trigger.facingDirection = safeFacingDirection;
 		trigger.showLockedPrompt = false;
 		trigger.SetLockedState(true);
 		Debug.Log($"Door closed rotation set: id={doorId} axis={boundaryAxis} rotation={doorRoot.transform.rotation.eulerAngles}");
