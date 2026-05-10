@@ -78,6 +78,11 @@ public class MazeGenerator : MonoBehaviour
 		public bool startsLocked;
 	}
 
+	// Orientation contract for procedural stage doors:
+	// - doorRoot.forward ALWAYS points from connection cellA -> cellB.
+	// - doorRoot is responsible only for world-space alignment to maze topology.
+	// - Door_Left / Door_Right hinge locals are expected to remain neutral (local Y = 0) at spawn;
+	//   hinge animation is responsible for motion from that baseline.
 	struct DoorBoundaryWorldPose
 	{
 		public Vector3 position;
@@ -1123,23 +1128,52 @@ public class MazeGenerator : MonoBehaviour
 		}
 	}
 
+
+	Quaternion ComputeDoorRootRotation(Vector3 connectionForward, string doorId)
+	{
+		if (connectionForward.sqrMagnitude < 0.0001f)
+		{
+			Debug.LogError($"[MazeGenerator] Invalid forward vector for {doorId}. Falling back to Vector3.forward.");
+			connectionForward = Vector3.forward;
+		}
+
+		connectionForward = Vector3.ProjectOnPlane(connectionForward, Vector3.up);
+		if (connectionForward.sqrMagnitude < 0.0001f)
+		{
+			Debug.LogError($"[MazeGenerator] Door forward collapsed on up-axis for {doorId}. Falling back to Vector3.forward.");
+			connectionForward = Vector3.forward;
+		}
+
+		return Quaternion.LookRotation(connectionForward.normalized, Vector3.up);
+	}
+
+	void AssertNeutralHingeSpawn(Transform leftDoor, Transform rightDoor, string doorId)
+	{
+		if (leftDoor == null || rightDoor == null)
+		{
+			Debug.LogError($"[MazeGenerator] Missing hinge transform during spawn for {doorId}.");
+			return;
+		}
+
+		float leftY = Mathf.DeltaAngle(0f, leftDoor.localEulerAngles.y);
+		float rightY = Mathf.DeltaAngle(0f, rightDoor.localEulerAngles.y);
+		if (Mathf.Abs(leftY) > 0.01f || Mathf.Abs(rightY) > 0.01f)
+		{
+			Debug.LogError($"[MazeGenerator] Non-neutral hinge local rotation detected for {doorId}. leftY={leftY:0.###} rightY={rightY:0.###}");
+		}
+	}
+
 	GameObject CreateDoubleDoorForBlueprint(Transform parent, string doorId, Vector3 position, Vector3 facingDirection, string boundaryAxis)
 	{
 		ValidateDoorSpawnTransform(parent, doorId);
 
-		Vector3 safeFacingDirection = facingDirection;
-		if (safeFacingDirection.sqrMagnitude < 0.0001f)
-		{
-			Debug.LogError($"[MazeGenerator] Invalid facing direction for {doorId}. Falling back to Vector3.forward.");
-			safeFacingDirection = Vector3.forward;
-		}
-
-		safeFacingDirection.Normalize();
+		Quaternion rootRotation = ComputeDoorRootRotation(facingDirection, doorId);
+		Vector3 safeFacingDirection = rootRotation * Vector3.forward;
 
 		GameObject doorRoot = new GameObject(doorId);
 		doorRoot.transform.parent = parent;
 		doorRoot.transform.position = position;
-		doorRoot.transform.rotation = Quaternion.LookRotation(safeFacingDirection, Vector3.up);
+		doorRoot.transform.rotation = rootRotation;
 
 		float doorWidth = sharedMazeConfig != null ? sharedMazeConfig.doorWidth : 3.95f;
 		float doorThickness = sharedMazeConfig != null ? sharedMazeConfig.doorThickness : 0.1f;
@@ -1179,6 +1213,8 @@ public class MazeGenerator : MonoBehaviour
 			rightRenderer.material = resolvedDoorMaterial;
 		}
 		DestroyImmediate(rightDoorVisual.GetComponent<BoxCollider>());
+
+		AssertNeutralHingeSpawn(leftDoor.transform, rightDoor.transform, doorId);
 
 		BoxCollider triggerCollider = doorRoot.AddComponent<BoxCollider>();
 		triggerCollider.isTrigger = true;
