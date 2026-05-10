@@ -57,6 +57,11 @@ public class MazeGenerator : MonoBehaviour
 	private DoorTrigger startRoomDoorTrigger;
 	
 	private float doorHeight = 6f;
+
+	[Header("Door Orientation Debug")]
+	public bool debugDoorOrientation = false;
+	public float debugDoorRayLength = 1.5f;
+	private readonly List<DoorBoundaryWorldPose> debugDoorPoses = new List<DoorBoundaryWorldPose>();
 	public DoorTrigger StartRoomDoorTrigger => startRoomDoorTrigger;
 
 	struct MazeDoorRequest
@@ -771,6 +776,11 @@ public class MazeGenerator : MonoBehaviour
 
 	void CreateBlueprintStageDoors()
 	{
+		if (debugDoorOrientation)
+		{
+			debugDoorPoses.Clear();
+		}
+
 		if (activeBlueprint == null || activeBlueprint.edges == null)
 		{
 			return;
@@ -796,6 +806,11 @@ public class MazeGenerator : MonoBehaviour
 			Debug.Log($"Door accepted: {request.doorId} connects ({request.cellA.x},{request.cellA.y}) to ({request.cellB.x},{request.cellB.y}) direction=({request.boundaryDirection.x},{request.boundaryDirection.y})");
 
 			DoorBoundaryWorldPose pose = GetDoorBoundaryWorldPose(request.cellA, request.cellB);
+			if (debugDoorOrientation)
+			{
+				debugDoorPoses.Add(pose);
+				Debug.Log($"[DoorOrientationDebug] door={request.doorId} cellA={request.cellA} cellB={request.cellB} position={pose.position} normal={pose.normalDirection} tangent={pose.tangentDirection} rotationY={pose.rotation.eulerAngles.y:0.##}");
+			}
 			Vector2Int delta = request.cellB - request.cellA;
 			string boundaryDirection = Mathf.Abs(delta.x) > Mathf.Abs(delta.y) ? "East/West" : "North/South";
 
@@ -1376,6 +1391,32 @@ public class MazeGenerator : MonoBehaviour
 		else
 		{
 			Debug.LogError("[MazeGenerator] Scale validation failed between tutorial and main maze generation.");
+		}
+	}
+
+	void OnDrawGizmosSelected()
+	{
+		if (!debugDoorOrientation || debugDoorPoses == null || debugDoorPoses.Count == 0)
+		{
+			return;
+		}
+
+		for (int i = 0; i < debugDoorPoses.Count; i++)
+		{
+			DoorBoundaryWorldPose pose = debugDoorPoses[i];
+			Vector3 origin = pose.position + Vector3.up * 1.0f;
+
+			Gizmos.color = Color.cyan;
+			Gizmos.DrawSphere(origin, 0.08f);
+
+			Gizmos.color = Color.blue;
+			Gizmos.DrawRay(origin, pose.normalDirection.normalized * debugDoorRayLength);
+
+			Gizmos.color = Color.yellow;
+			Gizmos.DrawRay(origin, pose.tangentDirection.normalized * debugDoorRayLength);
+
+			Gizmos.color = Color.green;
+			Gizmos.DrawRay(origin, (pose.rotation * Vector3.forward).normalized * debugDoorRayLength);
 		}
 	}
 
