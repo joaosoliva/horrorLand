@@ -84,6 +84,14 @@ public class IntroTapeController : MonoBehaviour
             TutorialLayoutContext generated = layoutGenerator.GenerateLayout();
             ApplyGeneratedLayout(generated);
         }
+        else
+        {
+            MazeGenerator mazeGenerator = FindObjectOfType<MazeGenerator>();
+            if (mazeGenerator != null)
+            {
+                mazeGenerator.GenerateGuidedIntroMazeAndBuild(TutorialMazeBlueprintFactory.CreateDefaultTutorialBlueprint());
+            }
+        }
 
         float startedAt = Time.time;
         while (Time.time - startedAt < runtimeDependencyTimeoutSeconds)
