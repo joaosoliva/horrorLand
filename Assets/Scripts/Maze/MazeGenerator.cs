@@ -1192,6 +1192,7 @@ public class MazeGenerator : MonoBehaviour
 		trigger.showLockedPrompt = false;
 		trigger.SetLockedState(true);
 		Debug.Log($"Door closed rotation set: id={doorId} axis={boundaryAxis} rotation={doorRoot.transform.rotation.eulerAngles}");
+		Debug.Log($"[DoorSpawnTrace] id={doorId} parent={parent.name} parentWorldRot={parent.rotation.eulerAngles} parentLocalScale={parent.localScale} parentLossyScale={parent.lossyScale} wallNormal={safeFacingDirection} wallForward={doorRoot.transform.forward} rootWorldRot={doorRoot.transform.rotation.eulerAngles} rootLocalRot={doorRoot.transform.localRotation.eulerAngles} leftLocalRot={leftDoor.transform.localRotation.eulerAngles} rightLocalRot={rightDoor.transform.localRotation.eulerAngles}");
 
 		TutorialStageDoor stageDoor = doorRoot.AddComponent<TutorialStageDoor>();
 		stageDoor.doorId = doorId;

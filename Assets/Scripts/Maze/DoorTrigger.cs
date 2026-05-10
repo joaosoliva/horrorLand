@@ -59,6 +59,7 @@ public class DoorTrigger : MonoBehaviour
 		leftDoorOpenRot = leftDoorClosedRot * Quaternion.Euler(0, -openAngle, 0);
 		rightDoorOpenRot = rightDoorClosedRot * Quaternion.Euler(0, openAngle, 0);
 		Debug.Log($"Door closed pose configured: id={gameObject.name} leftClosed={leftDoorClosedRot.eulerAngles} rightClosed={rightDoorClosedRot.eulerAngles} leftOpen={leftDoorOpenRot.eulerAngles} rightOpen={rightDoorOpenRot.eulerAngles}");
+		Debug.Log($"[DoorRuntimeTrace] id={gameObject.name} parent={(transform.parent != null ? transform.parent.name : "none")} rootWorldRot={transform.rotation.eulerAngles} rootLocalRot={transform.localRotation.eulerAngles} parentWorldRot={(transform.parent != null ? transform.parent.rotation.eulerAngles.ToString() : "none")} leftLocalRot={(leftDoor != null ? leftDoor.localRotation.eulerAngles.ToString() : "missing")} rightLocalRot={(rightDoor != null ? rightDoor.localRotation.eulerAngles.ToString() : "missing")} leftWorldRot={(leftDoor != null ? leftDoor.rotation.eulerAngles.ToString() : "missing")} rightWorldRot={(rightDoor != null ? rightDoor.rotation.eulerAngles.ToString() : "missing")} facingDirection={facingDirection} transformForward={transform.forward} parentLossyScale={(transform.parent != null ? transform.parent.lossyScale.ToString() : "none")}");
 
 		// Create interaction text programmatically
 		CreateInteractionText();
