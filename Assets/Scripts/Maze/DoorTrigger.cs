@@ -40,24 +40,40 @@ public class DoorTrigger : MonoBehaviour
 	public bool IsLocked => isLocked;
 	public bool HasPlayerExitedRoom => playerHasExitedRoom;
 
+
+
+	void EnsureNeutralHingeClosedState()
+	{
+		if (leftDoor != null)
+		{
+			leftDoor.localRotation = Quaternion.identity;
+		}
+		if (rightDoor != null)
+		{
+			rightDoor.localRotation = Quaternion.identity;
+		}
+	}
+
+	void ConfigureDoorRotationsFromNeutral()
+	{
+		leftDoorClosedRot = Quaternion.identity;
+		rightDoorClosedRot = Quaternion.identity;
+		leftDoorOpenRot = Quaternion.Euler(0f, -openAngle, 0f);
+		rightDoorOpenRot = Quaternion.Euler(0f, openAngle, 0f);
+	}
 	void Start()
 	{
 		// Find the door hinge objects (not the visuals)
 		leftDoor = transform.Find("Door_Left");
 		rightDoor = transform.Find("Door_Right");
-        
-		if (leftDoor != null) 
+
+		if (leftDoor == null || rightDoor == null)
 		{
-			leftDoorClosedRot = leftDoor.localRotation;
-		}
-        
-		if (rightDoor != null) 
-		{
-			rightDoorClosedRot = rightDoor.localRotation;
+			Debug.LogError($"[DoorTrigger] Missing hinge transforms on {gameObject.name}. left={leftDoor != null} right={rightDoor != null}");
 		}
 
-		leftDoorOpenRot = leftDoorClosedRot * Quaternion.Euler(0, -openAngle, 0);
-		rightDoorOpenRot = rightDoorClosedRot * Quaternion.Euler(0, openAngle, 0);
+		EnsureNeutralHingeClosedState();
+		ConfigureDoorRotationsFromNeutral();
 		Debug.Log($"Door closed pose configured: id={gameObject.name} leftClosed={leftDoorClosedRot.eulerAngles} rightClosed={rightDoorClosedRot.eulerAngles} leftOpen={leftDoorOpenRot.eulerAngles} rightOpen={rightDoorOpenRot.eulerAngles}");
 		Debug.Log($"[DoorRuntimeTrace] id={gameObject.name} parent={(transform.parent != null ? transform.parent.name : "none")} rootWorldRot={transform.rotation.eulerAngles} rootLocalRot={transform.localRotation.eulerAngles} parentWorldRot={(transform.parent != null ? transform.parent.rotation.eulerAngles.ToString() : "none")} leftLocalRot={(leftDoor != null ? leftDoor.localRotation.eulerAngles.ToString() : "missing")} rightLocalRot={(rightDoor != null ? rightDoor.localRotation.eulerAngles.ToString() : "missing")} leftWorldRot={(leftDoor != null ? leftDoor.rotation.eulerAngles.ToString() : "missing")} rightWorldRot={(rightDoor != null ? rightDoor.rotation.eulerAngles.ToString() : "missing")} facingDirection={facingDirection} transformForward={transform.forward} parentLossyScale={(transform.parent != null ? transform.parent.lossyScale.ToString() : "none")}");
 
