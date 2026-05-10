@@ -67,13 +67,18 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
     private TutorialLayoutContext BuildContextFromMazeGenerator(MazeGenerator mazeGenerator)
     {
         TutorialLayoutContext context = new TutorialLayoutContext();
-        context.soundboardGate = GameObject.Find("Door_SoundboardPickupExit");
-        context.soundboardUseDoor = GameObject.Find("Door_SoundboardUseExit");
-        context.corruptionDoor = GameObject.Find("Door_CorruptionExit");
-        context.lightGate = GameObject.Find("Door_LightSpotExit");
-        context.chaseGate = GameObject.Find("Door_HideChamberExit");
-        context.sprintDoor = GameObject.Find("Door_SprintExit");
-        context.tutorialExitGate = GameObject.Find("Door_TutorialFinalExit");
+        TutorialRuntimeRegistry registry = TutorialRuntimeRegistry.Instance;
+
+        if (registry != null)
+        {
+            registry.TryGet(TutorialRuntimeRole.SoundboardDoorGate, out context.soundboardGate);
+            registry.TryGet(TutorialRuntimeRole.SoundboardUseDoor, out context.soundboardUseDoor);
+            registry.TryGet(TutorialRuntimeRole.CorruptionDoor, out context.corruptionDoor);
+            registry.TryGet(TutorialRuntimeRole.LightDoorGate, out context.lightGate);
+            registry.TryGet(TutorialRuntimeRole.ChaseGate, out context.chaseGate);
+            registry.TryGet(TutorialRuntimeRole.SprintDoor, out context.sprintDoor);
+            registry.TryGet(TutorialRuntimeRole.TutorialExitGate, out context.tutorialExitGate);
+        }
 
         GameObject playerSpawn = new GameObject("TutorialPlayerSpawnPoint");
         playerSpawn.transform.position = mazeGenerator.GetStartPosition();
@@ -102,6 +107,16 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
         context.monsterRevealPoint = CreateMarker(transform, "MonsterRevealPoint", revealPos + Vector3.up * 1f);
         context.monsterSpawnPoint = CreateMarker(transform, "MonsterSpawnPoint", revealPos + Vector3.forward * mazeCellSize * 2f + Vector3.up * 0.5f);
         context.mainMazeConnector = CreateMarker(transform, "MainMazeConnector", connectorPos + Vector3.up * 1.8f);
+
+        TutorialRuntimeRegistry registry = TutorialRuntimeRegistry.Instance;
+        if (registry != null)
+        {
+            registry.Register(TutorialRuntimeRole.SoundboardPickup, context.soundboardPickup);
+            registry.Register(TutorialRuntimeRole.TutorialLightSpot, context.firstLightSpot);
+            registry.Register(TutorialRuntimeRole.MonsterSpawnPoint, context.monsterSpawnPoint);
+            registry.Register(TutorialRuntimeRole.MonsterRevealPoint, context.monsterRevealPoint);
+            registry.Register(TutorialRuntimeRole.MainMazeConnector, context.mainMazeConnector);
+        }
     }
 
     private Vector3 GetStageCenter(MazeGenerator mazeGenerator, string stageTag)

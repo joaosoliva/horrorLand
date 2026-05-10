@@ -79,6 +79,7 @@ public class IntroTapeController : MonoBehaviour
             ApplyGeneratedLayout(generated);
         }
 
+        ApplyRegistryReferences();
         ValidateSceneWiring();
         ValidateTutorialInteractionRules();
         BuildObjectivesIfMissing();
@@ -167,6 +168,28 @@ public class IntroTapeController : MonoBehaviour
         }
     }
 
+    void ApplyRegistryReferences()
+    {
+        TutorialRuntimeRegistry registry = TutorialRuntimeRegistry.Instance;
+        if (registry == null)
+        {
+            return;
+        }
+
+        registry.TryGet(TutorialRuntimeRole.SoundboardDoorGate, out soundboardDoorGate);
+        registry.TryGet(TutorialRuntimeRole.SoundboardUseDoor, out soundboardUseDoor);
+        registry.TryGet(TutorialRuntimeRole.CorruptionDoor, out corruptionDoor);
+        registry.TryGet(TutorialRuntimeRole.LightDoorGate, out lightDoorGate);
+        registry.TryGet(TutorialRuntimeRole.ChaseGate, out chaseGate);
+        registry.TryGet(TutorialRuntimeRole.SprintDoor, out sprintDoor);
+        registry.TryGet(TutorialRuntimeRole.TutorialExitGate, out tutorialExitGate);
+        registry.TryGet(TutorialRuntimeRole.SoundboardPickup, out soundboardPickup);
+        registry.TryGet(TutorialRuntimeRole.TutorialLightSpot, out tutorialLightSpot);
+        registry.TryGet(TutorialRuntimeRole.ExitDoor, out exitDoor);
+        registry.TryGet(TutorialRuntimeRole.VillainAI, out villainAI);
+        registry.TryGet(TutorialRuntimeRole.EncounterManager, out encounterManager);
+    }
+
     void ResolveReferences()
     {
         if (villainAI == null)
@@ -197,6 +220,13 @@ public class IntroTapeController : MonoBehaviour
         if (encounterManager == null)
         {
             encounterManager = FindObjectOfType<EncounterManager>();
+        }
+
+        TutorialRuntimeRegistry registry = TutorialRuntimeRegistry.Instance;
+        if (registry != null)
+        {
+            registry.Register(TutorialRuntimeRole.VillainAI, villainAI);
+            registry.Register(TutorialRuntimeRole.EncounterManager, encounterManager);
         }
     }
 
