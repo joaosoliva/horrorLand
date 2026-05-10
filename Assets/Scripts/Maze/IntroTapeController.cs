@@ -37,6 +37,7 @@ public class IntroTapeController : MonoBehaviour
     public float lightUseGraceSeconds = 1.25f;
     public float corruptionDemoMinSeconds = 1f;
     public bool enableDebugLogs = true;
+    public float runtimeDependencyTimeoutSeconds = 5f;
 
     [Header("Gate References")]
     public GameObject soundboardDoorGate;
@@ -71,6 +72,11 @@ public class IntroTapeController : MonoBehaviour
 
     void Start()
     {
+        StartCoroutine(BootstrapTutorialRuntime());
+    }
+
+    System.Collections.IEnumerator BootstrapTutorialRuntime()
+    {
         ResolveReferences();
 
         if (layoutGenerator != null)
@@ -79,7 +85,19 @@ public class IntroTapeController : MonoBehaviour
             ApplyGeneratedLayout(generated);
         }
 
-        ApplyRegistryReferences();
+        float startedAt = Time.time;
+        while (Time.time - startedAt < runtimeDependencyTimeoutSeconds)
+        {
+            ApplyRegistryReferences();
+            if (AreCoreReferencesResolved())
+            {
+                break;
+            }
+
+            yield return null;
+        }
+
+        TutorialRuntimeRegistry.Instance?.LogRegistrationReport("IntroTapeController bootstrap");
         ValidateSceneWiring();
         ValidateTutorialInteractionRules();
         BuildObjectivesIfMissing();
@@ -166,6 +184,20 @@ public class IntroTapeController : MonoBehaviour
                 CompleteCurrentStep("Light used for required duration");
             }
         }
+    }
+
+    bool AreCoreReferencesResolved()
+    {
+        return soundboardDoorGate != null &&
+            soundboardUseDoor != null &&
+            corruptionDoor != null &&
+            lightDoorGate != null &&
+            chaseGate != null &&
+            sprintDoor != null &&
+            tutorialExitGate != null &&
+            soundboardPickup != null &&
+            tutorialLightSpot != null &&
+            exitDoor != null;
     }
 
     void ApplyRegistryReferences()

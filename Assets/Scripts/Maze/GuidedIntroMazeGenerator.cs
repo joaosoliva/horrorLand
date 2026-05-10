@@ -48,6 +48,7 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
         mazeGenerator.GenerateGuidedIntroMazeAndBuild(layout);
 
         generatedContext = BuildContextFromMazeGenerator(mazeGenerator);
+        TutorialRuntimeRegistry.Instance?.LogRegistrationReport("GuidedIntroMazeGenerator.GenerateLayout");
         return generatedContext;
     }
 
