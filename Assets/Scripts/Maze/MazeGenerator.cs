@@ -62,6 +62,9 @@ public class MazeGenerator : MonoBehaviour
 	public bool debugDoorOrientation = false;
 	public float debugDoorRayLength = 1.5f;
 	private readonly List<DoorBoundaryWorldPose> debugDoorPoses = new List<DoorBoundaryWorldPose>();
+	public bool runDoorValidationAfterGeneration = true;
+	public float doorAlignmentTolerance = 0.02f;
+	public float doorDirectionToleranceDot = 0.98f;
 	public DoorTrigger StartRoomDoorTrigger => startRoomDoorTrigger;
 
 	struct MazeDoorRequest
@@ -117,6 +120,10 @@ public class MazeGenerator : MonoBehaviour
 			Debug.Log("MazeGenerator building tutorial doors.");
 			CreateBlueprintStageDoors();
 			LogTutorialDoorValidationReport();
+			if (runDoorValidationAfterGeneration)
+			{
+				ValidateGeneratedDoorOrientations();
+			}
 		}
 		CreateExitDoor();
 		
@@ -1451,6 +1458,68 @@ public class MazeGenerator : MonoBehaviour
 		else
 		{
 			Debug.LogError("[MazeGenerator] Scale validation failed between tutorial and main maze generation.");
+		}
+	}
+
+
+	void ValidateGeneratedDoorOrientations()
+	{
+		if (activeBlueprint == null || activeBlueprint.edges == null)
+		{
+			return;
+		}
+
+		int checkedDoors = 0;
+		int failures = 0;
+
+		for (int i = 0; i < activeBlueprint.edges.Count; i++)
+		{
+			MazeBlueprintData.EdgeData edge = activeBlueprint.edges[i];
+			if (!edge.requiresDoor || string.IsNullOrEmpty(edge.doorId))
+			{
+				continue;
+			}
+
+			GameObject doorObj = GameObject.Find(edge.doorId);
+			if (doorObj == null)
+			{
+				Debug.LogError($"[MazeGenerator] Door validation failed: object not found for id={edge.doorId}.");
+				failures++;
+				continue;
+			}
+
+			DoorBoundaryWorldPose expectedPose = GetDoorBoundaryWorldPose(edge.a, edge.b);
+			Vector3 actualForward = Vector3.ProjectOnPlane(doorObj.transform.forward, Vector3.up).normalized;
+			float forwardDot = Vector3.Dot(actualForward, expectedPose.normalDirection);
+			float posError = Vector3.Distance(doorObj.transform.position, expectedPose.position);
+
+			checkedDoors++;
+			if (forwardDot < doorDirectionToleranceDot || posError > doorAlignmentTolerance)
+			{
+				failures++;
+				Debug.LogError($"[MazeGenerator] Door validation mismatch id={edge.doorId} dot={forwardDot:0.###} posError={posError:0.###} expectedPos={expectedPose.position} actualPos={doorObj.transform.position} expectedForward={expectedPose.normalDirection} actualForward={actualForward}");
+			}
+
+			DoorTrigger trigger = doorObj.GetComponent<DoorTrigger>();
+			if (trigger != null)
+			{
+				Vector3 triggerForward = Vector3.ProjectOnPlane(trigger.facingDirection, Vector3.up).normalized;
+				float triggerDot = Vector3.Dot(triggerForward, expectedPose.normalDirection);
+				if (triggerDot < doorDirectionToleranceDot)
+				{
+					failures++;
+					Debug.LogError($"[MazeGenerator] Door trigger facing mismatch id={edge.doorId} dot={triggerDot:0.###} triggerFacing={trigger.facingDirection} expected={expectedPose.normalDirection}");
+				}
+			}
+		}
+
+		if (failures == 0)
+		{
+			Debug.Log($"[MazeGenerator] Door orientation validation passed. Checked={checkedDoors}");
+		}
+		else
+		{
+			Debug.LogError($"[MazeGenerator] Door orientation validation FAILED. Checked={checkedDoors} Failures={failures}");
 		}
 	}
 
