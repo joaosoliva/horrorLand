@@ -2717,14 +2717,17 @@ MonoBehaviour:
   corruptionDemoMinSeconds: 1
   enableDebugLogs: 1
   soundboardDoorGate: {fileID: 0}
+  soundboardUseDoor: {fileID: 0}
+  corruptionDoor: {fileID: 0}
   lightDoorGate: {fileID: 0}
   chaseGate: {fileID: 0}
+  sprintDoor: {fileID: 0}
   tutorialExitGate: {fileID: 0}
-  soundboardPickup: {fileID: 0}
+  soundboardPickup: {fileID: 734966846464644854, guid: 5c3ae273b4f6863499eb05c2a9c64dc3, type: 3}
   tutorialLightSpot: {fileID: 0}
   villainAI: {fileID: 92354975}
   exitDoor: {fileID: 0}
-  layoutGenerator: {fileID: 1300823183}
+  layoutGenerator: {fileID: 0}
   encounterManager: {fileID: 1265309446}
   disablePreChaseEncountersDuringTutorial: 1
   objectiveDefinitions: []
@@ -2772,7 +2775,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c645680093df4e0887b86198d92d6cf2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnvironmentScareController
-  player: {fileID: 923586205}
+  player: {fileID: 0}
   globalScareCooldown: 1.25
   perZoneCooldown: 5
   debugLogs: 0
@@ -3714,103 +3717,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 955537958}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &923586203
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 923586205}
-  - component: {fileID: 923586204}
-  m_Layer: 0
-  m_Name: Soundboard
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!114 &923586204
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 923586203}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 226e4358fd9ea0747b52e63a3096103a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  soundClips:
-  - {fileID: 8300000, guid: 82e9cd732418c0b489dee9906e1ce9ca, type: 3}
-  - {fileID: 8300000, guid: 47b6423288f9bd0479d3edc740ce0091, type: 3}
-  - {fileID: 8300000, guid: 9e05d75dbb21db840ae8d191042434fc, type: 3}
-  - {fileID: 8300000, guid: 1dcd399f20d85cb4e98f7574f5540109, type: 3}
-  - {fileID: 8300000, guid: 2b9ca097ea6dfce4098dd9bfa16228f7, type: 3}
-  - {fileID: 8300000, guid: 60009aaff4ce47749ba2df3fefc52784, type: 3}
-  - {fileID: 8300000, guid: aed0c904c3516e349b93a63b52baf0c2, type: 3}
-  - {fileID: 8300000, guid: 48f94d44759b46048957d5c3ca228cda, type: 3}
-  - {fileID: 8300000, guid: e7f7392b96623fd4cb21bc81a0b1a94a, type: 3}
-  - {fileID: 8300000, guid: 46b9639bf264a9a479d2c6f63c7016f8, type: 3}
-  - {fileID: 8300000, guid: 645406915827a8d4f8ae28ba71bbf04c, type: 3}
-  soundboardSlots:
-  - tag: Generic
-    key: 0
-    clip: {fileID: 0}
-    loudness: 0.6
-    humorReliefValue: 0.3
-    threatAttraction: 0.6
-    misfireChance: 0
-    cooldownSeconds: 5
-  - tag: Generic
-    key: 0
-    clip: {fileID: 0}
-    loudness: 0.6
-    humorReliefValue: 0.3
-    threatAttraction: 0.6
-    misfireChance: 0
-    cooldownSeconds: 5
-  - tag: Generic
-    key: 0
-    clip: {fileID: 0}
-    loudness: 0.6
-    humorReliefValue: 0.3
-    threatAttraction: 0.6
-    misfireChance: 0
-    cooldownSeconds: 5
-  - tag: Generic
-    key: 0
-    clip: {fileID: 0}
-    loudness: 0.6
-    humorReliefValue: 0.3
-    threatAttraction: 0.6
-    misfireChance: 0
-    cooldownSeconds: 5
-  raiseHorrorSoundboardEvent: 1
-  allowLegacyRandomTrigger: 1
-  legacyRandomTriggerKey: 324
-  useGlobalCooldown: 1
-  globalCooldownSeconds: 0.35
-  cooldownNotReadySfx: {fileID: 0}
-  cooldownNotReadyVolume: 0.45
-  cooldownNotReadySfxInterval: 0.15
---- !u!4 &923586205
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 923586203}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &955537957
 GameObject:
@@ -5423,23 +5329,40 @@ MonoBehaviour:
   m_GameObject: {fileID: 1300823181}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5ce8a5ac1353c564aafd0a20337ed54e, type: 3}
+  m_Script: {fileID: 11500000, guid: 659061d0c9440184ca53ec59bd96a7f6, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GuidedIntroMazeGenerator
-  useFixedTutorialSeed: 1
-  fixedTutorialSeed: 1998
-  allowReplayRandomization: 0
-  generateOnStart: 1
-  enableTutorialGenerationDebug: 1
-  corridorLength: 11
-  corridorWidth: 4.5
-  wallHeight: 3.2
-  soundboardPickupPrefab: {fileID: 9002047330383869254, guid: 5c3ae273b4f6863499eb05c2a9c64dc3, type: 3}
-  safeLightPrefab: {fileID: 5192189293047076267, guid: 233580e7df6490a41b16827a152e5c88, type: 3}
-  gatePrefab: {fileID: 0}
-  player: {fileID: 1956618892}
-  villainAI: {fileID: 92354975}
-  tutorialController: {fileID: 731506015}
+  m_EditorClassIdentifier: 
+  sharedMazeConfig: {fileID: 0}
+  width: 20
+  height: 20
+  cellSize: 8
+  wallHeight: 8
+  wallTexture: {fileID: 2800000, guid: c19cdc304e31e264d8bbf554a4a68e73, type: 3}
+  floorTexture: {fileID: 2800000, guid: a2b71538e4aa4654990fe66585b95f4f, type: 3}
+  wallTint: {r: 1, g: 1, b: 1, a: 1}
+  floorTint: {r: 1, g: 1, b: 1, a: 1}
+  textureScale: 1
+  spawnPlayerAtStart: 0
+  playerPrefab: {fileID: 0}
+  useTutorialBlueprint: 1
+  startRoomFloorMaterial: {fileID: 2100000, guid: b94be2940821f064486f6f654cc8628a, type: 2}
+  startRoomWallMaterial: {fileID: 2100000, guid: d0d8e9f7586beb44d97dbd4f60fd460d, type: 2}
+  startRoomSize: {x: 2, y: 2}
+  roomLightPrefab: {fileID: 0}
+  environmentScareController: {fileID: 0}
+  proceduralLampPrefab: {fileID: 6299069286976260414, guid: 233580e7df6490a41b16827a152e5c88, type: 3}
+  corridorLampChance: 0.05
+  corridorScareNodeStep: 6
+  attachSafeSpaceToProceduralLamps: 1
+  safeSpaceRadius: 3.5
+  safeSpaceDuration: 12
+  safeSpaceSanityRestorePerSecond: 5
+  exitDoorColor: {r: 0.7, g: 0.1, b: 0.1, a: 1}
+  debugDoorOrientation: 0
+  debugDoorRayLength: 1.5
+  runDoorValidationAfterGeneration: 1
+  doorAlignmentTolerance: 0.02
+  doorDirectionToleranceDot: 0.98
 --- !u!1 &1336069390
 GameObject:
   m_ObjectHideFlags: 0
@@ -7839,8 +7762,9 @@ GameObject:
   - component: {fileID: 1949385291}
   - component: {fileID: 1949385290}
   - component: {fileID: 1949385289}
+  - component: {fileID: 1949385292}
   m_Layer: 6
-  m_Name: re
+  m_Name: Soundboard
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -7941,6 +7865,70 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1949385287}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1949385292
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1949385287}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 226e4358fd9ea0747b52e63a3096103a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlaySound
+  soundClips:
+  - {fileID: 8300000, guid: 82e9cd732418c0b489dee9906e1ce9ca, type: 3}
+  - {fileID: 8300000, guid: 47b6423288f9bd0479d3edc740ce0091, type: 3}
+  - {fileID: 8300000, guid: 9e05d75dbb21db840ae8d191042434fc, type: 3}
+  - {fileID: 8300000, guid: 1dcd399f20d85cb4e98f7574f5540109, type: 3}
+  - {fileID: 8300000, guid: 2b9ca097ea6dfce4098dd9bfa16228f7, type: 3}
+  - {fileID: 8300000, guid: 60009aaff4ce47749ba2df3fefc52784, type: 3}
+  - {fileID: 8300000, guid: aed0c904c3516e349b93a63b52baf0c2, type: 3}
+  - {fileID: 8300000, guid: 48f94d44759b46048957d5c3ca228cda, type: 3}
+  - {fileID: 8300000, guid: e7f7392b96623fd4cb21bc81a0b1a94a, type: 3}
+  - {fileID: 8300000, guid: 46b9639bf264a9a479d2c6f63c7016f8, type: 3}
+  soundboardSlots:
+  - tag: Generic
+    key: 0
+    clip: {fileID: 0}
+    loudness: 0.6
+    humorReliefValue: 0.3
+    threatAttraction: 0.6
+    misfireChance: 0
+    cooldownSeconds: 5
+  - tag: Generic
+    key: 0
+    clip: {fileID: 0}
+    loudness: 0.6
+    humorReliefValue: 0.3
+    threatAttraction: 0.6
+    misfireChance: 0
+    cooldownSeconds: 5
+  - tag: Generic
+    key: 0
+    clip: {fileID: 0}
+    loudness: 0.6
+    humorReliefValue: 0.3
+    threatAttraction: 0.6
+    misfireChance: 0
+    cooldownSeconds: 5
+  - tag: Generic
+    key: 0
+    clip: {fileID: 0}
+    loudness: 0.6
+    humorReliefValue: 0.3
+    threatAttraction: 0.6
+    misfireChance: 0
+    cooldownSeconds: 5
+  raiseHorrorSoundboardEvent: 1
+  allowLegacyRandomTrigger: 0
+  legacyRandomTriggerKey: 324
+  useGlobalCooldown: 1
+  globalCooldownSeconds: 0.35
+  cooldownNotReadySfx: {fileID: 0}
+  cooldownNotReadyVolume: 0.45
+  cooldownNotReadySfxInterval: 0.15
 --- !u!1 &1956618886
 GameObject:
   m_ObjectHideFlags: 0
@@ -8787,7 +8775,6 @@ SceneRoots:
   - {fileID: 840940449}
   - {fileID: 1610427256}
   - {fileID: 996713723}
-  - {fileID: 923586205}
   - {fileID: 1956618892}
   - {fileID: 92354976}
   - {fileID: 845651688}
