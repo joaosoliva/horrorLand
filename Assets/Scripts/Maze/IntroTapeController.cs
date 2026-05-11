@@ -134,10 +134,41 @@ public class IntroTapeController : MonoBehaviour
         CacheObjectiveLookup();
 
         hasCompletedRuntimeBinding = AreCoreReferencesResolved();
+        LogRuntimeValidationReport();
         bootstrapStage = BootstrapStage.TutorialStart;
         HorrorEvents.RaiseTutorialStarted();
         EnterStep(TutorialStep.CollectSoundboard, "Tutorial started");
         Debug.Log("Tutorial first active step: CollectSoundboard.");
+    }
+
+    
+    void LogRuntimeValidationReport()
+    {
+        Debug.Log(
+            "[IntroTapeController] Runtime validation report
+" +
+            $"- bootstrapStage: {bootstrapStage}
+" +
+            $"- hasCompletedRuntimeBinding: {hasCompletedRuntimeBinding}
+" +
+            $"- objectiveDefinitions.count: {(objectiveDefinitions != null ? objectiveDefinitions.Count : -1)}
+" +
+            $"- soundboardDoorGate: {(soundboardDoorGate != null ? soundboardDoorGate.GetInstanceID().ToString() : "null")}
+" +
+            $"- soundboardUseDoor: {(soundboardUseDoor != null ? soundboardUseDoor.GetInstanceID().ToString() : "null")}
+" +
+            $"- corruptionDoor: {(corruptionDoor != null ? corruptionDoor.GetInstanceID().ToString() : "null")}
+" +
+            $"- lightDoorGate: {(lightDoorGate != null ? lightDoorGate.GetInstanceID().ToString() : "null")}
+" +
+            $"- chaseGate: {(chaseGate != null ? chaseGate.GetInstanceID().ToString() : "null")}
+" +
+            $"- sprintDoor: {(sprintDoor != null ? sprintDoor.GetInstanceID().ToString() : "null")}
+" +
+            $"- tutorialExitGate: {(tutorialExitGate != null ? tutorialExitGate.GetInstanceID().ToString() : "null")}
+" +
+            $"- exitDoor: {(exitDoor != null ? exitDoor.GetInstanceID().ToString() : "null")}" 
+        );
     }
 
     void OnEnable()
