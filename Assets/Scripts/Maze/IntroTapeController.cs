@@ -70,8 +70,14 @@ public class IntroTapeController : MonoBehaviour
 
     public TutorialStep CurrentStep => currentStep;
 
+    void Awake()
+    {
+        Debug.Log($"[IntroTapeController] Awake objectiveDefinitions.count={(objectiveDefinitions!=null?objectiveDefinitions.Count:-1)}");
+    }
+
     void Start()
     {
+        Debug.Log($"[IntroTapeController] Start objectiveDefinitions.count={(objectiveDefinitions!=null?objectiveDefinitions.Count:-1)}");
         StartCoroutine(BootstrapTutorialRuntime());
     }
 
@@ -126,6 +132,7 @@ public class IntroTapeController : MonoBehaviour
 
     void OnEnable()
     {
+        Debug.Log($"[IntroTapeController] OnEnable objectiveDefinitions.count={(objectiveDefinitions!=null?objectiveDefinitions.Count:-1)}");
         HorrorEvents.OnSoundboardCollected += OnSoundboardCollected;
         HorrorEvents.OnSoundboardUsed += OnSoundboardUsed;
         HorrorEvents.OnCorruptionChanged += OnCorruptionChanged;
@@ -221,8 +228,12 @@ public class IntroTapeController : MonoBehaviour
         TutorialRuntimeRegistry registry = TutorialRuntimeRegistry.Instance;
         if (registry == null)
         {
+            Debug.LogWarning("[IntroTapeController] ApplyRegistryReferences skipped: registry null.");
             return;
         }
+
+        int beforeSoundboardGate = soundboardDoorGate != null ? soundboardDoorGate.GetInstanceID() : 0;
+        int beforeExitDoor = exitDoor != null ? exitDoor.GetInstanceID() : 0;
 
         registry.TryGet(TutorialRuntimeRole.SoundboardDoorGate, out soundboardDoorGate);
         registry.TryGet(TutorialRuntimeRole.SoundboardUseDoor, out soundboardUseDoor);
@@ -236,6 +247,10 @@ public class IntroTapeController : MonoBehaviour
         registry.TryGet(TutorialRuntimeRole.ExitDoor, out exitDoor);
         registry.TryGet(TutorialRuntimeRole.VillainAI, out villainAI);
         registry.TryGet(TutorialRuntimeRole.EncounterManager, out encounterManager);
+
+        int afterSoundboardGate = soundboardDoorGate != null ? soundboardDoorGate.GetInstanceID() : 0;
+        int afterExitDoor = exitDoor != null ? exitDoor.GetInstanceID() : 0;
+        Debug.Log($"[IntroTapeController] ApplyRegistryReferences soundboardGate {beforeSoundboardGate}->{afterSoundboardGate}, exitDoor {beforeExitDoor}->{afterExitDoor}");
     }
 
     void ResolveReferences()
@@ -314,11 +329,14 @@ public class IntroTapeController : MonoBehaviour
 
     void BuildObjectivesIfMissing()
     {
+        Debug.Log($"[IntroTapeController] BuildObjectivesIfMissing enter count={(objectiveDefinitions!=null?objectiveDefinitions.Count:-1)}");
         if (objectiveDefinitions != null && objectiveDefinitions.Count > 0)
         {
+            Debug.Log("[IntroTapeController] BuildObjectivesIfMissing preserved serialized objectiveDefinitions.");
             return;
         }
 
+        Debug.LogWarning("[IntroTapeController] objectiveDefinitions missing/empty at runtime; applying fallback defaults.");
         objectiveDefinitions = new List<TutorialObjective>
         {
             new TutorialObjective { step = TutorialStep.StartDarkRoom, objectiveText = "Your thoughts are slipping.", timeoutSeconds = 8f, retryHintIntervalSeconds = 4f, completionEventKeys = new []{"auto_intro_done"} },
@@ -335,6 +353,7 @@ public class IntroTapeController : MonoBehaviour
 
     void CacheObjectiveLookup()
     {
+        Debug.Log($"[IntroTapeController] CacheObjectiveLookup objectiveDefinitions.count={(objectiveDefinitions!=null?objectiveDefinitions.Count:-1)}");
         objectiveByStep.Clear();
         foreach (TutorialObjective objective in objectiveDefinitions)
         {
