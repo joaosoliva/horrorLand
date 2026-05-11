@@ -91,7 +91,7 @@ public class IntroTapeController : MonoBehaviour
             MazeGenerator mazeGenerator = FindObjectOfType<MazeGenerator>();
             if (mazeGenerator != null)
             {
-                mazeGenerator.GenerateGuidedIntroMazeAndBuild(TutorialMazeBlueprintFactory.CreateDefaultTutorialBlueprint());
+                mazeGenerator.EnsureTutorialGeneratedOnce(TutorialMazeBlueprintFactory.CreateDefaultTutorialBlueprint(), "IntroTapeController.BootstrapTutorialRuntimeFallback");
             }
         }
 

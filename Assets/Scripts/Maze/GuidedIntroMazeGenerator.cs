@@ -4,7 +4,7 @@ using UnityEngine;
 public class GuidedIntroMazeGenerator : MonoBehaviour
 {
     [Header("Build")]
-    public bool generateOnStart = true;
+    public bool generateOnStart = false;
     public bool enableTutorialGenerationDebug = true;
 
     [Header("Shared Foundation")]
@@ -29,7 +29,7 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
     void Start()
     {
         if (!generateOnStart) return;
-        Debug.Log("[GuidedIntroMazeGenerator] Runtime tutorial layout bootstrap active.");
+        Debug.LogWarning("[GuidedIntroMazeGenerator] generateOnStart is enabled. Prefer IntroTapeController-owned bootstrap to avoid duplicate generation passes.");
         GenerateLayout();
     }
 
@@ -47,7 +47,7 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
 
         MazeBlueprintData layout = TutorialMazeBlueprintFactory.CreateDefaultTutorialBlueprint();
         Debug.Log("Tutorial layout data created.");
-        mazeGenerator.GenerateGuidedIntroMazeAndBuild(layout);
+        mazeGenerator.EnsureTutorialGeneratedOnce(layout, "GuidedIntroMazeGenerator.GenerateLayout");
 
         generatedContext = BuildContextFromMazeGenerator(mazeGenerator);
         TutorialRuntimeRegistry.Instance?.LogRegistrationReport("GuidedIntroMazeGenerator.GenerateLayout");
