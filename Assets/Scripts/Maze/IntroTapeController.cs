@@ -108,6 +108,7 @@ public class IntroTapeController : MonoBehaviour
         }
 
         TutorialRuntimeRegistry.Instance?.LogRegistrationReport("IntroTapeController bootstrap");
+        Debug.Log($"[IntroTapeController] Binding snapshot: soundboardDoorGate={(soundboardDoorGate!=null?soundboardDoorGate.GetInstanceID().ToString():"null")}, exitDoor={(exitDoor!=null?exitDoor.GetInstanceID().ToString():"null")}, lightDoorGate={(lightDoorGate!=null?lightDoorGate.GetInstanceID().ToString():"null")}");
         ValidateSceneWiring();
         ValidateTutorialInteractionRules();
         BuildObjectivesIfMissing();

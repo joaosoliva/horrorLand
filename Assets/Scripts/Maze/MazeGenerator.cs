@@ -1412,6 +1412,7 @@ public class MazeGenerator : MonoBehaviour
 		exitTriggerCollider.center = new Vector3(0f, fullDoorHeight / 2f, 0f);
 
 		MazeExitDoor exitDoor = exitDoorRoot.AddComponent<MazeExitDoor>();
+		Debug.Log($"[MazeGenerator] CreateExitDoor spawned instanceId={exitDoor.GetInstanceID()}, pass={activeGenerationId}, root={exitDoorRoot.name}, frame={Time.frameCount}, t={Time.time}");
 		TutorialRuntimeRegistry.Instance?.Register(TutorialRuntimeRole.ExitDoor, exitDoor, "MazeGenerator.CreateExitDoor");
 	}
 

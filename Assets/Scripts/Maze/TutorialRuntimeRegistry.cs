@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using System.Diagnostics;
 using UnityEngine;
 
 public enum TutorialRuntimeRole
@@ -52,10 +53,13 @@ public class TutorialRuntimeRegistry : MonoBehaviour
         }
 
         int nextCount = registrationCounts.TryGetValue(role, out int count) ? count + 1 : 1;
+        string hierarchyPath = GetHierarchyPath(value);
+        int instanceId = value.GetInstanceID();
+        float t = Time.time;
         registrationCounts[role] = nextCount;
         if (nextCount > 1)
         {
-            Debug.LogError("[TutorialRuntimeRegistry] Duplicate semantic registration: role=" + role + ", count=" + nextCount + ", source=" + source);
+            Debug.LogError("[TutorialRuntimeRegistry] Duplicate semantic registration: role=" + role + ", count=" + nextCount + ", source=" + source + ", instanceId=" + instanceId + ", path=" + hierarchyPath + ", t=" + t + "\nStack:" + new StackTrace(1, true));
         }
 
         if (entries.TryGetValue(role, out Object existing) && existing != null && existing != value)
@@ -63,6 +67,7 @@ public class TutorialRuntimeRegistry : MonoBehaviour
             Debug.LogWarning("[TutorialRuntimeRegistry] Role reassigned: " + role + " from " + existing.name + " to " + value.name + " via " + source);
         }
 
+        Debug.Log("[TutorialRuntimeRegistry] Register role=" + role + ", source=" + source + ", instanceId=" + instanceId + ", path=" + hierarchyPath + ", t=" + t);
         entries[role] = value;
     }
 
@@ -122,7 +127,7 @@ public class TutorialRuntimeRegistry : MonoBehaviour
         foreach (var pair in entries)
         {
             int count = registrationCounts.TryGetValue(pair.Key, out int roleCount) ? roleCount : 0;
-            sb.AppendLine(" - " + pair.Key + " => " + (pair.Value != null ? pair.Value.name : "null") + ", registrations=" + count);
+            sb.AppendLine(" - " + pair.Key + " => " + (pair.Value != null ? pair.Value.name : "null") + ", registrations=" + count + ", instanceId=" + (pair.Value != null ? pair.Value.GetInstanceID().ToString() : "null") + ", path=" + GetHierarchyPath(pair.Value));
         }
 
         if (!ValidateRequiredRoles(out string missingReport))
@@ -136,4 +141,23 @@ public class TutorialRuntimeRegistry : MonoBehaviour
         sb.AppendLine("Required role validation passed.");
         Debug.Log(sb.ToString());
     }
+
+    private static string GetHierarchyPath(Object obj)
+    {
+        if (!(obj is Component component))
+        {
+            return obj != null ? obj.name : "null";
+        }
+
+        Transform t = component.transform;
+        StringBuilder sb = new StringBuilder(t.name);
+        while (t.parent != null)
+        {
+            t = t.parent;
+            sb.Insert(0, t.name + "/");
+        }
+
+        return sb.ToString();
+    }
 }
+
