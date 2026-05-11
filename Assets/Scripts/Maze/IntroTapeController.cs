@@ -37,6 +37,7 @@ public class IntroTapeController : MonoBehaviour
     public float lightUseGraceSeconds = 1.25f;
     public float corruptionDemoMinSeconds = 1f;
     public bool enableDebugLogs = true;
+    public float runtimeDependencyTimeoutSeconds = 5f;
 
     [Header("Gate References")]
     public GameObject soundboardDoorGate;
@@ -69,28 +70,110 @@ public class IntroTapeController : MonoBehaviour
 
     public TutorialStep CurrentStep => currentStep;
 
+    private enum BootstrapStage { Generation, Registration, Validation, RuntimeBinding, TutorialStart }
+    private BootstrapStage bootstrapStage = BootstrapStage.Generation;
+    private bool hasCompletedRuntimeBinding = false;
+
+    void Awake()
+    {
+        Debug.Log($"[IntroTapeController] Awake objectiveDefinitions.count={(objectiveDefinitions!=null?objectiveDefinitions.Count:-1)}");
+    }
+
     void Start()
     {
+        Debug.Log($"[IntroTapeController] Start objectiveDefinitions.count={(objectiveDefinitions!=null?objectiveDefinitions.Count:-1)}");
+        StartCoroutine(BootstrapTutorialRuntime());
+    }
+
+    System.Collections.IEnumerator BootstrapTutorialRuntime()
+    {
+        Debug.Log($"[IntroTapeController] BootstrapTutorialRuntime begin frame={Time.frameCount}");
+        bootstrapStage = BootstrapStage.Generation;
         ResolveReferences();
 
+        Debug.Log($"[IntroTapeController] layoutGenerator assigned={(layoutGenerator!=null)}");
         if (layoutGenerator != null)
         {
             TutorialLayoutContext generated = layoutGenerator.GenerateLayout();
             ApplyGeneratedLayout(generated);
         }
+        else
+        {
+            MazeGenerator mazeGenerator = FindObjectOfType<MazeGenerator>();
+            if (mazeGenerator != null)
+            {
+                mazeGenerator.EnsureTutorialGeneratedOnce(TutorialMazeBlueprintFactory.CreateDefaultTutorialBlueprint(), "IntroTapeController.BootstrapTutorialRuntimeFallback");
+            }
+        }
 
+        bootstrapStage = BootstrapStage.Registration;
+        float startedAt = Time.time;
+        while (Time.time - startedAt < runtimeDependencyTimeoutSeconds)
+        {
+            ApplyRegistryReferencesNonDestructive();
+            if (AreCoreReferencesResolved())
+            {
+                break;
+            }
+
+            yield return null;
+        }
+
+        bootstrapStage = BootstrapStage.Validation;
+        TutorialRuntimeRegistry.Instance?.LogRegistrationReport("IntroTapeController bootstrap");
+        Debug.Log($"[IntroTapeController] Binding snapshot: soundboardDoorGate={(soundboardDoorGate!=null?soundboardDoorGate.GetInstanceID().ToString():"null")}, exitDoor={(exitDoor!=null?exitDoor.GetInstanceID().ToString():"null")}, lightDoorGate={(lightDoorGate!=null?lightDoorGate.GetInstanceID().ToString():"null")}");
+        if (!AreCoreReferencesResolved())
+        {
+            Debug.LogError("[IntroTapeController] Bootstrap completed with unresolved core references.");
+        }
+
+        bootstrapStage = BootstrapStage.RuntimeBinding;
         ValidateSceneWiring();
         ValidateTutorialInteractionRules();
         BuildObjectivesIfMissing();
         CacheObjectiveLookup();
 
+        hasCompletedRuntimeBinding = AreCoreReferencesResolved();
+        LogRuntimeValidationReport();
+        bootstrapStage = BootstrapStage.TutorialStart;
         HorrorEvents.RaiseTutorialStarted();
         EnterStep(TutorialStep.CollectSoundboard, "Tutorial started");
         Debug.Log("Tutorial first active step: CollectSoundboard.");
     }
 
+    
+    void LogRuntimeValidationReport()
+    {
+        Debug.Log(
+            "[IntroTapeController] Runtime validation report
+" +
+            $"- bootstrapStage: {bootstrapStage}
+" +
+            $"- hasCompletedRuntimeBinding: {hasCompletedRuntimeBinding}
+" +
+            $"- objectiveDefinitions.count: {(objectiveDefinitions != null ? objectiveDefinitions.Count : -1)}
+" +
+            $"- soundboardDoorGate: {(soundboardDoorGate != null ? soundboardDoorGate.GetInstanceID().ToString() : "null")}
+" +
+            $"- soundboardUseDoor: {(soundboardUseDoor != null ? soundboardUseDoor.GetInstanceID().ToString() : "null")}
+" +
+            $"- corruptionDoor: {(corruptionDoor != null ? corruptionDoor.GetInstanceID().ToString() : "null")}
+" +
+            $"- lightDoorGate: {(lightDoorGate != null ? lightDoorGate.GetInstanceID().ToString() : "null")}
+" +
+            $"- chaseGate: {(chaseGate != null ? chaseGate.GetInstanceID().ToString() : "null")}
+" +
+            $"- sprintDoor: {(sprintDoor != null ? sprintDoor.GetInstanceID().ToString() : "null")}
+" +
+            $"- tutorialExitGate: {(tutorialExitGate != null ? tutorialExitGate.GetInstanceID().ToString() : "null")}
+" +
+            $"- exitDoor: {(exitDoor != null ? exitDoor.GetInstanceID().ToString() : "null")}" 
+        );
+    }
+
     void OnEnable()
     {
+        Debug.Log($"[IntroTapeController] OnEnable objectiveDefinitions.count={(objectiveDefinitions!=null?objectiveDefinitions.Count:-1)}");
         HorrorEvents.OnSoundboardCollected += OnSoundboardCollected;
         HorrorEvents.OnSoundboardUsed += OnSoundboardUsed;
         HorrorEvents.OnCorruptionChanged += OnCorruptionChanged;
@@ -167,36 +250,58 @@ public class IntroTapeController : MonoBehaviour
         }
     }
 
+    bool AreCoreReferencesResolved()
+    {
+        return soundboardDoorGate != null &&
+            soundboardUseDoor != null &&
+            corruptionDoor != null &&
+            lightDoorGate != null &&
+            chaseGate != null &&
+            sprintDoor != null &&
+            tutorialExitGate != null &&
+            soundboardPickup != null &&
+            tutorialLightSpot != null &&
+            exitDoor != null;
+    }
+
+    void ApplyRegistryReferencesNonDestructive()
+    {
+        TutorialRuntimeRegistry registry = TutorialRuntimeRegistry.Instance;
+        if (registry == null)
+        {
+            Debug.LogWarning("[IntroTapeController] ApplyRegistryReferences skipped: registry null.");
+            return;
+        }
+
+        TryBindRole(registry, TutorialRuntimeRole.SoundboardDoorGate, ref soundboardDoorGate);
+        TryBindRole(registry, TutorialRuntimeRole.SoundboardUseDoor, ref soundboardUseDoor);
+        TryBindRole(registry, TutorialRuntimeRole.CorruptionDoor, ref corruptionDoor);
+        TryBindRole(registry, TutorialRuntimeRole.LightDoorGate, ref lightDoorGate);
+        TryBindRole(registry, TutorialRuntimeRole.ChaseGate, ref chaseGate);
+        TryBindRole(registry, TutorialRuntimeRole.SprintDoor, ref sprintDoor);
+        TryBindRole(registry, TutorialRuntimeRole.TutorialExitGate, ref tutorialExitGate);
+        TryBindRole(registry, TutorialRuntimeRole.SoundboardPickup, ref soundboardPickup);
+        TryBindRole(registry, TutorialRuntimeRole.TutorialLightSpot, ref tutorialLightSpot);
+        TryBindRole(registry, TutorialRuntimeRole.ExitDoor, ref exitDoor);
+        TryBindRole(registry, TutorialRuntimeRole.VillainAI, ref villainAI);
+        TryBindRole(registry, TutorialRuntimeRole.EncounterManager, ref encounterManager);
+    }
+
+    void TryBindRole<T>(TutorialRuntimeRegistry registry, TutorialRuntimeRole role, ref T field) where T : UnityEngine.Object
+    {
+        if (registry.TryGet(role, out T resolved) && resolved != null)
+        {
+            field = resolved;
+        }
+    }
+
     void ResolveReferences()
     {
-        if (villainAI == null)
+        TutorialRuntimeRegistry registry = TutorialRuntimeRegistry.Instance;
+        if (registry != null)
         {
-            villainAI = FindObjectOfType<VillainAI>();
-        }
-
-        if (exitDoor == null)
-        {
-            exitDoor = FindObjectOfType<MazeExitDoor>();
-        }
-
-        if (tutorialLightSpot == null)
-        {
-            tutorialLightSpot = FindObjectOfType<SafeSpaceZone>();
-        }
-
-        if (soundboardPickup == null)
-        {
-            soundboardPickup = FindObjectOfType<SoundboardPickup>();
-        }
-
-        if (layoutGenerator == null)
-        {
-            layoutGenerator = FindObjectOfType<GuidedIntroMazeGenerator>();
-        }
-
-        if (encounterManager == null)
-        {
-            encounterManager = FindObjectOfType<EncounterManager>();
+            registry.Register(TutorialRuntimeRole.VillainAI, villainAI, "IntroTapeController.ResolveReferences");
+            registry.Register(TutorialRuntimeRole.EncounterManager, encounterManager, "IntroTapeController.ResolveReferences");
         }
     }
 
@@ -236,28 +341,25 @@ public class IntroTapeController : MonoBehaviour
 
     void BuildObjectivesIfMissing()
     {
+        Debug.Log($"[IntroTapeController] BuildObjectivesIfMissing enter count={(objectiveDefinitions!=null?objectiveDefinitions.Count:-1)}");
         if (objectiveDefinitions != null && objectiveDefinitions.Count > 0)
         {
+            Debug.Log("[IntroTapeController] BuildObjectivesIfMissing preserved serialized objectiveDefinitions.");
             return;
         }
 
-        objectiveDefinitions = new List<TutorialObjective>
-        {
-            new TutorialObjective { step = TutorialStep.StartDarkRoom, objectiveText = "Your thoughts are slipping.", timeoutSeconds = 8f, retryHintIntervalSeconds = 4f, completionEventKeys = new []{"auto_intro_done"} },
-            new TutorialObjective { step = TutorialStep.CollectSoundboard, objectiveText = "Take the Soundboard.", timeoutSeconds = 24f, retryHintIntervalSeconds = 4f, completionEventKeys = new []{"soundboard_collected"} },
-            new TutorialObjective { step = TutorialStep.UseSoundboard, objectiveText = "Use Soundboard [Q] to recover sanity.", timeoutSeconds = 18f, retryHintIntervalSeconds = 4f, completionEventKeys = new []{"soundboard_used"} },
-            new TutorialObjective { step = TutorialStep.ShowCorruption, objectiveText = "Corruption makes the maze unstable.", timeoutSeconds = 12f, retryHintIntervalSeconds = 4f, completionEventKeys = new []{"corruption_increase"} },
-            new TutorialObjective { step = TutorialStep.UseLightSpot, objectiveText = "Hold E — Hide in Light.", timeoutSeconds = 20f, retryHintIntervalSeconds = 4f, completionEventKeys = new []{"light_used"} },
-            new TutorialObjective { step = TutorialStep.IntroduceMonster, objectiveText = "Do not let it see you.", timeoutSeconds = 10f, retryHintIntervalSeconds = 4f, completionEventKeys = new []{"monster_chase_started"} },
-            new TutorialObjective { step = TutorialStep.HideFromMonster, objectiveText = "Hide in Light to break the chase.", timeoutSeconds = 20f, retryHintIntervalSeconds = 4f, completionEventKeys = new []{"monster_lost_player", "light_used"} },
-            new TutorialObjective { step = TutorialStep.TeachSprintRisk, objectiveText = "Running is loud.", timeoutSeconds = 12f, retryHintIntervalSeconds = 3f, completionEventKeys = new []{"sprint_started", "noise_created"} },
-            new TutorialObjective { step = TutorialStep.ExitToMainMaze, objectiveText = "Reach the exit.", timeoutSeconds = 30f, retryHintIntervalSeconds = 4f, completionEventKeys = new []{"exit_unlocked"} },
-        };
+        Debug.LogError("[IntroTapeController] objectiveDefinitions is empty. Serialized objective configuration must be authored and preserved; runtime fallback creation is disabled.");
     }
 
     void CacheObjectiveLookup()
     {
+        Debug.Log($"[IntroTapeController] CacheObjectiveLookup objectiveDefinitions.count={(objectiveDefinitions!=null?objectiveDefinitions.Count:-1)}");
         objectiveByStep.Clear();
+        if (objectiveDefinitions == null)
+        {
+            return;
+        }
+
         foreach (TutorialObjective objective in objectiveDefinitions)
         {
             objectiveByStep[objective.step] = objective;
