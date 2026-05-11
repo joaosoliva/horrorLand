@@ -24,6 +24,7 @@ public enum TutorialRuntimeRole
 public class TutorialRuntimeRegistry : MonoBehaviour
 {
     private readonly Dictionary<TutorialRuntimeRole, Object> entries = new Dictionary<TutorialRuntimeRole, Object>();
+    private readonly Dictionary<TutorialRuntimeRole, int> registrationCounts = new Dictionary<TutorialRuntimeRole, int>();
 
     public static TutorialRuntimeRegistry Instance { get; private set; }
 
@@ -40,14 +41,26 @@ public class TutorialRuntimeRegistry : MonoBehaviour
 
     public void Register(TutorialRuntimeRole role, Object value)
     {
+        Register(role, value, "unknown");
+    }
+
+    public void Register(TutorialRuntimeRole role, Object value, string source)
+    {
         if (value == null)
         {
             return;
         }
 
+        int nextCount = registrationCounts.TryGetValue(role, out int count) ? count + 1 : 1;
+        registrationCounts[role] = nextCount;
+        if (nextCount > 1)
+        {
+            Debug.LogError("[TutorialRuntimeRegistry] Duplicate semantic registration: role=" + role + ", count=" + nextCount + ", source=" + source);
+        }
+
         if (entries.TryGetValue(role, out Object existing) && existing != null && existing != value)
         {
-            Debug.LogWarning("[TutorialRuntimeRegistry] Role reassigned: " + role + " from " + existing.name + " to " + value.name);
+            Debug.LogWarning("[TutorialRuntimeRegistry] Role reassigned: " + role + " from " + existing.name + " to " + value.name + " via " + source);
         }
 
         entries[role] = value;
@@ -108,7 +121,8 @@ public class TutorialRuntimeRegistry : MonoBehaviour
         sb.AppendLine("[TutorialRuntimeRegistry] Registration report: " + context);
         foreach (var pair in entries)
         {
-            sb.AppendLine(" - " + pair.Key + " => " + (pair.Value != null ? pair.Value.name : "null"));
+            int count = registrationCounts.TryGetValue(pair.Key, out int roleCount) ? roleCount : 0;
+            sb.AppendLine(" - " + pair.Key + " => " + (pair.Value != null ? pair.Value.name : "null") + ", registrations=" + count);
         }
 
         if (!ValidateRequiredRoles(out string missingReport))

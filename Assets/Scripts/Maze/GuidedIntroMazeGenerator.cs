@@ -114,11 +114,11 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
         TutorialRuntimeRegistry registry = TutorialRuntimeRegistry.Instance;
         if (registry != null)
         {
-            registry.Register(TutorialRuntimeRole.SoundboardPickup, context.soundboardPickup);
-            registry.Register(TutorialRuntimeRole.TutorialLightSpot, context.firstLightSpot);
-            registry.Register(TutorialRuntimeRole.MonsterSpawnPoint, context.monsterSpawnPoint);
-            registry.Register(TutorialRuntimeRole.MonsterRevealPoint, context.monsterRevealPoint);
-            registry.Register(TutorialRuntimeRole.MainMazeConnector, context.mainMazeConnector);
+            registry.Register(TutorialRuntimeRole.SoundboardPickup, context.soundboardPickup, "GuidedIntroMazeGenerator.PlaceTutorialPropsFromMazeCells");
+            registry.Register(TutorialRuntimeRole.TutorialLightSpot, context.firstLightSpot, "GuidedIntroMazeGenerator.PlaceTutorialPropsFromMazeCells");
+            registry.Register(TutorialRuntimeRole.MonsterSpawnPoint, context.monsterSpawnPoint, "GuidedIntroMazeGenerator.PlaceTutorialPropsFromMazeCells");
+            registry.Register(TutorialRuntimeRole.MonsterRevealPoint, context.monsterRevealPoint, "GuidedIntroMazeGenerator.PlaceTutorialPropsFromMazeCells");
+            registry.Register(TutorialRuntimeRole.MainMazeConnector, context.mainMazeConnector, "GuidedIntroMazeGenerator.PlaceTutorialPropsFromMazeCells");
         }
     }
 

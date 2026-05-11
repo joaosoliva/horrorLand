@@ -267,8 +267,8 @@ public class IntroTapeController : MonoBehaviour
         TutorialRuntimeRegistry registry = TutorialRuntimeRegistry.Instance;
         if (registry != null)
         {
-            registry.Register(TutorialRuntimeRole.VillainAI, villainAI);
-            registry.Register(TutorialRuntimeRole.EncounterManager, encounterManager);
+            registry.Register(TutorialRuntimeRole.VillainAI, villainAI, "IntroTapeController.ResolveReferences");
+            registry.Register(TutorialRuntimeRole.EncounterManager, encounterManager, "IntroTapeController.ResolveReferences");
         }
     }
 

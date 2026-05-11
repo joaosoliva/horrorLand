@@ -823,13 +823,13 @@ public class MazeGenerator : MonoBehaviour
 			return;
 		}
 
-		if (doorId == "Door_SoundboardPickupExit") registry.Register(TutorialRuntimeRole.SoundboardDoorGate, door);
-		else if (doorId == "Door_SoundboardUseExit") registry.Register(TutorialRuntimeRole.SoundboardUseDoor, door);
-		else if (doorId == "Door_CorruptionExit") registry.Register(TutorialRuntimeRole.CorruptionDoor, door);
-		else if (doorId == "Door_LightSpotExit") registry.Register(TutorialRuntimeRole.LightDoorGate, door);
-		else if (doorId == "Door_HideChamberExit") registry.Register(TutorialRuntimeRole.ChaseGate, door);
-		else if (doorId == "Door_SprintExit") registry.Register(TutorialRuntimeRole.SprintDoor, door);
-		else if (doorId == "Door_TutorialFinalExit") registry.Register(TutorialRuntimeRole.TutorialExitGate, door);
+		if (doorId == "Door_SoundboardPickupExit") registry.Register(TutorialRuntimeRole.SoundboardDoorGate, door, "MazeGenerator.RegisterTutorialDoorRole");
+		else if (doorId == "Door_SoundboardUseExit") registry.Register(TutorialRuntimeRole.SoundboardUseDoor, door, "MazeGenerator.RegisterTutorialDoorRole");
+		else if (doorId == "Door_CorruptionExit") registry.Register(TutorialRuntimeRole.CorruptionDoor, door, "MazeGenerator.RegisterTutorialDoorRole");
+		else if (doorId == "Door_LightSpotExit") registry.Register(TutorialRuntimeRole.LightDoorGate, door, "MazeGenerator.RegisterTutorialDoorRole");
+		else if (doorId == "Door_HideChamberExit") registry.Register(TutorialRuntimeRole.ChaseGate, door, "MazeGenerator.RegisterTutorialDoorRole");
+		else if (doorId == "Door_SprintExit") registry.Register(TutorialRuntimeRole.SprintDoor, door, "MazeGenerator.RegisterTutorialDoorRole");
+		else if (doorId == "Door_TutorialFinalExit") registry.Register(TutorialRuntimeRole.TutorialExitGate, door, "MazeGenerator.RegisterTutorialDoorRole");
 	}
 
 	void CreateBlueprintStageDoors()
@@ -1412,7 +1412,7 @@ public class MazeGenerator : MonoBehaviour
 		exitTriggerCollider.center = new Vector3(0f, fullDoorHeight / 2f, 0f);
 
 		MazeExitDoor exitDoor = exitDoorRoot.AddComponent<MazeExitDoor>();
-		TutorialRuntimeRegistry.Instance?.Register(TutorialRuntimeRole.ExitDoor, exitDoor);
+		TutorialRuntimeRegistry.Instance?.Register(TutorialRuntimeRole.ExitDoor, exitDoor, "MazeGenerator.CreateExitDoor");
 	}
 
 	void CreateExitWallFrame(Transform doorRoot, float doorWidth, float doorHeight, float frameThickness)
