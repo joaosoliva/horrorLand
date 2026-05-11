@@ -77,8 +77,10 @@ public class IntroTapeController : MonoBehaviour
 
     System.Collections.IEnumerator BootstrapTutorialRuntime()
     {
+        Debug.Log($"[IntroTapeController] BootstrapTutorialRuntime begin frame={Time.frameCount}");
         ResolveReferences();
 
+        Debug.Log($"[IntroTapeController] layoutGenerator assigned={(layoutGenerator!=null)}");
         if (layoutGenerator != null)
         {
             TutorialLayoutContext generated = layoutGenerator.GenerateLayout();

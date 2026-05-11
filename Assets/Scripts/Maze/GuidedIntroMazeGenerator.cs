@@ -21,6 +21,7 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
     public IntroTapeController tutorialController;
 
     private readonly List<GameObject> generatedObjects = new List<GameObject>();
+    private static int globalLayoutRequests = 0;
     private TutorialLayoutContext generatedContext;
 
     public TutorialLayoutContext GeneratedContext => generatedContext;
@@ -34,6 +35,8 @@ public class GuidedIntroMazeGenerator : MonoBehaviour
 
     public TutorialLayoutContext GenerateLayout()
     {
+        int requestId = ++globalLayoutRequests;
+        Debug.Log($"[GuidedIntroMazeGenerator] GenerateLayout request={requestId}, frame={Time.frameCount}");
         ResolveReferences();
         MazeGenerator mazeGenerator = FindObjectOfType<MazeGenerator>();
         if (mazeGenerator == null)

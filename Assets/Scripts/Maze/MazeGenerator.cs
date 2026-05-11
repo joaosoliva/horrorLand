@@ -62,6 +62,8 @@ public class MazeGenerator : MonoBehaviour
 	public bool debugDoorOrientation = false;
 	public float debugDoorRayLength = 1.5f;
 	private readonly List<DoorBoundaryWorldPose> debugDoorPoses = new List<DoorBoundaryWorldPose>();
+	private static int globalGenerationSequence = 0;
+	private int activeGenerationId = -1;
 	public bool runDoorValidationAfterGeneration = true;
 	public float doorAlignmentTolerance = 0.02f;
 	public float doorDirectionToleranceDot = 0.98f;
@@ -95,6 +97,8 @@ public class MazeGenerator : MonoBehaviour
 
 	void Start()
 	{
+		activeGenerationId = ++globalGenerationSequence;
+		Debug.Log($"[MazeGenerator] Start generation pass id={activeGenerationId}, useTutorialBlueprint={useTutorialBlueprint}, frame={Time.frameCount}");
 		ApplySharedGenerationConfig();
 		CreateMaterials();
 		if (useTutorialBlueprint)
@@ -164,6 +168,8 @@ public class MazeGenerator : MonoBehaviour
 
 	public void GenerateGuidedIntroMazeAndBuild(MazeBlueprintData tutorialLayout)
 	{
+		activeGenerationId = ++globalGenerationSequence;
+		Debug.Log($"[MazeGenerator] GenerateGuidedIntroMazeAndBuild pass id={activeGenerationId}, caller frame={Time.frameCount}");
 		// Single-source tutorial geometry path: topology data -> shared MazeGenerator geometry pipeline.
 		if (tutorialLayout == null)
 		{
@@ -807,6 +813,7 @@ public class MazeGenerator : MonoBehaviour
 
 	void CreateBlueprintStageDoors()
 	{
+		Debug.Log($"[MazeGenerator] CreateBlueprintStageDoors pass id={activeGenerationId}, edgeCount={(activeBlueprint!=null&&activeBlueprint.edges!=null?activeBlueprint.edges.Count:0)}");
 		if (debugDoorOrientation)
 		{
 			debugDoorPoses.Clear();
@@ -846,6 +853,7 @@ public class MazeGenerator : MonoBehaviour
 			string boundaryDirection = Mathf.Abs(delta.x) > Mathf.Abs(delta.y) ? "East/West" : "North/South";
 
 			GameObject door = CreateDoubleDoorForBlueprint(transform, request.doorId, pose.position, pose.normalDirection, pose.boundaryAxis);
+			Debug.Log($"[MazeGenerator] Door spawned id={request.doorId}, genPass={activeGenerationId}, position={pose.position}");
 			RegisterTutorialDoorRole(request.doorId, door);
 			BoxCollider blocker = door != null ? door.GetComponent<BoxCollider>() : null;
 			DoorTrigger doorTrigger = door != null ? door.GetComponent<DoorTrigger>() : null;
