@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Text;
-using System.Diagnostics;
 using UnityEngine;
 
 public enum TutorialRuntimeRole
@@ -59,7 +58,7 @@ public class TutorialRuntimeRegistry : MonoBehaviour
         registrationCounts[role] = nextCount;
         if (nextCount > 1)
         {
-            Debug.LogError("[TutorialRuntimeRegistry] Duplicate semantic registration: role=" + role + ", count=" + nextCount + ", source=" + source + ", instanceId=" + instanceId + ", path=" + hierarchyPath + ", t=" + t + "\nStack:" + new StackTrace(1, true));
+            Debug.LogError("[TutorialRuntimeRegistry] Duplicate semantic registration: role=" + role + ", count=" + nextCount + ", source=" + source + ", instanceId=" + instanceId + ", path=" + hierarchyPath + ", t=" + t + "\nStack:" + new System.Diagnostics.StackTrace(1, true));
         }
 
         if (entries.TryGetValue(role, out Object existing) && existing != null && existing != value)
