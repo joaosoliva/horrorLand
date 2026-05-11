@@ -120,6 +120,24 @@ public class TutorialRuntimeRegistry : MonoBehaviour
         return valid;
     }
 
+
+    public bool ValidateUniqueRegistrations(out string report)
+    {
+        StringBuilder sb = new StringBuilder();
+        bool valid = true;
+        foreach (var pair in registrationCounts)
+        {
+            if (pair.Value > 1)
+            {
+                valid = false;
+                sb.AppendLine("Duplicate role registration: " + pair.Key + " count=" + pair.Value);
+            }
+        }
+
+        report = sb.ToString();
+        return valid;
+    }
+
     public void LogRegistrationReport(string context)
     {
         StringBuilder sb = new StringBuilder();
@@ -138,7 +156,16 @@ public class TutorialRuntimeRegistry : MonoBehaviour
             return;
         }
 
+        if (!ValidateUniqueRegistrations(out string duplicateReport))
+        {
+            sb.AppendLine("Unique registration validation failed:");
+            sb.Append(duplicateReport);
+            Debug.LogError(sb.ToString());
+            return;
+        }
+
         sb.AppendLine("Required role validation passed.");
+        sb.AppendLine("Unique registration validation passed.");
         Debug.Log(sb.ToString());
     }
 

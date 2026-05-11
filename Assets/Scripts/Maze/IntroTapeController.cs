@@ -109,6 +109,11 @@ public class IntroTapeController : MonoBehaviour
 
         TutorialRuntimeRegistry.Instance?.LogRegistrationReport("IntroTapeController bootstrap");
         Debug.Log($"[IntroTapeController] Binding snapshot: soundboardDoorGate={(soundboardDoorGate!=null?soundboardDoorGate.GetInstanceID().ToString():"null")}, exitDoor={(exitDoor!=null?exitDoor.GetInstanceID().ToString():"null")}, lightDoorGate={(lightDoorGate!=null?lightDoorGate.GetInstanceID().ToString():"null")}");
+        if (!AreCoreReferencesResolved())
+        {
+            Debug.LogError("[IntroTapeController] Bootstrap completed with unresolved core references.");
+        }
+
         ValidateSceneWiring();
         ValidateTutorialInteractionRules();
         BuildObjectivesIfMissing();
